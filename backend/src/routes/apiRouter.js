@@ -1,0 +1,49 @@
+import { Router } from "express";
+
+import { adminRouter } from "../modules/admin/admin.routes.js";
+import { auditLogsRouter } from "../modules/auditLogs/auditLogs.routes.js";
+import { authRouter } from "../modules/auth/auth.routes.js";
+import { bidsRouter } from "../modules/bids/bids.routes.js";
+import { businessVerificationRouter } from "../modules/businessVerification/businessVerification.routes.js";
+import { geoMatchingRouter } from "../modules/geoMatching/geoMatching.routes.js";
+import { kycRouter } from "../modules/kyc/kyc.routes.js";
+import { listingsRouter } from "../modules/listings/listings.routes.js";
+import { mediaRouter } from "../modules/media/media.routes.js";
+import { notificationsRouter } from "../modules/notifications/notifications.routes.js";
+import { securityFraudRouter } from "../modules/securityFraud/securityFraud.routes.js";
+import { usersRouter } from "../modules/users/users.routes.js";
+
+export const apiRouter = Router();
+
+apiRouter.get("/status", (_request, response) => {
+  response.status(200).json({
+    status: "ok",
+    modules: [
+      "auth",
+      "users",
+      "kyc",
+      "business-verification",
+      "listings",
+      "bids",
+      "notifications",
+      "geo-matching",
+      "admin",
+      "media",
+      "audit-logs",
+      "security-fraud",
+    ],
+  });
+});
+
+apiRouter.use("/auth", authRouter);
+apiRouter.use("/users", usersRouter);
+apiRouter.use("/kyc", kycRouter);
+apiRouter.use("/business-verification", businessVerificationRouter);
+apiRouter.use("/listings", listingsRouter);
+apiRouter.use("/bids", bidsRouter);
+apiRouter.use("/notifications", notificationsRouter);
+apiRouter.use("/geo-matching", geoMatchingRouter);
+apiRouter.use("/admin", adminRouter);
+apiRouter.use("/media", mediaRouter);
+apiRouter.use("/audit-logs", auditLogsRouter);
+apiRouter.use("/security-fraud", securityFraudRouter);
