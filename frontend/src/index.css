@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --gw-color-cream: #fdfcf9;
+  --gw-color-green: #1a362d;
+  --gw-color-green-soft: #2c4c41;
+  --gw-color-gold: #d19c4c;
+  --gw-color-copper: #a65a49;
+  --gw-color-muted: #4a5a53;
+  --gw-color-border: #e2dfd8;
+}
+
+body {
+  background: var(--gw-color-cream);
+  color: var(--gw-color-green);
+  font-family: "Outfit", system-ui, sans-serif;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 18s linear infinite;
+}
