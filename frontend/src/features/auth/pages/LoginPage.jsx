@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
@@ -22,6 +22,7 @@ import {
   validateLoginOtpSendForm,
   validateLoginOtpVerifyForm,
 } from "@/features/auth/utils/authValidation";
+import { getPostAuthRedirectPath } from "@/features/auth/utils/postAuthRedirect";
 
 const authMethods = [
   { value: AUTH_METHODS.email, label: "Email" },
@@ -41,6 +42,7 @@ const initialOtpValues = {
 
 export default function LoginPage() {
   const { setAuthSession } = useAuth();
+  const navigate = useNavigate();
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
   const [emailValues, setEmailValues] = useState(initialEmailValues);
   const [otpValues, setOtpValues] = useState(initialOtpValues);
@@ -77,6 +79,8 @@ export default function LoginPage() {
           user: result.data.user,
           accessToken: result.data.accessToken,
         });
+        navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
+        return;
       }
       setStatusMessage(successMessage);
     } catch (error) {
@@ -101,7 +105,7 @@ export default function LoginPage() {
           email: emailValues.email.trim(),
           password: emailValues.password,
         }),
-      "Login successful. Role-based redirect can be wired next.",
+      "Login successful.",
     );
   }
 
@@ -136,7 +140,7 @@ export default function LoginPage() {
           phone: otpValues.phone.trim(),
           otp: otpValues.otp.trim(),
         }),
-      "OTP verified. Role-based redirect can be wired next.",
+      "OTP verified.",
     );
   }
 

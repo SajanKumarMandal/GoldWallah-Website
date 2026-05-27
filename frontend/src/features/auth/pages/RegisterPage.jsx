@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
@@ -28,6 +28,7 @@ import {
   validateRegisterOtpVerifyForm,
   validateSocialRegisterForm,
 } from "@/features/auth/utils/authValidation";
+import { getPostAuthRedirectPath } from "@/features/auth/utils/postAuthRedirect";
 
 const authMethods = [
   { value: AUTH_METHODS.email, label: "Email" },
@@ -47,6 +48,7 @@ const initialValues = {
 
 export default function RegisterPage() {
   const { setAuthSession } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialRole = useMemo(() => {
     const requestedRole = searchParams.get("role");
@@ -94,6 +96,8 @@ export default function RegisterPage() {
           user: result.data.user,
           accessToken: result.data.accessToken,
         });
+        navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
+        return;
       }
       setStatusMessage(successMessage);
     } catch (error) {
@@ -121,7 +125,7 @@ export default function RegisterPage() {
           password: values.password,
           role: values.role,
         }),
-      "Registration successful. Verification can be wired next.",
+      "Registration successful.",
     );
   }
 
@@ -158,7 +162,7 @@ export default function RegisterPage() {
           role: values.role,
           otp: values.otp.trim(),
         }),
-      "Account created with phone verification. Role-based redirect can be wired next.",
+      "Account created with phone verification.",
     );
   }
 
