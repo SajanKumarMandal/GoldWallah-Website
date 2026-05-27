@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
+import { useAuth } from "@/features/auth/context/useAuth";
 import AuthCard from "@/features/auth/components/AuthCard";
 import AuthInput from "@/features/auth/components/AuthInput";
 import AuthLayout from "@/features/auth/components/AuthLayout";
@@ -39,6 +40,7 @@ const initialOtpValues = {
 };
 
 export default function LoginPage() {
+  const { setAuthUser } = useAuth();
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
   const [emailValues, setEmailValues] = useState(initialEmailValues);
   const [otpValues, setOtpValues] = useState(initialOtpValues);
@@ -69,7 +71,10 @@ export default function LoginPage() {
     setStatusMessage("");
 
     try {
-      await action();
+      const result = await action();
+      if (result?.data?.user) {
+        setAuthUser(result.data.user);
+      }
       setStatusMessage(successMessage);
     } catch (error) {
       setStatusMessage(error.message || "Unable to complete request. Please try again.");

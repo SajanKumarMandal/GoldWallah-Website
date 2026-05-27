@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
+import { useAuth } from "@/features/auth/context/useAuth";
 import AuthCard from "@/features/auth/components/AuthCard";
 import AuthInput from "@/features/auth/components/AuthInput";
 import AuthLayout from "@/features/auth/components/AuthLayout";
@@ -45,6 +46,7 @@ const initialValues = {
 };
 
 export default function RegisterPage() {
+  const { setAuthUser } = useAuth();
   const [searchParams] = useSearchParams();
   const initialRole = useMemo(() => {
     const requestedRole = searchParams.get("role");
@@ -86,7 +88,10 @@ export default function RegisterPage() {
     setStatusMessage("");
 
     try {
-      await action();
+      const result = await action();
+      if (result?.data?.user) {
+        setAuthUser(result.data.user);
+      }
       setStatusMessage(successMessage);
     } catch (error) {
       setStatusMessage(error.message || "Unable to complete request. Please try again.");
