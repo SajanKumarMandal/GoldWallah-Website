@@ -4,7 +4,9 @@ function buildUrl(path, query) {
   const baseUrl = env.apiBaseUrl.startsWith("http")
     ? env.apiBaseUrl
     : `${window.location.origin}${env.apiBaseUrl}`;
-  const url = new URL(path, baseUrl);
+  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+  const url = new URL(normalizedPath, normalizedBaseUrl);
 
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
@@ -32,7 +34,10 @@ export async function apiRequest(path, options = {}) {
   const body = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message = isJson && body?.message ? body.message : "Request failed";
+    const message =
+      isJson && (body?.message || body?.error?.message)
+        ? body.message || body.error.message
+        : "Request failed";
     throw new Error(message);
   }
 

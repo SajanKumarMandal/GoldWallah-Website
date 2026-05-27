@@ -7,11 +7,15 @@ export function errorHandler(error, request, response, _next) {
     ? error.statusCode
     : 500;
 
+  const message = statusCode === 500 ? "Internal server error" : error.message;
+
   response.status(statusCode).json({
+    message,
     error: {
-      message: statusCode === 500 ? "Internal server error" : error.message,
+      message,
       code: error.code || "INTERNAL_ERROR",
       requestId: request.id,
+      ...(error.details ? { details: error.details } : {}),
       ...(env.isProduction ? {} : { stack: error.stack }),
     },
   });

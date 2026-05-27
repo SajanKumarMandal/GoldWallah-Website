@@ -3,7 +3,7 @@ const requiredEnv = {
 };
 
 export const env = {
-  apiBaseUrl: requiredEnv.apiBaseUrl || "/api",
+  apiBaseUrl: requiredEnv.apiBaseUrl || "http://localhost:5000/api/v1",
   appName: import.meta.env.VITE_APP_NAME || "GoldWallah",
 };
 
