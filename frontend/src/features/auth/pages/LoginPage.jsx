@@ -40,7 +40,7 @@ const initialOtpValues = {
 };
 
 export default function LoginPage() {
-  const { setAuthUser } = useAuth();
+  const { setAuthSession } = useAuth();
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
   const [emailValues, setEmailValues] = useState(initialEmailValues);
   const [otpValues, setOtpValues] = useState(initialOtpValues);
@@ -73,7 +73,10 @@ export default function LoginPage() {
     try {
       const result = await action();
       if (result?.data?.user) {
-        setAuthUser(result.data.user);
+        setAuthSession({
+          user: result.data.user,
+          accessToken: result.data.accessToken,
+        });
       }
       setStatusMessage(successMessage);
     } catch (error) {

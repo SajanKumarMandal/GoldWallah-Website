@@ -46,7 +46,7 @@ const initialValues = {
 };
 
 export default function RegisterPage() {
-  const { setAuthUser } = useAuth();
+  const { setAuthSession } = useAuth();
   const [searchParams] = useSearchParams();
   const initialRole = useMemo(() => {
     const requestedRole = searchParams.get("role");
@@ -90,7 +90,10 @@ export default function RegisterPage() {
     try {
       const result = await action();
       if (result?.data?.user) {
-        setAuthUser(result.data.user);
+        setAuthSession({
+          user: result.data.user,
+          accessToken: result.data.accessToken,
+        });
       }
       setStatusMessage(successMessage);
     } catch (error) {

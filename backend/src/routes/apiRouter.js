@@ -5,6 +5,10 @@ import { auditLogsRouter } from "../modules/auditLogs/auditLogs.routes.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { bidsRouter } from "../modules/bids/bids.routes.js";
 import { businessVerificationRouter } from "../modules/businessVerification/businessVerification.routes.js";
+import {
+  jewellerDashboardRouter,
+  sellerDashboardRouter,
+} from "../modules/dashboard/dashboard.routes.js";
 import { geoMatchingRouter } from "../modules/geoMatching/geoMatching.routes.js";
 import { kycRouter } from "../modules/kyc/kyc.routes.js";
 import { listingsRouter } from "../modules/listings/listings.routes.js";
@@ -37,6 +41,8 @@ apiRouter.get("/status", (_request, response) => {
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);
+apiRouter.use("/seller", sellerDashboardRouter);
+apiRouter.use("/jeweller", jewellerDashboardRouter);
 apiRouter.use("/kyc", kycRouter);
 apiRouter.use("/business-verification", businessVerificationRouter);
 apiRouter.use("/listings", listingsRouter);
