@@ -37,10 +37,29 @@ export default function SellerKycPage() {
     let isMounted = true;
 
     async function loadKyc() {
+      if (!accessToken) {
+        setKycPayload(null);
+        setErrorMessage("Please login again.");
+        setIsLoading(false);
+        if (import.meta.env.DEV) {
+          console.warn("Seller KYC fetch skipped", {
+            reason: "missing_access_token",
+            hasUser: Boolean(userRef.current),
+          });
+        }
+        return;
+      }
+
       setIsLoading(true);
       setErrorMessage("");
 
       try {
+        if (import.meta.env.DEV) {
+          console.debug("Seller KYC fetch started", {
+            hasAccessToken: Boolean(accessToken),
+          });
+        }
+
         const result = await getMySellerKyc(accessToken);
 
         if (!isMounted) {
@@ -76,11 +95,28 @@ export default function SellerKycPage() {
   const canSubmit = status === KYC_STATUS.notSubmitted || status === KYC_STATUS.rejected;
 
   async function handleSubmit(formData) {
+    if (!accessToken) {
+      const message = "Please login again.";
+      setErrorMessage(message);
+      if (import.meta.env.DEV) {
+        console.warn("Seller KYC submit blocked", { reason: "missing_access_token" });
+      }
+      throw new Error(message);
+    }
+
     setIsSubmitting(true);
     setErrorMessage("");
     setStatusMessage("");
 
     try {
+      if (import.meta.env.DEV) {
+        console.debug("Seller KYC submit started", {
+          formDataKeys: Array.from(formData.keys()),
+          hasSelfieImage: formData.get("selfieImage") instanceof File,
+          hasSelfieCapturedAt: Boolean(formData.get("selfieCapturedAt")),
+        });
+      }
+
       const result = await submitSellerKyc(formData, accessToken);
       setKycPayload(result?.data || null);
       setStatusMessage("Your KYC has been submitted for verification.");
@@ -90,13 +126,18 @@ export default function SellerKycPage() {
         setAuthUser({ ...userRef.current, kycStatus: result.data.kycStatus });
       }
     } catch (error) {
-      setErrorMessage(error.message || "Unable to submit seller KYC.");
+      const message =
+        error.status === 401
+          ? "Please login again."
+          : error.message || "Unable to submit seller KYC.";
+      setErrorMessage(message);
       if (import.meta.env.DEV) {
         console.warn("Seller KYC submit failed", {
+          status: error.status,
           message: error.message,
         });
       }
-      throw error;
+      throw new Error(message, { cause: error });
     } finally {
       setIsSubmitting(false);
     }
@@ -119,9 +160,17 @@ export default function SellerKycPage() {
       )}
 
       {errorMessage ? (
-        <p className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper)">
-          {errorMessage}
-        </p>
+        <div className="flex flex-col gap-3 rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper) sm:flex-row sm:items-center sm:justify-between">
+          <span>{errorMessage}</span>
+          {errorMessage === "Please login again." ? (
+            <Link
+              to={ROUTES.login}
+              className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:bg-(--gw-color-cream)"
+            >
+              Login
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
       {statusMessage ? (

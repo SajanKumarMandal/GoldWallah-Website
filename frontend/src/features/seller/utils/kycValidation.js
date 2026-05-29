@@ -65,8 +65,8 @@ export function buildSellerKycFormData(values) {
   formData.append("addressAsPerAadhaar", values.addressAsPerAadhaar.trim());
   formData.append("aadhaarNumber", values.aadhaarNumber);
   formData.append("panNumber", values.panNumber);
-  formData.append("selfieImage", values.selfieImage);
   formData.append("selfieCapturedAt", values.selfieCapturedAt);
+  formData.append("selfieImage", values.selfieImage);
 
   return formData;
 }

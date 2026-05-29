@@ -48,6 +48,14 @@ if (
   process.exit(1);
 }
 
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  !parsedEnv.data.JWT_ACCESS_SECRET
+) {
+  console.error("Missing required environment variable: JWT_ACCESS_SECRET");
+  process.exit(1);
+}
+
 export const env = {
   nodeEnv: parsedEnv.data.NODE_ENV,
   port: parsedEnv.data.PORT,

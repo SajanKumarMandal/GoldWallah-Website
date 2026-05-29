@@ -193,6 +193,14 @@ export default function SellerDashboardPage() {
       <DashboardSection
         title="Recent activity"
         description="Listing updates, verification events, and bid activity will be summarized here."
+        action={
+          <Link
+            to={ROUTES.sellerListings}
+            className="inline-flex h-10 items-center justify-center rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold)"
+          >
+            My Listings
+          </Link>
+        }
       >
         {dashboard?.recentActivity?.length ? (
           <div className="space-y-3">

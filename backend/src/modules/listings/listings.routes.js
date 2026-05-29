@@ -1,29 +1,19 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import * as listingsController from "./listings.controller.js";
 
 export const listingsRouter = Router();
 
-function createListingGuard(request, _response, next) {
-  if (request.user?.kycStatus !== "APPROVED") {
-    const error = new Error("KYC approval is required before listing gold.");
-    error.statusCode = 403;
-    error.code = "KYC_REQUIRED";
-    next(error);
-    return;
-  }
-
-  next();
-}
-
 listingsRouter.get("/", (_request, response) => {
+  // TODO: Add public jeweller discovery endpoints separately from seller-owned APIs.
   response.status(200).json({
     module: "listings",
-    status: "planned",
+    status: "ready",
     capabilities: [
       "seller gold listings",
       "KYC-gated creation",
-      "cursor pagination",
+      "seller-owned listing management",
     ],
   });
 });
@@ -32,15 +22,35 @@ listingsRouter.post(
   "/",
   authenticate,
   requireRole("SELLER"),
-  createListingGuard,
-  (_request, response) => {
-    // TODO: Implement listing creation after the listings module is built.
-    response.status(501).json({
-      message: "Listing creation is not implemented yet",
-      error: {
-        message: "Listing creation is not implemented yet",
-        code: "NOT_IMPLEMENTED",
-      },
-    });
-  },
+  listingsController.uploadListingImages,
+  listingsController.createListing,
+);
+
+listingsRouter.get(
+  "/my",
+  authenticate,
+  requireRole("SELLER"),
+  listingsController.myListings,
+);
+
+listingsRouter.get(
+  "/:listingId",
+  authenticate,
+  requireRole("SELLER"),
+  listingsController.listingDetail,
+);
+
+listingsRouter.patch(
+  "/:listingId/cancel",
+  authenticate,
+  requireRole("SELLER"),
+  listingsController.cancelListing,
+);
+
+listingsRouter.patch(
+  "/:listingId",
+  authenticate,
+  requireRole("SELLER"),
+  listingsController.uploadListingImages,
+  listingsController.updateListing,
 );

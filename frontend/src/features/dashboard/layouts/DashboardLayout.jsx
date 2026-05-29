@@ -6,6 +6,8 @@ import {
   Home,
   LogOut,
   Menu,
+  PackageOpen,
+  PlusCircle,
   ShieldCheck,
   UserCircle,
   X,
@@ -23,6 +25,8 @@ const navByRole = {
   [USER_ROLES.seller]: [
     { to: ROUTES.sellerDashboard, label: "Dashboard", icon: Home },
     { to: ROUTES.sellerKyc, label: "KYC", icon: ShieldCheck },
+    { to: ROUTES.sellerListings, label: "My Listings", icon: PackageOpen },
+    { to: ROUTES.sellerNewListing, label: "Create Listing", icon: PlusCircle },
   ],
   [USER_ROLES.jeweller]: [
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },

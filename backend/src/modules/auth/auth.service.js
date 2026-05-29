@@ -58,6 +58,14 @@ async function createAuthResponse(user, message, client) {
     role: safeUser.role,
   };
 
+  if (!env.jwtAccessSecret && env.nodeEnv !== "test") {
+    throw createError(
+      "Authentication is not configured",
+      500,
+      "AUTH_NOT_CONFIGURED",
+    );
+  }
+
   const accessToken = env.jwtAccessSecret
     ? jwt.sign(tokenPayload, env.jwtAccessSecret, {
         expiresIn: env.jwtAccessExpiresIn,

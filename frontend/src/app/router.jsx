@@ -16,8 +16,14 @@ const SellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/SellerDashboardPage"),
 );
 const SellerKycPage = lazy(() => import("@/features/seller/pages/SellerKycPage"));
-const SellerListingGatePage = lazy(
-  () => import("@/features/seller/pages/SellerListingGatePage"),
+const SellerListingsPage = lazy(
+  () => import("@/features/seller/pages/SellerListingsPage"),
+);
+const CreateListingPage = lazy(
+  () => import("@/features/seller/pages/CreateListingPage"),
+);
+const SellerListingDetailPage = lazy(
+  () => import("@/features/seller/pages/SellerListingDetailPage"),
 );
 const AdminKycListPage = lazy(
   () => import("@/features/admin/pages/AdminKycListPage"),
@@ -62,8 +68,16 @@ export default function AppRouter() {
                   element={<SellerDashboardPage />}
                 />
                 <Route
+                  path={ROUTES.sellerListings}
+                  element={<SellerListingsPage />}
+                />
+                <Route
                   path={ROUTES.sellerNewListing}
-                  element={<SellerListingGatePage />}
+                  element={<CreateListingPage />}
+                />
+                <Route
+                  path={ROUTES.sellerListingDetail}
+                  element={<SellerListingDetailPage />}
                 />
               </Route>
             </Route>

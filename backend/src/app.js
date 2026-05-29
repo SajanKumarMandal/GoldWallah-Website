@@ -7,6 +7,7 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { securityMiddleware } from "./middleware/security.js";
 import { apiRouter } from "./routes/apiRouter.js";
 import { kycUploadsDir } from "./modules/kyc/kyc.upload.js";
+import { listingUploadsDir } from "./modules/listings/listings.upload.js";
 
 export function createApp() {
   const app = express();
@@ -28,6 +29,16 @@ export function createApp() {
   app.use(
     "/uploads/kyc",
     express.static(kycUploadsDir, {
+      dotfiles: "deny",
+      fallthrough: false,
+      index: false,
+      redirect: false,
+    }),
+  );
+
+  app.use(
+    "/uploads/listings",
+    express.static(listingUploadsDir, {
       dotfiles: "deny",
       fallthrough: false,
       index: false,

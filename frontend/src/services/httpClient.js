@@ -39,7 +39,10 @@ export async function apiRequest(path, options = {}) {
       isJson && (body?.message || body?.error?.message)
         ? body.message || body.error.message
         : "Request failed";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.details = isJson ? body?.error?.details : undefined;
+    throw error;
   }
 
   return body;

@@ -26,6 +26,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
     addressAsPerAadhaar: initialDetails?.addressAsPerAadhaar || "",
   });
   const [errors, setErrors] = useState({});
+  const [formMessage, setFormMessage] = useState("");
   const [selfieResetKey, setSelfieResetKey] = useState(0);
   const selfiePreviewUrlRef = useRef("");
 
@@ -43,6 +44,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
       [name]: normalizeKycField(name, value),
     }));
     setErrors((currentErrors) => ({ ...currentErrors, [name]: "" }));
+    setFormMessage("");
   }
 
   function clearSelfiePreviewUrl(nextPreviewUrl = "") {
@@ -66,6 +68,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
       selfieCapturedAt: file ? capturedAt : "",
     }));
     setErrors((currentErrors) => ({ ...currentErrors, selfieImage: "" }));
+    setFormMessage("");
   }
 
   async function handleSubmit(event) {
@@ -74,12 +77,20 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
+      setFormMessage("Please fix the highlighted KYC details before submitting.");
+      if (import.meta.env.DEV) {
+        console.debug("Seller KYC validation failed", {
+          fields: Object.keys(nextErrors),
+        });
+      }
       return;
     }
 
     try {
+      setFormMessage("");
       await onSubmit(buildSellerKycFormData(values));
-    } catch {
+    } catch (error) {
+      setFormMessage(error.message || "Unable to submit seller KYC.");
       return;
     }
 
@@ -97,6 +108,12 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      {formMessage ? (
+        <p className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper)">
+          {formMessage}
+        </p>
+      ) : null}
+
       <div className="grid gap-5 md:grid-cols-2">
         <KycInput
           id="fullName"
