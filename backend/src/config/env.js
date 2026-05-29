@@ -29,6 +29,7 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional().default(""),
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
+  KYC_ENCRYPTION_KEY: z.string().optional().default(""),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -36,6 +37,14 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.error("Invalid backend environment configuration");
   console.error(parsedEnv.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  !parsedEnv.data.KYC_ENCRYPTION_KEY
+) {
+  console.error("Missing required environment variable: KYC_ENCRYPTION_KEY");
   process.exit(1);
 }
 
@@ -64,5 +73,6 @@ export const env = {
   twilioAccountSid: parsedEnv.data.TWILIO_ACCOUNT_SID,
   twilioAuthToken: parsedEnv.data.TWILIO_AUTH_TOKEN,
   twilioVerifyServiceSid: parsedEnv.data.TWILIO_VERIFY_SERVICE_SID,
+  kycEncryptionKey: parsedEnv.data.KYC_ENCRYPTION_KEY,
   isProduction: parsedEnv.data.NODE_ENV === "production",
 };

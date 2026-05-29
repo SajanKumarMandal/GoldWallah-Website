@@ -28,6 +28,9 @@ const navByRole = {
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },
     { to: ROUTES.jewellerVerification, label: "Verification", icon: Building2 },
   ],
+  [USER_ROLES.admin]: [
+    { to: ROUTES.adminKyc, label: "Seller KYC", icon: ShieldCheck },
+  ],
 };
 
 export default function DashboardLayout() {
@@ -38,7 +41,12 @@ export default function DashboardLayout() {
   const location = useLocation();
 
   const navigation = useMemo(() => navByRole[user?.role] || [], [user?.role]);
-  const roleLabel = user?.role === USER_ROLES.jeweller ? "Jeweller" : "Seller";
+  const roleLabel =
+    user?.role === USER_ROLES.admin
+      ? "Admin"
+      : user?.role === USER_ROLES.jeweller
+        ? "Jeweller"
+        : "Seller";
   const userName = user?.fullName || roleLabel;
 
   function handleLogout() {

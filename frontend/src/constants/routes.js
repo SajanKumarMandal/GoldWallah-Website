@@ -6,7 +6,10 @@ export const ROUTES = {
   registerJeweller: "/register?role=jeweller",
   sellerDashboard: "/seller/dashboard",
   sellerKyc: "/seller/kyc",
+  sellerNewListing: "/seller/listings/new",
   jewellerDashboard: "/jeweller/dashboard",
   jewellerVerification: "/jeweller/verification",
   adminDashboard: "/admin",
+  adminKyc: "/admin/kyc",
+  adminKycDetail: "/admin/kyc/:kycId",
 };

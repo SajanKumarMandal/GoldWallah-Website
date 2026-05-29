@@ -6,6 +6,7 @@ import { notFoundHandler } from "./middleware/notFoundHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { securityMiddleware } from "./middleware/security.js";
 import { apiRouter } from "./routes/apiRouter.js";
+import { kycUploadsDir } from "./modules/kyc/kyc.upload.js";
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,16 @@ export function createApp() {
       environment: env.nodeEnv,
     });
   });
+
+  app.use(
+    "/uploads/kyc",
+    express.static(kycUploadsDir, {
+      dotfiles: "deny",
+      fallthrough: false,
+      index: false,
+      redirect: false,
+    }),
+  );
 
   app.use(`/api/${env.apiVersion}`, apiRouter);
   app.use(notFoundHandler);

@@ -8,7 +8,6 @@ import PublicLayout from "@/layouts/PublicLayout";
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import RoleRoute from "@/routes/RoleRoute";
-import VerificationRoute from "@/routes/VerificationRoute";
 
 const Home = lazy(() => import("@/pages/Home"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
@@ -16,24 +15,22 @@ const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
 const SellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/SellerDashboardPage"),
 );
-const SellerKycPage = lazy(() => import("@/features/dashboard/pages/SellerKycPage"));
+const SellerKycPage = lazy(() => import("@/features/seller/pages/SellerKycPage"));
+const SellerListingGatePage = lazy(
+  () => import("@/features/seller/pages/SellerListingGatePage"),
+);
+const AdminKycListPage = lazy(
+  () => import("@/features/admin/pages/AdminKycListPage"),
+);
+const AdminKycDetailPage = lazy(
+  () => import("@/features/admin/pages/AdminKycDetailPage"),
+);
 const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
 );
 const JewellerVerificationPage = lazy(
   () => import("@/features/dashboard/pages/JewellerVerificationPage"),
 );
-
-function hasApprovedKyc(user) {
-  return user?.kycStatus === "APPROVED";
-}
-
-function hasApprovedJewellerVerification(user) {
-  return (
-    user?.kycStatus === "APPROVED" &&
-    user?.businessVerificationStatus === "APPROVED"
-  );
-}
 
 function RouteLoader() {
   return (
@@ -61,18 +58,26 @@ export default function AppRouter() {
               <Route element={<DashboardLayout />}>
                 <Route path={ROUTES.sellerKyc} element={<SellerKycPage />} />
                 <Route
-                  element={
-                    <VerificationRoute
-                      isVerified={hasApprovedKyc}
-                      redirectTo={ROUTES.sellerKyc}
-                    />
-                  }
-                >
-                  <Route
-                    path={ROUTES.sellerDashboard}
-                    element={<SellerDashboardPage />}
-                  />
-                </Route>
+                  path={ROUTES.sellerDashboard}
+                  element={<SellerDashboardPage />}
+                />
+                <Route
+                  path={ROUTES.sellerNewListing}
+                  element={<SellerListingGatePage />}
+                />
+              </Route>
+            </Route>
+
+            <Route
+              element={<RoleRoute allowedRoles={[USER_ROLES.admin]} />}
+            >
+              <Route element={<DashboardLayout />}>
+                <Route path={ROUTES.adminDashboard} element={<AdminKycListPage />} />
+                <Route path={ROUTES.adminKyc} element={<AdminKycListPage />} />
+                <Route
+                  path={ROUTES.adminKycDetail}
+                  element={<AdminKycDetailPage />}
+                />
               </Route>
             </Route>
 
@@ -85,18 +90,9 @@ export default function AppRouter() {
                   element={<JewellerVerificationPage />}
                 />
                 <Route
-                  element={
-                    <VerificationRoute
-                      isVerified={hasApprovedJewellerVerification}
-                      redirectTo={ROUTES.jewellerVerification}
-                    />
-                  }
-                >
-                  <Route
-                    path={ROUTES.jewellerDashboard}
-                    element={<JewellerDashboardPage />}
-                  />
-                </Route>
+                  path={ROUTES.jewellerDashboard}
+                  element={<JewellerDashboardPage />}
+                />
               </Route>
             </Route>
           </Route>

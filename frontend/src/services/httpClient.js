@@ -21,10 +21,11 @@ function buildUrl(path, query) {
 
 export async function apiRequest(path, options = {}) {
   const { query, headers, ...fetchOptions } = options;
+  const isFormData = fetchOptions.body instanceof FormData;
   const response = await fetch(buildUrl(path, query), {
     ...fetchOptions,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...headers,
     },
   });
