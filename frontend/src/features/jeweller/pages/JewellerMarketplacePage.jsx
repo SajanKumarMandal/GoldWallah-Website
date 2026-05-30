@@ -23,6 +23,14 @@ function formatMoney(value) {
   }).format(Number(value));
 }
 
+function formatDistance(listing) {
+  if (listing.distanceKm === null || listing.distanceKm === undefined) {
+    return listing.matchMode === "CITY" ? "City match" : "Nearest fallback";
+  }
+
+  return `${Number(listing.distanceKm).toFixed(1)} km away`;
+}
+
 export default function JewellerMarketplacePage() {
   const { accessToken } = useAuth();
   const [listings, setListings] = useState([]);
@@ -99,8 +107,8 @@ export default function JewellerMarketplacePage() {
     <div className="space-y-6">
       <DashboardHeader
         eyebrow="Jeweller marketplace"
-        title="Active seller listings"
-        description={`${listingCount} active listing${listingCount === 1 ? "" : "s"} available for private bidding.`}
+        title="Nearby seller listings"
+        description={`${listingCount} matched listing${listingCount === 1 ? "" : "s"} ranked by location and nearest fallback.`}
       />
 
       {errorMessage ? (
@@ -166,6 +174,9 @@ export default function JewellerMarketplacePage() {
                   <p className="mt-2 flex items-center gap-2 text-sm text-(--gw-color-muted)">
                     <MapPin className="h-4 w-4" aria-hidden="true" />
                     {listing.city}, {listing.state}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
+                    {formatDistance(listing)} / {listing.matchMode || "MATCHED"}
                   </p>
 
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">

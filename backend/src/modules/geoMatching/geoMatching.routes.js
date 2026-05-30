@@ -1,7 +1,13 @@
-import { createModuleStatusRouter } from "../../utils/moduleStatusRouter.js";
+import { Router } from "express";
 
-export const geoMatchingRouter = createModuleStatusRouter("geo-matching", [
-  "PostGIS radius matching",
-  "nearest fallback",
-  "indexed location lookups",
-]);
+import { authenticate, requireRole } from "../../middleware/auth.js";
+import * as controller from "./geoMatching.controller.js";
+
+export const geoMatchingRouter = Router();
+
+geoMatchingRouter.get(
+  "/listings",
+  authenticate,
+  requireRole("JEWELLER"),
+  controller.matchedListings,
+);

@@ -5,9 +5,12 @@ function authHeaders(accessToken) {
 }
 
 export async function getMarketplaceListings(accessToken, filters = {}) {
-  return apiRequest("listings/marketplace", {
+  return apiRequest("geo-matching/listings", {
     headers: authHeaders(accessToken),
-    query: filters,
+    query: {
+      radiusKm: 50,
+      ...filters,
+    },
   });
 }
 
