@@ -8,6 +8,7 @@ import {
 import {
   createListingSchema,
   listingStatusQuerySchema,
+  marketplaceListingQuerySchema,
   updateListingSchema,
   uuidParamSchema,
   validateBody,
@@ -17,6 +18,8 @@ import {
 import {
   cancelSellerListing,
   createSellerListing,
+  getMarketplaceListingDetail,
+  getMarketplaceListings,
   getMySellerListings,
   getSellerListingDetail,
   updateSellerListing,
@@ -67,6 +70,36 @@ export async function myListings(request, response, next) {
       await getMySellerListings({
         user: request.user,
         filters,
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function marketplaceListings(request, response, next) {
+  try {
+    const filters = validateQuery(marketplaceListingQuerySchema, request.query);
+
+    response.status(200).json(
+      await getMarketplaceListings({
+        user: request.user,
+        filters,
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function marketplaceListingDetail(request, response, next) {
+  try {
+    const { listingId } = validateParams(uuidParamSchema, request.params);
+
+    response.status(200).json(
+      await getMarketplaceListingDetail({
+        user: request.user,
+        listingId,
       }),
     );
   } catch (error) {

@@ -3,12 +3,15 @@ import {
   cancelListing,
   createListing,
   deleteListingImages,
+  findActiveMarketplaceListingById,
   findListingById,
   getListingOwnershipAndStatus,
   insertListingImages,
+  listActiveMarketplaceListings,
   listSellerListings,
   updateListingFields,
 } from "./listings.repository.js";
+import { requireJewellerCanTransact } from "../jewellerVerification/jewellerTransactionGuard.js";
 
 function createError(message, statusCode, code) {
   const error = new Error(message);
@@ -105,6 +108,30 @@ export async function getSellerListingDetail({ user, listingId }) {
 
   const listing = await findListingById(listingId);
   assertListingOwner(listing, user);
+
+  return {
+    success: true,
+    data: listing,
+  };
+}
+
+export async function getMarketplaceListings({ user, filters }) {
+  requireJewellerCanTransact(user);
+
+  return {
+    success: true,
+    data: await listActiveMarketplaceListings(filters),
+  };
+}
+
+export async function getMarketplaceListingDetail({ user, listingId }) {
+  requireJewellerCanTransact(user);
+
+  const listing = await findActiveMarketplaceListingById(listingId);
+
+  if (!listing) {
+    throw createError("Listing not found", 404, "LISTING_NOT_FOUND");
+  }
 
   return {
     success: true,

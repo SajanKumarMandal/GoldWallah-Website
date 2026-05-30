@@ -118,10 +118,6 @@ export default function JewellerDashboardPage() {
     },
   ];
 
-  function handleBrowseListings() {
-    setActionMessage("Listed items will appear here as the marketplace opens.");
-  }
-
   function handleBidAction() {
     if (!canBid) {
       setActionMessage("Verification is required before placing bids.");
@@ -138,13 +134,12 @@ export default function JewellerDashboardPage() {
         title={`Welcome back, ${firstName}.`}
         description="Review verification, discover nearby seller listings, and manage private bidding activity."
         action={
-          <button
-            type="button"
-            onClick={handleBrowseListings}
+          <Link
+            to={ROUTES.jewellerMarketplace}
             className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-gold) px-5 text-sm font-semibold text-(--gw-color-green) transition hover:bg-[#e0ad62]"
           >
             Browse listings
-          </button>
+          </Link>
         }
       />
 

@@ -42,6 +42,9 @@ const JewellerDashboardPage = lazy(
 const JewellerVerificationPage = lazy(
   () => import("@/features/jeweller/pages/JewellerVerificationPage"),
 );
+const JewellerMarketplacePage = lazy(
+  () => import("@/features/jeweller/pages/JewellerMarketplacePage"),
+);
 
 function RouteLoader() {
   return (
@@ -112,6 +115,10 @@ export default function AppRouter() {
                 <Route
                   path={ROUTES.jewellerDashboard}
                   element={<JewellerDashboardPage />}
+                />
+                <Route
+                  path={ROUTES.jewellerMarketplace}
+                  element={<JewellerMarketplacePage />}
                 />
               </Route>
             </Route>

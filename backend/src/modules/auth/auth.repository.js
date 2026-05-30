@@ -23,6 +23,7 @@ function mapUser(row) {
     isPhoneVerified: row.is_phone_verified,
     kycStatus: row.kyc_status,
     businessVerificationStatus: row.business_verification_status,
+    commissionLockStatus: row.commission_lock_status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

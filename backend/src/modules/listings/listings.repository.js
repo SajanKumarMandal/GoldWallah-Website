@@ -169,6 +169,35 @@ export async function listSellerListings({ sellerId, status }, client) {
   return result.rows.map((row) => mapListing(row, imagesByListingId.get(row.id) || []));
 }
 
+export async function listActiveMarketplaceListings({ city, state }, client) {
+  const params = [];
+  const filters = ["status = 'ACTIVE'"];
+
+  if (city) {
+    params.push(city);
+    filters.push(`lower(city) = lower($${params.length})`);
+  }
+
+  if (state) {
+    params.push(state);
+    filters.push(`lower(state) = lower($${params.length})`);
+  }
+
+  const result = await db(client).query(
+    `SELECT *
+     FROM gold_listings
+     WHERE ${filters.join(" AND ")}
+     ORDER BY created_at DESC`,
+    params,
+  );
+  const imagesByListingId = await findImagesByListingIds(
+    result.rows.map((row) => row.id),
+    client,
+  );
+
+  return result.rows.map((row) => mapListing(row, imagesByListingId.get(row.id) || []));
+}
+
 export async function findListingById(id, client) {
   const result = await db(client).query(
     `SELECT *
@@ -183,6 +212,16 @@ export async function findListingById(id, client) {
 
   const imagesByListingId = await findImagesByListingIds([id], client);
   return mapListing(result.rows[0], imagesByListingId.get(id) || []);
+}
+
+export async function findActiveMarketplaceListingById(id, client) {
+  const listing = await findListingById(id, client);
+
+  if (!listing || listing.status !== "ACTIVE") {
+    return null;
+  }
+
+  return listing;
 }
 
 export async function getListingOwnershipAndStatus(id, client) {

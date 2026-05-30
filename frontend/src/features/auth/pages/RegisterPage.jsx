@@ -95,7 +95,6 @@ export default function RegisterPage() {
         setAuthSession({
           user: result.data.user,
           accessToken: result.data.accessToken,
-          refreshToken: result.data.refreshToken,
         });
         navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
         return;

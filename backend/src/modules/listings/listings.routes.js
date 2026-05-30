@@ -34,6 +34,20 @@ listingsRouter.get(
 );
 
 listingsRouter.get(
+  "/marketplace",
+  authenticate,
+  requireRole("JEWELLER"),
+  listingsController.marketplaceListings,
+);
+
+listingsRouter.get(
+  "/marketplace/:listingId",
+  authenticate,
+  requireRole("JEWELLER"),
+  listingsController.marketplaceListingDetail,
+);
+
+listingsRouter.get(
   "/:listingId",
   authenticate,
   requireRole("SELLER"),

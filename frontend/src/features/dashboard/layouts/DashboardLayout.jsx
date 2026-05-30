@@ -8,6 +8,7 @@ import {
   Menu,
   PackageOpen,
   PlusCircle,
+  Search,
   ShieldCheck,
   UserCircle,
   X,
@@ -31,6 +32,7 @@ const navByRole = {
   ],
   [USER_ROLES.jeweller]: [
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },
+    { to: ROUTES.jewellerMarketplace, label: "Marketplace", icon: Search },
     { to: ROUTES.jewellerVerification, label: "Verification", icon: Building2 },
   ],
   [USER_ROLES.admin]: [
@@ -41,7 +43,7 @@ const navByRole = {
 export default function DashboardLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { user, refreshToken, clearAuthUser } = useAuth();
+  const { user, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,9 +58,7 @@ export default function DashboardLayout() {
 
   async function handleLogout() {
     try {
-      if (refreshToken) {
-        await logoutUser(refreshToken);
-      }
+      await logoutUser();
     } catch {
       // Local session cleanup must still happen if the server token is stale.
     } finally {

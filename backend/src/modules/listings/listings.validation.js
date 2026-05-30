@@ -93,6 +93,11 @@ export const listingStatusQuerySchema = z.object({
   status: z.enum(LISTING_STATUSES).optional(),
 });
 
+export const marketplaceListingQuerySchema = z.object({
+  city: optionalTrimmedString(100),
+  state: optionalTrimmedString(100),
+});
+
 export const uuidParamSchema = z.object({
   listingId: z.string().uuid("Invalid listing id"),
 });

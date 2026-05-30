@@ -11,6 +11,7 @@ import { listingUploadsDir } from "./modules/listings/listings.upload.js";
 
 export function createApp() {
   const app = express();
+  app.locals.apiVersion = env.apiVersion;
 
   app.disable("x-powered-by");
   app.use(requestContext);

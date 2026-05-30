@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import * as bidsController from "./bids.controller.js";
 
 export const bidsRouter = Router();
 
@@ -23,7 +24,7 @@ function createBidGuard(request, _response, next) {
 bidsRouter.get("/", (_request, response) => {
   response.status(200).json({
     module: "bids",
-    status: "planned",
+    status: "ready",
     capabilities: [
       "private jeweller bids",
       "seller-only bid visibility",
@@ -37,14 +38,33 @@ bidsRouter.post(
   authenticate,
   requireRole("JEWELLER"),
   createBidGuard,
-  (_request, response) => {
-    // TODO: Implement bid creation after the bids module is built.
-    response.status(501).json({
-      message: "Bid creation is not implemented yet",
-      error: {
-        message: "Bid creation is not implemented yet",
-        code: "NOT_IMPLEMENTED",
-      },
-    });
-  },
+  bidsController.createBid,
+);
+
+bidsRouter.get(
+  "/my",
+  authenticate,
+  requireRole("JEWELLER"),
+  bidsController.myBids,
+);
+
+bidsRouter.get(
+  "/listings/:listingId",
+  authenticate,
+  requireRole("SELLER"),
+  bidsController.listingBids,
+);
+
+bidsRouter.patch(
+  "/:bidId/accept",
+  authenticate,
+  requireRole("SELLER"),
+  bidsController.acceptBid,
+);
+
+bidsRouter.patch(
+  "/:bidId/reject",
+  authenticate,
+  requireRole("SELLER"),
+  bidsController.rejectBid,
 );

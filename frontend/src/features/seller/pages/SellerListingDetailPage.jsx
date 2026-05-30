@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit3, MapPin, XCircle } from "lucide-react";
+import { ArrowLeft, Edit3, Gavel, MapPin, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -8,6 +8,11 @@ import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
 import ListingForm from "@/features/seller/components/listings/ListingForm";
 import ListingStatusBadge from "@/features/seller/components/listings/ListingStatusBadge";
+import {
+  acceptBid,
+  getListingBids,
+  rejectBid,
+} from "@/features/seller/services/sellerBidService";
 import {
   cancelListing,
   getListingById,
@@ -51,6 +56,8 @@ export default function SellerListingDetailPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bids, setBids] = useState([]);
+  const [bidActionId, setBidActionId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -82,6 +89,30 @@ export default function SellerListingDetailPage() {
       isMounted = false;
     };
   }, [accessToken, listingId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBids() {
+      try {
+        const result = await getListingBids(accessToken, listingId);
+
+        if (isMounted) {
+          setBids(result?.data || []);
+        }
+      } catch {
+        if (isMounted) {
+          setBids([]);
+        }
+      }
+    }
+
+    loadBids();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, listingId, listing?.status]);
 
   const resolvedImages = useMemo(
     () =>
@@ -135,6 +166,44 @@ export default function SellerListingDetailPage() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleBidDecision(bid, action) {
+    setBidActionId(bid.id);
+    setErrorMessage("");
+    setStatusMessage("");
+
+    try {
+      const result =
+        action === "accept"
+          ? await acceptBid(accessToken, bid.id)
+          : await rejectBid(accessToken, bid.id);
+      setBids((currentBids) =>
+        currentBids.map((currentBid) =>
+          currentBid.id === bid.id
+            ? { ...currentBid, ...result?.data }
+            : action === "accept" && currentBid.status === "PENDING"
+              ? { ...currentBid, status: "REJECTED" }
+              : currentBid,
+        ),
+      );
+      setStatusMessage(action === "accept" ? "Bid accepted." : "Bid rejected.");
+      if (action === "accept") {
+        setListing((currentListing) =>
+          currentListing
+            ? {
+                ...currentListing,
+                status: "BID_ACCEPTED",
+                acceptedBidId: bid.id,
+              }
+            : currentListing,
+        );
+      }
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to update bid.");
+    } finally {
+      setBidActionId("");
     }
   }
 
@@ -294,6 +363,70 @@ export default function SellerListingDetailPage() {
               />
             </DashboardSection>
           ) : null}
+
+          <DashboardSection
+            title="Private bids"
+            description="Bid amounts are visible only to you and the bidding jeweller."
+          >
+            {bids.length === 0 ? (
+              <div className="rounded-2xl bg-(--gw-color-cream) p-4">
+                <div className="flex items-center gap-3 text-sm text-(--gw-color-muted)">
+                  <Gavel className="h-4 w-4" aria-hidden="true" />
+                  No private bids yet.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {bids.map((bid) => {
+                  const canDecide = listing.status === "ACTIVE" && bid.status === "PENDING";
+
+                  return (
+                    <div
+                      key={bid.id}
+                      className="rounded-2xl border border-(--gw-color-border) bg-white p-4"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-(--gw-color-green)">
+                            {formatMoney(bid.bidAmount)}
+                          </p>
+                          <p className="mt-1 text-sm text-(--gw-color-muted)">
+                            {bid.jewellerName || "Verified jeweller"} · {bid.status}
+                          </p>
+                          {bid.message ? (
+                            <p className="mt-2 text-sm text-(--gw-color-muted)">
+                              {bid.message}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        {canDecide ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={bidActionId === bid.id}
+                              onClick={() => handleBidDecision(bid, "accept")}
+                              className="h-10 rounded-full bg-(--gw-color-green) px-4 text-sm font-semibold text-(--gw-color-cream) disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              disabled={bidActionId === bid.id}
+                              onClick={() => handleBidDecision(bid, "reject")}
+                              className="h-10 rounded-full border border-(--gw-color-copper)/30 bg-(--gw-color-copper)/10 px-4 text-sm font-semibold text-(--gw-color-copper) disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </DashboardSection>
         </>
       ) : null}
     </div>
