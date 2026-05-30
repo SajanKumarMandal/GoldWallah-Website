@@ -9,6 +9,9 @@ import { securityMiddleware } from "./middleware/security.js";
 import { apiRouter } from "./routes/apiRouter.js";
 import { listingUploadsDir } from "./modules/listings/listings.upload.js";
 
+// Builds the Express app with security middleware, JSON parsing, public listing
+// media, API routes, and final error handling. KYC/business documents are not
+// exposed through static middleware.
 export function createApp() {
   const app = express();
   app.locals.apiVersion = env.apiVersion;
@@ -29,6 +32,8 @@ export function createApp() {
   });
 
   app.use(
+    // Listing images are allowed to be public. Identity/business documents are
+    // intentionally served only by authenticated media endpoints.
     "/uploads/listings",
     express.static(listingUploadsDir, {
       dotfiles: "deny",

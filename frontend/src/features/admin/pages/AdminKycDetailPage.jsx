@@ -12,6 +12,8 @@ import {
 } from "@/features/admin/services/adminKycService";
 import { resolveUploadedImageUrl } from "@/utils/resolveUploadedImageUrl";
 
+// Admin KYC detail screen. This page can show full identity details; backend
+// access is protected and audit logged whenever the detail endpoint is opened.
 function formatDate(value) {
   if (!value) {
     return "Not available";

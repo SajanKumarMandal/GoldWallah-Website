@@ -23,6 +23,8 @@ import { notificationsRouter } from "../modules/notifications/notifications.rout
 import { securityFraudRouter } from "../modules/securityFraud/securityFraud.routes.js";
 import { usersRouter } from "../modules/users/users.routes.js";
 
+// Central API mount table. Each feature module owns its controller/service/data
+// logic; this file only decides the URL prefix for that module.
 export const apiRouter = Router();
 
 apiRouter.get("/status", (_request, response) => {

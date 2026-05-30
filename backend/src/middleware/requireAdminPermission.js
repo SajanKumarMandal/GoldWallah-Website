@@ -1,6 +1,8 @@
 import { ADMIN_AUDIT_ACTIONS, requestAuditMeta, writeAdminAuditLog } from "../modules/admin/admin.audit.js";
 import { findAdminPermissions } from "../modules/admin/admin.repository.js";
 
+// RBAC guard for admin routes. Super admins pass automatically; denied access is
+// written to the admin audit log for security review.
 function createForbiddenError() {
   const error = new Error("Forbidden");
   error.statusCode = 403;

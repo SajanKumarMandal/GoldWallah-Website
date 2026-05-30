@@ -21,6 +21,8 @@ import {
   encryptSensitiveValue,
 } from "./kyc.encryption.js";
 
+// Seller KYC service. Sensitive identity numbers are encrypted, hashes support
+// duplicate checks, and full identity admin views are audit logged.
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;

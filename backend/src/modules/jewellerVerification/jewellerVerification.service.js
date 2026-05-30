@@ -22,6 +22,8 @@ import {
   encryptSensitiveValue,
 } from "./jewellerVerification.encryption.js";
 
+// Jeweller business verification service. Approval here is required before a
+// jeweller can transact, and the approved location powers geo matching.
 const ENTITY_TYPE = "JEWELLER_BUSINESS_VERIFICATION";
 
 function createError(message, statusCode, code) {

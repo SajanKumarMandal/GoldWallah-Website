@@ -6,6 +6,8 @@ import {
   markNotificationRead,
 } from "./notifications.repository.js";
 
+// Durable user notifications for bid and marketplace events. Messages are
+// intentionally generic so they do not leak private bid amounts.
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;

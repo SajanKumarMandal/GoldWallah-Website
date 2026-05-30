@@ -20,6 +20,8 @@ import {
   updateListing,
 } from "@/features/seller/services/sellerListingService";
 
+// Seller listing detail screen. The seller can inspect private bids for their
+// own listing and choose exactly one bid to accept.
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") {
     return "Not set";

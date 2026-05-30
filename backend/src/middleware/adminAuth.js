@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { findAdminById } from "../modules/admin/admin.repository.js";
 
+// Admin authentication is separate from user auth. Admins use their own JWT
+// secret, account status checks, RBAC permissions, and refresh-token rotation.
 function createAuthError(message = "Unauthorized", code = "ADMIN_UNAUTHORIZED") {
   const error = new Error(message);
   error.statusCode = 401;

@@ -25,6 +25,8 @@ import {
 } from "./auth.repository.js";
 import { normalizePhone } from "./auth.validation.js";
 
+// User authentication service: owns registration/login, OTP verification,
+// access-token creation, and refresh-token rotation/reuse handling.
 const OTP_PURPOSES = {
   login: "LOGIN",
   register: "REGISTER",
@@ -56,6 +58,8 @@ function getTokenExpiry(token) {
 }
 
 async function createAuthResponse(user, message, client) {
+  // The controller stores refreshToken in an HttpOnly cookie so frontend
+  // JavaScript cannot read it. accessToken remains short-lived.
   const safeUser = sanitizeUser(user);
   const tokenPayload = {
     sub: safeUser.id,

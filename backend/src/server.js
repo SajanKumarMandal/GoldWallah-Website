@@ -3,6 +3,7 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { seedAdminFoundation } from "./modules/admin/admin.seed.js";
 
+// Process entry point: sync admin RBAC defaults, then start the Express API.
 const app = createApp();
 
 let server;

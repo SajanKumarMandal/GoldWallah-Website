@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 
 import { AuthContext } from "@/features/auth/context/authContextValue";
 
+// Browser-side user session state. The access token is kept in frontend state;
+// the refresh token is managed by the backend as an HttpOnly cookie.
 const AUTH_STORAGE_KEY = "goldwallah.auth.session";
 
 const initialAuthState = {

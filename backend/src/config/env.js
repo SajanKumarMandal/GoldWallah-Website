@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 import { z } from "zod";
 
+// All environment variables are validated at boot so production fails fast
+// instead of silently falling back to unsafe defaults.
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -88,11 +90,13 @@ if (
   parsedEnv.data.NODE_ENV === "production" &&
   parsedEnv.data.OTP_PROVIDER === "mock"
 ) {
+  // Mock OTP is only for local development and test fixtures.
   console.error("OTP_PROVIDER=mock is not allowed in production");
   process.exit(1);
 }
 
 function readPgSslCa() {
+  // Production PostgreSQL SSL can receive the provider CA directly or from a file.
   if (parsedEnv.data.PG_SSL_CA) {
     return parsedEnv.data.PG_SSL_CA.replace(/\\n/g, "\n");
   }

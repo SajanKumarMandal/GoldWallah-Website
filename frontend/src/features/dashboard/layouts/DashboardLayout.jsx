@@ -45,6 +45,8 @@ const navByRole = {
   ],
 };
 
+// Shared seller/jeweller dashboard shell: sidebar navigation, profile menu,
+// logout, and durable notifications dropdown.
 export default function DashboardLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);

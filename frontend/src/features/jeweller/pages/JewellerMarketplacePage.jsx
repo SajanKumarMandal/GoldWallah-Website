@@ -11,6 +11,8 @@ import {
 } from "@/features/jeweller/services/jewellerMarketplaceService";
 import { resolveAssetUrl } from "@/features/seller/services/sellerListingService";
 
+// Jeweller marketplace screen. Listings come from the geo-matching API and bids
+// are private, so competing jewellers never see each other's bid amounts.
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") {
     return "Not set";

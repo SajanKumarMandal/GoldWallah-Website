@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { findUserById } from "../modules/users/users.repository.js";
 
+// User API authentication: validates a short-lived JWT access token and attaches
+// the latest user record so KYC, business, and commission gates are current.
 function createAuthError() {
   const error = new Error("Unauthorized");
   error.statusCode = 401;

@@ -1,5 +1,7 @@
 import { query } from "../../config/db.js";
 
+// Geo matching data access. Uses a Haversine distance calculation when both the
+// jeweller and listing have coordinates, then falls back to city and nearest.
 function toNumber(value) {
   return value === null || value === undefined ? null : Number(value);
 }

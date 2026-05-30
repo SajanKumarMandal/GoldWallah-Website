@@ -10,6 +10,8 @@ import AdminProtectedRoute from "@/routes/AdminProtectedRoute";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import RoleRoute from "@/routes/RoleRoute";
 
+// Main SPA route table. Public pages, admin pages, seller dashboard, and
+// jeweller dashboard are separated so each area can enforce its own guards.
 const Home = lazy(() => import("@/pages/Home"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));

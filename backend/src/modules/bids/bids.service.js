@@ -12,6 +12,8 @@ import {
   rejectBid,
 } from "./bids.repository.js";
 
+// Private bidding service. Bid amounts are visible to the seller only, and
+// accepting a bid creates the deal plus the platform commission lock.
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -45,6 +47,8 @@ async function auditBid({ actorUserId, action, bid, requestMeta }, client) {
 }
 
 export async function placeBid({ user, payload, requestMeta }) {
+  // A jeweller must have approved KYC, approved business verification, and no
+  // unpaid commission lock before placing bids.
   requireJewellerCanTransact(user);
 
   return withTransaction(async (client) => {
@@ -128,6 +132,8 @@ export async function getMyJewellerBids(user) {
 }
 
 export async function acceptSellerBid({ user, bidId, requestMeta }) {
+  // Accepting one bid rejects the other pending bids for the listing and creates
+  // the finance record that admins later settle or waive.
   assertSeller(user);
 
   return withTransaction(async (client) => {

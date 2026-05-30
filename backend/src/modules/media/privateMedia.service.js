@@ -7,6 +7,8 @@ import { writeAdminAuditLog } from "../admin/admin.audit.js";
 import { jewellerVerificationUploadsDir } from "../jewellerVerification/jewellerVerification.upload.js";
 import { kycUploadsDir } from "../kyc/kyc.upload.js";
 
+// Private media resolver. KYC, selfie, GST, and license files are not served by
+// static Express middleware; access must pass signed URL and ownership/admin checks.
 const PRIVATE_MEDIA_SCOPES = {
   kyc: {
     directory: kycUploadsDir,

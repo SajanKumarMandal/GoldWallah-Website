@@ -13,6 +13,8 @@ import {
   waiveCommission,
 } from "./adminCommissions.repository.js";
 
+// Admin finance service. Paid/waived commission changes are audited, and the
+// jeweller lock clears only after every outstanding commission is resolved.
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -21,6 +23,7 @@ function createError(message, statusCode, code) {
 }
 
 async function unlockJewellerIfClear(jewellerId, client) {
+  // Keep the lock if even one unpaid commission remains for this jeweller.
   const outstandingCount = await countOutstandingCommissions(jewellerId, client);
 
   if (outstandingCount === 0) {

@@ -8,6 +8,8 @@ import {
   waiveAdminCommission,
 } from "@/features/admin/commissions/services/adminCommissionService";
 
+// Admin finance screen. Finance admins settle or waive commission records; the
+// backend writes audit logs and clears jeweller locks when dues are resolved.
 const unpaidStatuses = ["PENDING", "PAYMENT_INITIATED", "FAILED", "DISPUTED"];
 
 function formatMoney(value) {

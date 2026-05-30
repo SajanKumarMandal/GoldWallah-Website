@@ -13,6 +13,8 @@ import {
 } from "./listings.repository.js";
 import { requireJewellerCanTransact } from "../jewellerVerification/jewellerTransactionGuard.js";
 
+// Listing service. Approved sellers create/manage gold listings; verified
+// jewellers read active listings and place private bids through the bid module.
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -64,6 +66,8 @@ async function throwListingMutationError({ listingId, user, action, client }) {
 }
 
 export async function createSellerListing({ user, payload, imageUrls }) {
+  // Listing images are public product media. Identity/business documents use the
+  // private media module and are never exposed here.
   assertApprovedSeller(user);
 
   return withTransaction(async (client) => {
