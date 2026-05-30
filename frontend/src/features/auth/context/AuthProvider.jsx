@@ -7,6 +7,7 @@ const AUTH_STORAGE_KEY = "goldwallah.auth.session";
 const initialAuthState = {
   user: null,
   accessToken: null,
+  refreshToken: null,
   isAuthenticated: false,
 };
 
@@ -28,6 +29,7 @@ function readStoredAuthState() {
     return {
       user: parsedSession.user,
       accessToken: parsedSession.accessToken,
+      refreshToken: parsedSession.refreshToken || null,
       isAuthenticated: true,
     };
   } catch {
@@ -36,7 +38,7 @@ function readStoredAuthState() {
   }
 }
 
-function persistAuthState({ user, accessToken }) {
+function persistAuthState({ user, accessToken, refreshToken }) {
   if (!user || !accessToken) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     return;
@@ -44,7 +46,7 @@ function persistAuthState({ user, accessToken }) {
 
   window.localStorage.setItem(
     AUTH_STORAGE_KEY,
-    JSON.stringify({ user, accessToken }),
+    JSON.stringify({ user, accessToken, refreshToken: refreshToken || null }),
   );
 }
 
@@ -55,6 +57,7 @@ export default function AuthProvider({ children }) {
       const nextState = {
         user,
         accessToken: currentState.accessToken,
+        refreshToken: currentState.refreshToken,
         isAuthenticated: Boolean(user && currentState.accessToken),
       };
 
@@ -63,17 +66,19 @@ export default function AuthProvider({ children }) {
     });
   }, []);
 
-  const setAuthSession = useCallback(({ user, accessToken }) => {
-    persistAuthState({ user, accessToken });
+  const setAuthSession = useCallback(({ user, accessToken, refreshToken }) => {
+    persistAuthState({ user, accessToken, refreshToken });
     if (import.meta.env.DEV) {
       console.debug("Auth session stored", {
         hasUser: Boolean(user),
         hasAccessToken: Boolean(accessToken),
+        hasRefreshToken: Boolean(refreshToken),
       });
     }
     setAuthState({
       user,
       accessToken: accessToken || null,
+      refreshToken: refreshToken || null,
       isAuthenticated: Boolean(user && accessToken),
     });
   }, []);
@@ -87,6 +92,7 @@ export default function AuthProvider({ children }) {
     () => ({
       user: authState.user,
       accessToken: authState.accessToken,
+      refreshToken: authState.refreshToken,
       isAuthenticated: authState.isAuthenticated,
       setAuthUser,
       setAuthSession,

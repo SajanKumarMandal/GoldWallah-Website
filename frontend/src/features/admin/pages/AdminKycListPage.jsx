@@ -1,9 +1,8 @@
 import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
-import { useAuth } from "@/features/auth/context/useAuth";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
 import { listSellerKycSubmissions } from "@/features/admin/services/adminKycService";
@@ -22,7 +21,7 @@ function formatDate(value) {
 }
 
 export default function AdminKycListPage() {
-  const { accessToken } = useAuth();
+  const { accessToken } = useOutletContext();
   const [activeStatus, setActiveStatus] = useState("PENDING");
   const [submissions, setSubmissions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

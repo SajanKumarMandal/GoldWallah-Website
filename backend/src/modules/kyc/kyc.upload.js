@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,58 @@ function isAllowedImage(file) {
   const allowedExtensions = allowedMimeTypes.get(file.mimetype);
 
   return Boolean(allowedExtensions?.includes(extension));
+}
+
+function isJpeg(buffer) {
+  return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+}
+
+function isPng(buffer) {
+  return (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  );
+}
+
+function isWebp(buffer) {
+  return (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  );
+}
+
+async function hasValidMagicBytes(file) {
+  const handle = await fsp.open(file.path, "r");
+
+  try {
+    const buffer = Buffer.alloc(12);
+    const { bytesRead } = await handle.read(buffer, 0, 12, 0);
+    const header = buffer.subarray(0, bytesRead);
+
+    if (file.mimetype === "image/jpeg") {
+      return isJpeg(header);
+    }
+
+    if (file.mimetype === "image/png") {
+      return isPng(header);
+    }
+
+    if (file.mimetype === "image/webp") {
+      return isWebp(header);
+    }
+
+    return false;
+  } finally {
+    await handle.close();
+  }
 }
 
 const storage = multer.diskStorage({
@@ -82,5 +135,47 @@ export function uploadSellerKycImages(request, response, next) {
 
 export function getKycFileUrl(request, file) {
   const filename = path.basename(file.filename);
-  return `${request.protocol}://${request.get("host")}/uploads/kyc/${filename}`;
+  return `/private-media/kyc/${filename}`;
+}
+
+export function getUploadedSellerKycFiles(request) {
+  return request.files?.selfieImage || [];
+}
+
+export async function validateSellerKycImageFiles(request) {
+  const file = request.files?.selfieImage?.[0];
+
+  if (!file) {
+    throw createUploadError("Selfie image is required", "VALIDATION_ERROR");
+  }
+
+  if (!isAllowedImage(file) || !(await hasValidMagicBytes(file))) {
+    throw createUploadError("Only valid JPEG, PNG, and WebP images are allowed");
+  }
+}
+
+export async function deleteKycFiles(filesOrUrls) {
+  const uploadsRoot = path.resolve(kycUploadsDir);
+
+  await Promise.all(
+    filesOrUrls.map(async (fileOrUrl) => {
+      const fileNameSource =
+        typeof fileOrUrl === "string"
+          ? fileOrUrl
+          : fileOrUrl.filename || fileOrUrl.imageUrl;
+      const filename = path.basename(fileNameSource || "");
+
+      if (!filename) {
+        return;
+      }
+
+      const resolvedPath = path.resolve(path.join(kycUploadsDir, filename));
+
+      if (!resolvedPath.startsWith(`${uploadsRoot}${path.sep}`)) {
+        return;
+      }
+
+      await fsp.rm(resolvedPath, { force: true });
+    }),
+  );
 }

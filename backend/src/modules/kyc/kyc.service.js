@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 
 import { withTransaction } from "../../config/db.js";
 import {
+  ADMIN_AUDIT_ACTIONS,
+  writeAdminAuditLog,
+} from "../admin/admin.audit.js";
+import {
   approveKycSubmission,
   createSellerKycSubmission,
   findKycSubmissionById,
@@ -80,12 +84,15 @@ function toSubmissionPayload(userId, payload) {
   };
 }
 
-async function recordFullIdentityView({ adminUserId, kycId }) {
-  // TODO: Replace this placeholder with persistent audit logging when the audit
-  // module has a repository/table. Event: KYC_FULL_IDENTITY_VIEWED with
-  // adminUserId, kycId, and timestamp.
-  void adminUserId;
-  void kycId;
+async function recordFullIdentityView({ adminUserId, kycId, requestMeta }) {
+  await writeAdminAuditLog({
+    actorAdminId: adminUserId,
+    action: ADMIN_AUDIT_ACTIONS.sellerKycIdentityViewed,
+    resourceType: "SELLER_KYC",
+    resourceId: kycId,
+    severity: "WARNING",
+    requestMeta,
+  });
 }
 
 export async function submitSellerKyc(user, payload) {
@@ -153,7 +160,7 @@ export async function getSellerKycSubmissions(filters) {
   };
 }
 
-export async function getSellerKycSubmission(kycId, adminUser) {
+export async function getSellerKycSubmission(kycId, adminUser, requestMeta) {
   const submission = await findKycSubmissionWithEncryptedIdentityById(kycId);
 
   if (!submission) {
@@ -163,6 +170,7 @@ export async function getSellerKycSubmission(kycId, adminUser) {
   await recordFullIdentityView({
     adminUserId: adminUser.id,
     kycId,
+    requestMeta,
   });
 
   return {

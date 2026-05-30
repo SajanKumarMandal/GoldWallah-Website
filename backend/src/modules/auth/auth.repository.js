@@ -173,7 +173,7 @@ export async function saveRefreshToken(data, client) {
 export async function revokeRefreshToken(tokenHash, client) {
   const result = await db(client).query(
     `UPDATE refresh_tokens
-     SET revoked_at = now()
+     SET revoked_at = COALESCE(revoked_at, now())
      WHERE token_hash = $1
      RETURNING *`,
     [tokenHash],
@@ -193,6 +193,30 @@ export async function findRefreshToken(tokenHash, client) {
   );
 
   return mapRefreshToken(result.rows[0]);
+}
+
+export async function findRefreshTokenByHash(tokenHash, client) {
+  const result = await db(client).query(
+    `SELECT *
+     FROM refresh_tokens
+     WHERE token_hash = $1`,
+    [tokenHash],
+  );
+
+  return mapRefreshToken(result.rows[0]);
+}
+
+export async function revokeAllActiveRefreshTokens(userId, client) {
+  const result = await db(client).query(
+    `UPDATE refresh_tokens
+     SET revoked_at = COALESCE(revoked_at, now())
+     WHERE user_id = $1
+       AND revoked_at IS NULL
+     RETURNING *`,
+    [userId],
+  );
+
+  return result.rows.map(mapRefreshToken);
 }
 
 export function sanitizeUser(user) {

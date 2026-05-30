@@ -170,7 +170,7 @@ export function getJewellerVerificationFileUrl(request, file) {
   }
 
   const filename = path.basename(file.filename);
-  return `${request.protocol}://${request.get("host")}/uploads/jeweller-verifications/${filename}`;
+  return `/private-media/jeweller-verifications/${filename}`;
 }
 
 export async function deleteJewellerVerificationFiles(filesOrUrls) {

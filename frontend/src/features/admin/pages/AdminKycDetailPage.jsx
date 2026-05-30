@@ -1,9 +1,8 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
-import { useAuth } from "@/features/auth/context/useAuth";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
 import {
@@ -39,7 +38,7 @@ function DetailItem({ label, value }) {
 
 export default function AdminKycDetailPage() {
   const { kycId } = useParams();
-  const { accessToken } = useAuth();
+  const { accessToken } = useOutletContext();
   const [submission, setSubmission] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isLoading, setIsLoading] = useState(true);

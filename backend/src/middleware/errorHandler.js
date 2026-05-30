@@ -1,5 +1,3 @@
-import { env } from "../config/env.js";
-
 export function errorHandler(error, request, response, _next) {
   request.log.error({ error }, "Unhandled request error");
 
@@ -16,7 +14,6 @@ export function errorHandler(error, request, response, _next) {
       code: error.code || "INTERNAL_ERROR",
       requestId: request.id,
       ...(error.details ? { details: error.details } : {}),
-      ...(env.isProduction ? {} : { stack: error.stack }),
     },
   });
 }

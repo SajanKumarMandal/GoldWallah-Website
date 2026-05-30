@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { adminRouter } from "../modules/admin/admin.routes.js";
+import { adminDashboardRouter } from "../modules/adminDashboard/adminDashboard.routes.js";
 import { auditLogsRouter } from "../modules/auditLogs/auditLogs.routes.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { bidsRouter } from "../modules/bids/bids.routes.js";
@@ -54,6 +55,7 @@ apiRouter.use("/listings", listingsRouter);
 apiRouter.use("/bids", bidsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/geo-matching", geoMatchingRouter);
+apiRouter.use("/admin/dashboard", adminDashboardRouter);
 apiRouter.use("/admin", adminRouter);
 apiRouter.use("/admin/jeweller-verifications", adminJewellerVerificationRouter);
 apiRouter.use("/media", mediaRouter);

@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import fs from "node:fs";
+
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -30,6 +32,16 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
   KYC_ENCRYPTION_KEY: z.string().optional().default(""),
+  PRIVATE_MEDIA_SIGNING_SECRET: z.string().optional().default(""),
+  PG_SSL_CA: z.string().optional().default(""),
+  PG_SSL_CA_FILE: z.string().optional().default(""),
+  ADMIN_JWT_ACCESS_SECRET: z.string().optional().default(""),
+  ADMIN_ACCESS_TOKEN_TTL: z.string().min(1).default("15m"),
+  ADMIN_REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  ADMIN_SEED_EMAIL: z.string().optional().default(""),
+  ADMIN_SEED_PASSWORD: z.string().optional().default(""),
+  ADMIN_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  ADMIN_LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -54,6 +66,34 @@ if (
 ) {
   console.error("Missing required environment variable: JWT_ACCESS_SECRET");
   process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  !parsedEnv.data.ADMIN_JWT_ACCESS_SECRET
+) {
+  console.error("Missing required environment variable: ADMIN_JWT_ACCESS_SECRET");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  !parsedEnv.data.PRIVATE_MEDIA_SIGNING_SECRET
+) {
+  console.error("Missing required environment variable: PRIVATE_MEDIA_SIGNING_SECRET");
+  process.exit(1);
+}
+
+function readPgSslCa() {
+  if (parsedEnv.data.PG_SSL_CA) {
+    return parsedEnv.data.PG_SSL_CA.replace(/\\n/g, "\n");
+  }
+
+  if (parsedEnv.data.PG_SSL_CA_FILE) {
+    return fs.readFileSync(parsedEnv.data.PG_SSL_CA_FILE, "utf8");
+  }
+
+  return undefined;
 }
 
 export const env = {
@@ -82,5 +122,16 @@ export const env = {
   twilioAuthToken: parsedEnv.data.TWILIO_AUTH_TOKEN,
   twilioVerifyServiceSid: parsedEnv.data.TWILIO_VERIFY_SERVICE_SID,
   kycEncryptionKey: parsedEnv.data.KYC_ENCRYPTION_KEY,
+  privateMediaSigningSecret:
+    parsedEnv.data.PRIVATE_MEDIA_SIGNING_SECRET ||
+    parsedEnv.data.JWT_ACCESS_SECRET,
+  pgSslCa: readPgSslCa(),
+  adminJwtAccessSecret: parsedEnv.data.ADMIN_JWT_ACCESS_SECRET,
+  adminAccessTokenTtl: parsedEnv.data.ADMIN_ACCESS_TOKEN_TTL,
+  adminRefreshTokenTtlDays: parsedEnv.data.ADMIN_REFRESH_TOKEN_TTL_DAYS,
+  adminSeedEmail: parsedEnv.data.ADMIN_SEED_EMAIL,
+  adminSeedPassword: parsedEnv.data.ADMIN_SEED_PASSWORD,
+  adminLoginMaxAttempts: parsedEnv.data.ADMIN_LOGIN_MAX_ATTEMPTS,
+  adminLoginLockMinutes: parsedEnv.data.ADMIN_LOGIN_LOCK_MINUTES,
   isProduction: parsedEnv.data.NODE_ENV === "production",
 };

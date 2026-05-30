@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -12,10 +12,14 @@ import {
   createUser,
   createOtp,
   findLatestActiveOtp,
+  findRefreshTokenByHash,
   findUserByEmail,
+  findUserById,
   findUserByPhone,
   incrementOtpAttempts,
   consumeOtp,
+  revokeAllActiveRefreshTokens,
+  revokeRefreshToken,
   saveRefreshToken,
   sanitizeUser,
 } from "./auth.repository.js";
@@ -72,7 +76,7 @@ async function createAuthResponse(user, message, client) {
       })
     : null;
   const refreshToken = env.jwtRefreshSecret
-    ? jwt.sign(tokenPayload, env.jwtRefreshSecret, {
+    ? jwt.sign({ ...tokenPayload, jti: randomUUID() }, env.jwtRefreshSecret, {
         expiresIn: env.jwtRefreshExpiresIn,
       })
     : null;
@@ -97,6 +101,22 @@ async function createAuthResponse(user, message, client) {
       refreshToken,
     },
   };
+}
+
+function verifyRefreshToken(refreshToken) {
+  if (!env.jwtRefreshSecret) {
+    throw createError(
+      "Refresh authentication is not configured",
+      500,
+      "REFRESH_AUTH_NOT_CONFIGURED",
+    );
+  }
+
+  try {
+    return jwt.verify(refreshToken, env.jwtRefreshSecret);
+  } catch {
+    throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+  }
 }
 
 async function ensureUniqueIdentity({ email, phone }, client) {
@@ -222,6 +242,57 @@ export async function loginWithEmail(payload) {
   }
 
   return createAuthResponse(user, "Login successful");
+}
+
+export async function refreshUserSession({ refreshToken }) {
+  const refreshTokenHash = hashToken(refreshToken);
+
+  return withTransaction(async (client) => {
+    const existingRefreshToken = await findRefreshTokenByHash(
+      refreshTokenHash,
+      client,
+    );
+
+    if (!existingRefreshToken) {
+      throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+    }
+
+    if (existingRefreshToken.revokedAt) {
+      await revokeAllActiveRefreshTokens(existingRefreshToken.userId, client);
+      throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+    }
+
+    if (new Date(existingRefreshToken.expiresAt).getTime() <= Date.now()) {
+      await revokeRefreshToken(refreshTokenHash, client);
+      throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+    }
+
+    const payload = verifyRefreshToken(refreshToken);
+
+    if (payload.sub !== existingRefreshToken.userId) {
+      await revokeRefreshToken(refreshTokenHash, client);
+      throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+    }
+
+    const user = await findUserById(existingRefreshToken.userId, client);
+
+    if (!user) {
+      await revokeRefreshToken(refreshTokenHash, client);
+      throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+    }
+
+    await revokeRefreshToken(refreshTokenHash, client);
+    return createAuthResponse(user, "Session refreshed", client);
+  });
+}
+
+export async function logoutUser({ refreshToken }) {
+  await revokeRefreshToken(hashToken(refreshToken));
+
+  return {
+    success: true,
+    message: "Logged out successfully",
+  };
 }
 
 export async function sendLoginOtp(payload) {

@@ -1,6 +1,8 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import { requireAdminAuth } from "../../middleware/adminAuth.js";
+import { requireAdminPermission } from "../../middleware/requireAdminPermission.js";
 import * as kycController from "./kyc.controller.js";
 
 export const kycRouter = Router();
@@ -34,28 +36,28 @@ kycRouter.get(
 
 kycRouter.get(
   "/admin/seller",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.seller.view"),
   kycController.listSellerSubmissions,
 );
 
 kycRouter.get(
   "/admin/seller/:kycId",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.seller.view"),
   kycController.sellerSubmissionDetail,
 );
 
 kycRouter.patch(
   "/admin/seller/:kycId/approve",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.seller.approve"),
   kycController.approveSellerSubmission,
 );
 
 kycRouter.patch(
   "/admin/seller/:kycId/reject",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.seller.reject"),
   kycController.rejectSellerSubmission,
 );

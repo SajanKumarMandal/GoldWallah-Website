@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 
 import { withTransaction } from "../../config/db.js";
 import {
+  ADMIN_AUDIT_ACTIONS,
+  writeAdminAuditLog,
+} from "../admin/admin.audit.js";
+import {
   approveJewellerVerification,
   createAuditLog,
   createJewellerVerification,
@@ -252,6 +256,14 @@ export async function getJewellerBusinessVerificationDetail({
     jewellerId: verification.jewellerId,
     status: verification.status,
     adminUserId: adminUser.id,
+    requestMeta,
+  });
+  await writeAdminAuditLog({
+    actorAdminId: adminUser.id,
+    action: ADMIN_AUDIT_ACTIONS.jewellerBusinessIdentityViewed,
+    resourceType: "JEWELLER_BUSINESS_VERIFICATION",
+    resourceId: verificationId,
+    severity: "WARNING",
     requestMeta,
   });
 

@@ -12,7 +12,12 @@ if (!env.databaseUrl && env.nodeEnv !== "test") {
 
 export const pool = new Pool({
   connectionString: env.databaseUrl,
-  ssl: env.isProduction ? { rejectUnauthorized: false } : false,
+  ssl: env.isProduction
+    ? {
+        rejectUnauthorized: true,
+        ...(env.pgSslCa ? { ca: env.pgSslCa } : {}),
+      }
+    : false,
 });
 
 export function query(text, params) {

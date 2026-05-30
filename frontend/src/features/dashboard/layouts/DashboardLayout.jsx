@@ -19,6 +19,7 @@ import logo from "@/assets/logo.png";
 import { ROUTES } from "@/constants/routes";
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/context/useAuth";
+import { logoutUser } from "@/features/auth/services/authService";
 import SidebarItem from "@/features/dashboard/components/SidebarItem";
 
 const navByRole = {
@@ -40,7 +41,7 @@ const navByRole = {
 export default function DashboardLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { user, clearAuthUser } = useAuth();
+  const { user, refreshToken, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,9 +54,17 @@ export default function DashboardLayout() {
         : "Seller";
   const userName = user?.fullName || roleLabel;
 
-  function handleLogout() {
-    clearAuthUser();
-    navigate(ROUTES.login, { replace: true });
+  async function handleLogout() {
+    try {
+      if (refreshToken) {
+        await logoutUser(refreshToken);
+      }
+    } catch {
+      // Local session cleanup must still happen if the server token is stale.
+    } finally {
+      clearAuthUser();
+      navigate(ROUTES.login, { replace: true });
+    }
   }
 
   return (

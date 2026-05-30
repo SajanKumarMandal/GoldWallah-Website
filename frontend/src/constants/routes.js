@@ -11,7 +11,9 @@ export const ROUTES = {
   sellerListingDetail: "/seller/listings/:listingId",
   jewellerDashboard: "/jeweller/dashboard",
   jewellerVerification: "/jeweller/verification",
-  adminDashboard: "/admin",
+  adminLogin: "/admin/login",
+  adminChangePassword: "/admin/change-password",
+  adminDashboard: "/admin/dashboard",
   adminKyc: "/admin/kyc",
   adminKycDetail: "/admin/kyc/:kycId",
 };

@@ -6,6 +6,7 @@ import { USER_ROLES } from "@/constants/roles";
 import DashboardLayout from "@/features/dashboard/layouts/DashboardLayout";
 import PublicLayout from "@/layouts/PublicLayout";
 import NotFound from "@/pages/NotFound";
+import AdminProtectedRoute from "@/routes/AdminProtectedRoute";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import RoleRoute from "@/routes/RoleRoute";
 
@@ -25,11 +26,15 @@ const CreateListingPage = lazy(
 const SellerListingDetailPage = lazy(
   () => import("@/features/seller/pages/SellerListingDetailPage"),
 );
-const AdminKycListPage = lazy(
-  () => import("@/features/admin/pages/AdminKycListPage"),
+const AdminLoginPage = lazy(
+  () => import("@/features/admin/auth/pages/AdminLoginPage"),
 );
-const AdminKycDetailPage = lazy(
-  () => import("@/features/admin/pages/AdminKycDetailPage"),
+const AdminChangePasswordPage = lazy(
+  () => import("@/features/admin/auth/pages/AdminChangePasswordPage"),
+);
+const AdminLayout = lazy(() => import("@/features/admin/layouts/AdminLayout"));
+const AdminDashboardPage = lazy(
+  () => import("@/features/admin/dashboard/pages/AdminDashboardPage"),
 );
 const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
@@ -57,6 +62,20 @@ export default function AppRouter() {
             <Route path="/register" element={<RegisterPage />} />
           </Route>
 
+          <Route path={ROUTES.adminLogin} element={<AdminLoginPage />} />
+          <Route element={<AdminProtectedRoute />}>
+            <Route
+              path={ROUTES.adminChangePassword}
+              element={<AdminChangePasswordPage />}
+            />
+            <Route element={<AdminLayout />}>
+              <Route
+                path={ROUTES.adminDashboard}
+                element={<AdminDashboardPage />}
+              />
+            </Route>
+          </Route>
+
           <Route element={<ProtectedRoute />}>
             <Route
               element={<RoleRoute allowedRoles={[USER_ROLES.seller]} />}
@@ -78,19 +97,6 @@ export default function AppRouter() {
                 <Route
                   path={ROUTES.sellerListingDetail}
                   element={<SellerListingDetailPage />}
-                />
-              </Route>
-            </Route>
-
-            <Route
-              element={<RoleRoute allowedRoles={[USER_ROLES.admin]} />}
-            >
-              <Route element={<DashboardLayout />}>
-                <Route path={ROUTES.adminDashboard} element={<AdminKycListPage />} />
-                <Route path={ROUTES.adminKyc} element={<AdminKycListPage />} />
-                <Route
-                  path={ROUTES.adminKycDetail}
-                  element={<AdminKycDetailPage />}
                 />
               </Route>
             </Route>

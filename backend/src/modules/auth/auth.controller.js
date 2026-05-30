@@ -5,7 +5,9 @@ import {
   googleLoginSchema,
   googleRegisterSchema,
   loginSchema,
+  logoutSchema,
   registerSchema,
+  refreshSchema,
   sendOtpSchema,
   validateBody,
   verifyLoginOtpSchema,
@@ -29,6 +31,34 @@ export async function login(request, response, next) {
   try {
     const payload = validateBody(loginSchema, request.body);
     sendSuccess(response, await authService.loginWithEmail(payload));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function refresh(request, response, next) {
+  try {
+    const payload = validateBody(refreshSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.refreshUserSession({
+        refreshToken: payload.refreshToken,
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logout(request, response, next) {
+  try {
+    const payload = validateBody(logoutSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.logoutUser({
+        refreshToken: payload.refreshToken,
+      }),
+    );
   } catch (error) {
     next(error);
   }

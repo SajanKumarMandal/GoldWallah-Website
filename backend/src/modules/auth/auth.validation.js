@@ -59,6 +59,12 @@ export const facebookRegisterSchema = facebookLoginSchema.extend({
   role: roleSchema,
 });
 
+export const refreshSchema = z.object({
+  refreshToken: z.string().trim().min(32, "Refresh token is required"),
+});
+
+export const logoutSchema = refreshSchema;
+
 export function validateBody(schema, body) {
   const result = schema.safeParse(body);
 

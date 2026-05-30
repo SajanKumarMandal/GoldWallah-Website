@@ -60,6 +60,8 @@ authRouter.get("/", (_request, response) => {
 
 authRouter.post("/register", registerLimiter, authController.register);
 authRouter.post("/login", loginLimiter, authController.login);
+authRouter.post("/refresh", authController.refresh);
+authRouter.post("/logout", authController.logout);
 authRouter.post("/otp/login/send", otpLimiter, authController.sendLoginOtp);
 authRouter.post("/otp/login/verify", otpLimiter, authController.verifyLoginOtp);
 authRouter.post("/otp/register/send", otpLimiter, authController.sendRegisterOtp);

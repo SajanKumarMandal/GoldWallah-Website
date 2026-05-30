@@ -17,6 +17,12 @@ function normalizeAuthResponse(result) {
     data.tokens?.accessToken ||
     data.tokens?.access_token ||
     null;
+  const refreshToken =
+    data.refreshToken ||
+    data.refresh_token ||
+    data.tokens?.refreshToken ||
+    data.tokens?.refresh_token ||
+    null;
   const user = data.user || result?.user || null;
 
   if (user && !accessToken) {
@@ -38,6 +44,7 @@ function normalizeAuthResponse(result) {
     console.debug("Auth response normalized", {
       hasUser: Boolean(user),
       hasAccessToken: Boolean(accessToken),
+      hasRefreshToken: Boolean(refreshToken),
     });
   }
 
@@ -47,6 +54,7 @@ function normalizeAuthResponse(result) {
       ...data,
       user,
       accessToken,
+      refreshToken,
     },
   };
 }
@@ -119,4 +127,18 @@ export async function registerWithFacebook(payload) {
     method: "POST",
     body: JSON.stringify(withApiRole(payload)),
   }));
+}
+
+export async function refreshUserSession(refreshToken) {
+  return normalizeAuthResponse(await apiRequest("auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  }));
+}
+
+export async function logoutUser(refreshToken) {
+  return apiRequest("auth/logout", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  });
 }

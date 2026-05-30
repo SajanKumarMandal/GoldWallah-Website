@@ -1,6 +1,8 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import { requireAdminAuth } from "../../middleware/adminAuth.js";
+import { requireAdminPermission } from "../../middleware/requireAdminPermission.js";
 import * as controller from "./jewellerVerification.controller.js";
 
 export const jewellerVerificationRouter = Router();
@@ -34,28 +36,28 @@ jewellerVerificationRouter.get(
 
 adminJewellerVerificationRouter.get(
   "/",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.business.view"),
   controller.listVerifications,
 );
 
 adminJewellerVerificationRouter.get(
   "/:verificationId",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.business.view"),
   controller.verificationDetail,
 );
 
 adminJewellerVerificationRouter.patch(
   "/:verificationId/approve",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.business.approve"),
   controller.approveVerification,
 );
 
 adminJewellerVerificationRouter.patch(
   "/:verificationId/reject",
-  authenticate,
-  requireRole("ADMIN"),
+  requireAdminAuth,
+  requireAdminPermission("admin.business.reject"),
   controller.rejectVerification,
 );

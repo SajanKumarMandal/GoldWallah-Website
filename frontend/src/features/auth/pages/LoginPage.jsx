@@ -78,6 +78,7 @@ export default function LoginPage() {
         setAuthSession({
           user: result.data.user,
           accessToken: result.data.accessToken,
+          refreshToken: result.data.refreshToken,
         });
         navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
         return;

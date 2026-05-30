@@ -1,4 +1,9 @@
 import {
+  ADMIN_AUDIT_ACTIONS,
+  requestAuditMeta,
+} from "../admin/admin.audit.js";
+import { withPrivateMediaUrls } from "../media/privateMedia.service.js";
+import {
   deleteJewellerVerificationFiles,
   getJewellerVerificationFileUrl,
   getUploadedVerificationFiles,
@@ -25,6 +30,66 @@ import {
 } from "./jewellerVerification.service.js";
 
 export { uploadJewellerVerificationFiles };
+
+function signedBusinessVerification(request, verification, actorType, actorId) {
+  return withPrivateMediaUrls(request, verification, [
+    {
+      field: "shopFrontImageUrl",
+      scope: "jeweller-verifications",
+      actorType,
+      actorId,
+      subjectType: "JEWELLER_BUSINESS_VERIFICATION",
+      subjectId: verification?.id,
+      auditAction:
+        actorType === "admin"
+          ? ADMIN_AUDIT_ACTIONS.jewellerBusinessDocumentViewed
+          : null,
+    },
+    {
+      field: "gstCertificateImageUrl",
+      scope: "jeweller-verifications",
+      actorType,
+      actorId,
+      subjectType: "JEWELLER_BUSINESS_VERIFICATION",
+      subjectId: verification?.id,
+      auditAction:
+        actorType === "admin"
+          ? ADMIN_AUDIT_ACTIONS.jewellerBusinessDocumentViewed
+          : null,
+    },
+    {
+      field: "shopLicenseImageUrl",
+      scope: "jeweller-verifications",
+      actorType,
+      actorId,
+      subjectType: "JEWELLER_BUSINESS_VERIFICATION",
+      subjectId: verification?.id,
+      auditAction:
+        actorType === "admin"
+          ? ADMIN_AUDIT_ACTIONS.jewellerBusinessDocumentViewed
+          : null,
+    },
+  ]);
+}
+
+function withSignedBusinessVerification(request, result, actorType, actorId) {
+  if (!result?.data?.verification) {
+    return result;
+  }
+
+  return {
+    ...result,
+    data: {
+      ...result.data,
+      verification: signedBusinessVerification(
+        request,
+        result.data.verification,
+        actorType,
+        actorId,
+      ),
+    },
+  };
+}
 
 function requestMeta(request) {
   return {
@@ -73,12 +138,17 @@ export async function submitVerification(request, response, next) {
     await validateJewellerVerificationFiles(request);
 
     response.status(201).json(
-      await submitJewellerBusinessVerification({
-        user: request.user,
-        payload,
-        imageUrls: getImageUrls(request),
-        requestMeta: requestMeta(request),
-      }),
+      withSignedBusinessVerification(
+        request,
+        await submitJewellerBusinessVerification({
+          user: request.user,
+          payload,
+          imageUrls: getImageUrls(request),
+          requestMeta: requestMeta(request),
+        }),
+        "user",
+        request.user.id,
+      ),
     );
   } catch (error) {
     await cleanupUploadedFiles(request);
@@ -89,7 +159,12 @@ export async function submitVerification(request, response, next) {
 export async function myVerification(request, response, next) {
   try {
     response.status(200).json(
-      await getMyJewellerBusinessVerification(request.user),
+      withSignedBusinessVerification(
+        request,
+        await getMyJewellerBusinessVerification(request.user),
+        "user",
+        request.user.id,
+      ),
     );
   } catch (error) {
     next(error);
@@ -108,13 +183,21 @@ export async function listVerifications(request, response, next) {
 export async function verificationDetail(request, response, next) {
   try {
     const { verificationId } = validateParams(uuidParamSchema, request.params);
-    response.status(200).json(
-      await getJewellerBusinessVerificationDetail({
+    const result = await getJewellerBusinessVerificationDetail({
         verificationId,
-        adminUser: request.user,
-        requestMeta: requestMeta(request),
-      }),
-    );
+        adminUser: request.admin,
+        requestMeta: requestAuditMeta(request),
+    });
+
+    response.status(200).json({
+      ...result,
+      data: signedBusinessVerification(
+        request,
+        result.data,
+        "admin",
+        request.admin.id,
+      ),
+    });
   } catch (error) {
     next(error);
   }
@@ -126,12 +209,17 @@ export async function approveVerification(request, response, next) {
     const { reviewNotes } = validateBody(approveVerificationSchema, request.body);
 
     response.status(200).json(
-      await approveJewellerBusinessVerification({
-        verificationId,
-        adminUser: request.user,
-        reviewNotes,
-        requestMeta: requestMeta(request),
-      }),
+      withSignedBusinessVerification(
+        request,
+        await approveJewellerBusinessVerification({
+          verificationId,
+          adminUser: request.admin,
+          reviewNotes,
+          requestMeta: requestMeta(request),
+        }),
+        "admin",
+        request.admin.id,
+      ),
     );
   } catch (error) {
     next(error);
@@ -147,13 +235,18 @@ export async function rejectVerification(request, response, next) {
     );
 
     response.status(200).json(
-      await rejectJewellerBusinessVerification({
-        verificationId,
-        adminUser: request.user,
-        rejectionReason,
-        reviewNotes,
-        requestMeta: requestMeta(request),
-      }),
+      withSignedBusinessVerification(
+        request,
+        await rejectJewellerBusinessVerification({
+          verificationId,
+          adminUser: request.admin,
+          rejectionReason,
+          reviewNotes,
+          requestMeta: requestMeta(request),
+        }),
+        "admin",
+        request.admin.id,
+      ),
     );
   } catch (error) {
     next(error);
