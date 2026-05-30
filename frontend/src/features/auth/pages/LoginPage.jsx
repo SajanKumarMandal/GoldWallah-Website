@@ -8,11 +8,8 @@ import AuthInput from "@/features/auth/components/AuthInput";
 import AuthLayout from "@/features/auth/components/AuthLayout";
 import AuthMethodTabs from "@/features/auth/components/AuthMethodTabs";
 import PasswordInput from "@/features/auth/components/PasswordInput";
-import SocialAuthButtons from "@/features/auth/components/SocialAuthButtons";
 import {
   loginUser,
-  loginWithFacebook,
-  loginWithGoogle,
   sendLoginOtp,
   verifyLoginOtp,
 } from "@/features/auth/services/authService";
@@ -142,15 +139,6 @@ export default function LoginPage() {
         }),
       "OTP verified.",
     );
-  }
-
-  async function handleSocialLogin(provider) {
-    const request =
-      provider === "google"
-        ? () => loginWithGoogle({ idToken: "placeholder" })
-        : () => loginWithFacebook({ accessToken: "placeholder" });
-
-    await submitRequest(request, "Social login request prepared.");
   }
 
   return (
@@ -290,13 +278,6 @@ export default function LoginPage() {
               ) : null}
             </form>
           )}
-
-          <SocialAuthButtons
-            disabled={isSubmitting}
-            submitLabel="Continue"
-            onGoogle={() => handleSocialLogin("google")}
-            onFacebook={() => handleSocialLogin("facebook")}
-          />
 
           {statusMessage ? (
             <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm text-(--gw-color-green)">

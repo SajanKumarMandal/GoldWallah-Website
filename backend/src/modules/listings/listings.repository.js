@@ -41,7 +41,6 @@ function mapListing(row, images = []) {
     latitude: toNumber(row.latitude),
     longitude: toNumber(row.longitude),
     status: row.status,
-    // TODO: Add an FK to bids(id) after the private bids table exists.
     acceptedBidId: row.accepted_bid_id,
     images,
     createdAt: row.created_at,

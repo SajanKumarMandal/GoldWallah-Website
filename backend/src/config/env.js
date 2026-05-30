@@ -84,6 +84,14 @@ if (
   process.exit(1);
 }
 
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.OTP_PROVIDER === "mock"
+) {
+  console.error("OTP_PROVIDER=mock is not allowed in production");
+  process.exit(1);
+}
+
 function readPgSslCa() {
   if (parsedEnv.data.PG_SSL_CA) {
     return parsedEnv.data.PG_SSL_CA.replace(/\\n/g, "\n");

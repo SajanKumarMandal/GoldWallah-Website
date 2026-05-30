@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS gold_listings (
 
 COMMENT ON TABLE gold_listings IS 'Stores seller-created gold sale listings.';
 COMMENT ON COLUMN gold_listings.accepted_bid_id IS
-  'Future reference to accepted bid after bids module is created.';
+  'Reference to the accepted private bid after seller selection.';
 
 CREATE TABLE IF NOT EXISTS listing_images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

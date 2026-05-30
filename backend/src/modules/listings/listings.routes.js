@@ -6,7 +6,6 @@ import * as listingsController from "./listings.controller.js";
 export const listingsRouter = Router();
 
 listingsRouter.get("/", (_request, response) => {
-  // TODO: Add public jeweller discovery endpoints separately from seller-owned APIs.
   response.status(200).json({
     module: "listings",
     status: "ready",

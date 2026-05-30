@@ -9,11 +9,8 @@ import AuthLayout from "@/features/auth/components/AuthLayout";
 import AuthMethodTabs from "@/features/auth/components/AuthMethodTabs";
 import PasswordInput from "@/features/auth/components/PasswordInput";
 import RoleSelector from "@/features/auth/components/RoleSelector";
-import SocialAuthButtons from "@/features/auth/components/SocialAuthButtons";
 import {
   registerUser,
-  registerWithFacebook,
-  registerWithGoogle,
   sendRegisterOtp,
   verifyRegisterOtp,
 } from "@/features/auth/services/authService";
@@ -26,7 +23,6 @@ import {
   validateRegisterForm,
   validateRegisterOtpSendForm,
   validateRegisterOtpVerifyForm,
-  validateSocialRegisterForm,
 } from "@/features/auth/utils/authValidation";
 import { getPostAuthRedirectPath } from "@/features/auth/utils/postAuthRedirect";
 
@@ -164,22 +160,6 @@ export default function RegisterPage() {
         }),
       "Account created with phone verification.",
     );
-  }
-
-  async function handleSocialRegister(provider) {
-    const nextErrors = validateSocialRegisterForm(values);
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
-
-    const request =
-      provider === "google"
-        ? () => registerWithGoogle({ idToken: "placeholder", role: values.role })
-        : () => registerWithFacebook({ accessToken: "placeholder", role: values.role });
-
-    await submitRequest(request, "Social registration request prepared.");
   }
 
   return (
@@ -370,14 +350,6 @@ export default function RegisterPage() {
               error={errors.role}
               disabled={isSubmitting}
             />
-            <div className="mt-5">
-              <SocialAuthButtons
-                disabled={isSubmitting}
-                submitLabel="Continue"
-                onGoogle={() => handleSocialRegister("google")}
-                onFacebook={() => handleSocialRegister("facebook")}
-              />
-            </div>
           </div>
 
           {statusMessage ? (

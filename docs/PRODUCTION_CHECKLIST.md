@@ -12,6 +12,7 @@
 - `FRONTEND_ORIGIN`
 - `FRONTEND_URL`
 - `PG_SSL_CA_FILE` or `PG_SSL_CA` from the PostgreSQL provider
+- `OTP_PROVIDER` must be `msg91` or `twilio` in production
 
 ## Deploy Steps
 
@@ -29,6 +30,7 @@
 - Confirm admin KYC/business detail views create admin audit log rows.
 - Confirm user refresh tokens are set only as HttpOnly cookies.
 - Confirm Postgres TLS uses certificate verification.
+- Confirm mock OTP and placeholder OAuth flows are disabled in production.
 
 ## Marketplace Smoke Test
 

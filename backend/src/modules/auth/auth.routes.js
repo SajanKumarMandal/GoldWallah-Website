@@ -51,8 +51,8 @@ authRouter.get("/", (_request, response) => {
     capabilities: [
       "email-password auth",
       "mobile OTP auth",
-      "Google OAuth placeholder",
-      "Facebook OAuth placeholder",
+      "Google OAuth endpoint disabled until provider verification is implemented",
+      "Facebook OAuth endpoint disabled until provider verification is implemented",
       "JWT token generation when secrets are configured",
     ],
   });
