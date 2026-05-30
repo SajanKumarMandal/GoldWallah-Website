@@ -11,6 +11,10 @@ import {
 } from "../modules/dashboard/dashboard.routes.js";
 import { geoMatchingRouter } from "../modules/geoMatching/geoMatching.routes.js";
 import { kycRouter } from "../modules/kyc/kyc.routes.js";
+import {
+  adminJewellerVerificationRouter,
+  jewellerVerificationRouter,
+} from "../modules/jewellerVerification/jewellerVerification.routes.js";
 import { listingsRouter } from "../modules/listings/listings.routes.js";
 import { mediaRouter } from "../modules/media/media.routes.js";
 import { notificationsRouter } from "../modules/notifications/notifications.routes.js";
@@ -43,6 +47,7 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/seller", sellerDashboardRouter);
 apiRouter.use("/jeweller", jewellerDashboardRouter);
+apiRouter.use("/jeweller/verification", jewellerVerificationRouter);
 apiRouter.use("/kyc", kycRouter);
 apiRouter.use("/business-verification", businessVerificationRouter);
 apiRouter.use("/listings", listingsRouter);
@@ -50,6 +55,7 @@ apiRouter.use("/bids", bidsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/geo-matching", geoMatchingRouter);
 apiRouter.use("/admin", adminRouter);
+apiRouter.use("/admin/jeweller-verifications", adminJewellerVerificationRouter);
 apiRouter.use("/media", mediaRouter);
 apiRouter.use("/audit-logs", auditLogsRouter);
 apiRouter.use("/security-fraud", securityFraudRouter);

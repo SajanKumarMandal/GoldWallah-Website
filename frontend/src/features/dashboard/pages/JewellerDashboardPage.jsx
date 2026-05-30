@@ -1,4 +1,12 @@
-import { BadgeCheck, Gavel, LockKeyhole, MapPinned, Search } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  Gavel,
+  LockKeyhole,
+  MapPinned,
+  Search,
+  WalletCards,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -61,22 +69,38 @@ export default function JewellerDashboardPage() {
   }, [accessToken, setAuthUser]);
 
   const stats = dashboard?.stats || {};
-  const verificationValue =
-    dashboard?.kycStatus === "APPROVED" &&
-    dashboard?.businessVerificationStatus === "APPROVED"
-      ? "Approved"
-      : "Pending";
+  const kycStatus = dashboard?.kycStatus || user?.kycStatus || "PENDING";
+  const businessVerificationStatus =
+    dashboard?.businessVerificationStatus ||
+    user?.businessVerificationStatus ||
+    "NOT_SUBMITTED";
+  const commissionLockStatus =
+    dashboard?.commissionLockStatus || user?.commissionLockStatus || "CLEAR";
   const canBid =
-    (dashboard?.kycStatus || user?.kycStatus) === "APPROVED" &&
-    (dashboard?.businessVerificationStatus ||
-      user?.businessVerificationStatus) === "APPROVED";
+    kycStatus === "APPROVED" &&
+    businessVerificationStatus === "APPROVED" &&
+    commissionLockStatus === "CLEAR";
   const jewellerStats = [
     {
-      title: "Verification status",
-      value: verificationValue,
-      description: "KYC and business verification state.",
+      title: "KYC status",
+      value: kycStatus,
+      description: "Identity verification state.",
       icon: BadgeCheck,
       tone: "gold",
+    },
+    {
+      title: "Business verification",
+      value: businessVerificationStatus,
+      description: "Business approval state.",
+      icon: Building2,
+      tone: "gold",
+    },
+    {
+      title: "Commission lock",
+      value: commissionLockStatus,
+      description: "Commission dues must be clear before bidding.",
+      icon: WalletCards,
+      tone: "copper",
     },
     {
       title: "Nearby listings",
@@ -124,7 +148,7 @@ export default function JewellerDashboardPage() {
         }
       />
 
-      {!canBid ? (
+      {businessVerificationStatus !== "APPROVED" ? (
         <div className="rounded-3xl border border-(--gw-color-gold)/45 bg-(--gw-color-gold)/10 p-5 text-(--gw-color-green)">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-3">
@@ -133,10 +157,10 @@ export default function JewellerDashboardPage() {
               </span>
               <div>
                 <h2 className="text-lg font-semibold">
-                  Complete KYC and business verification to start bidding.
+                  Complete business verification to start bidding.
                 </h2>
                 <p className="mt-1 text-sm text-(--gw-color-muted)">
-                  You can access the dashboard and review listed items before bid access is enabled.
+                  You can access the dashboard while business verification is reviewed.
                 </p>
               </div>
             </div>
@@ -144,8 +168,26 @@ export default function JewellerDashboardPage() {
               to={ROUTES.jewellerVerification}
               className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
             >
-              Complete verification
+              Complete Verification
             </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {commissionLockStatus === "LOCKED" ? (
+        <div className="rounded-3xl border border-(--gw-color-copper)/35 bg-(--gw-color-copper)/10 p-5 text-(--gw-color-copper)">
+          <div className="flex gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
+              <WalletCards className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold">
+                Commission payment pending. Bidding will remain locked until payment is cleared.
+              </h2>
+              <p className="mt-1 text-sm text-(--gw-color-muted)">
+                Payment handling will be available when the commission workflow is built.
+              </p>
+            </div>
           </div>
         </div>
       ) : null}
@@ -161,7 +203,7 @@ export default function JewellerDashboardPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {jewellerStats.map((stat) => (
           <StatCard key={stat.title} {...stat} />
         ))}

@@ -35,7 +35,7 @@ const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
 );
 const JewellerVerificationPage = lazy(
-  () => import("@/features/dashboard/pages/JewellerVerificationPage"),
+  () => import("@/features/jeweller/pages/JewellerVerificationPage"),
 );
 
 function RouteLoader() {

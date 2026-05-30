@@ -8,6 +8,7 @@ import { securityMiddleware } from "./middleware/security.js";
 import { apiRouter } from "./routes/apiRouter.js";
 import { kycUploadsDir } from "./modules/kyc/kyc.upload.js";
 import { listingUploadsDir } from "./modules/listings/listings.upload.js";
+import { jewellerVerificationUploadsDir } from "./modules/jewellerVerification/jewellerVerification.upload.js";
 
 export function createApp() {
   const app = express();
@@ -39,6 +40,16 @@ export function createApp() {
   app.use(
     "/uploads/listings",
     express.static(listingUploadsDir, {
+      dotfiles: "deny",
+      fallthrough: false,
+      index: false,
+      redirect: false,
+    }),
+  );
+
+  app.use(
+    "/uploads/jeweller-verifications",
+    express.static(jewellerVerificationUploadsDir, {
       dotfiles: "deny",
       fallthrough: false,
       index: false,

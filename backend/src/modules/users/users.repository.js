@@ -14,6 +14,7 @@ function mapUser(row) {
     authProvider: row.auth_provider,
     kycStatus: row.kyc_status,
     businessVerificationStatus: row.business_verification_status,
+    commissionLockStatus: row.commission_lock_status,
     createdAt: row.created_at,
   };
 }
@@ -29,6 +30,7 @@ export async function findUserById(id) {
       auth_provider,
       kyc_status,
       business_verification_status,
+      commission_lock_status,
       created_at
     FROM users
     WHERE id = $1`,
