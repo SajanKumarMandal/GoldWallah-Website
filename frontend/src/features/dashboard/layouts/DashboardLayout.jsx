@@ -13,7 +13,7 @@ import {
   UserCircle,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "@/assets/logo.png";
@@ -22,6 +22,11 @@ import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/context/useAuth";
 import { logoutUser } from "@/features/auth/services/authService";
 import SidebarItem from "@/features/dashboard/components/SidebarItem";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/features/notifications/notificationService";
 
 const navByRole = {
   [USER_ROLES.seller]: [
@@ -43,7 +48,11 @@ const navByRole = {
 export default function DashboardLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const { user, clearAuthUser } = useAuth();
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
+  const { user, accessToken, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,6 +65,60 @@ export default function DashboardLayout() {
         : "Seller";
   const userName = user?.fullName || roleLabel;
 
+  async function loadNotifications() {
+    if (!accessToken) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const result = await getNotifications(accessToken, { limit: 5 });
+      setNotifications(result?.data?.notifications || []);
+      setUnreadCount(result?.data?.unreadCount || 0);
+      setNotificationError("");
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+      setNotificationError("Notifications could not be loaded.");
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialNotifications() {
+      if (!accessToken) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      try {
+        const result = await getNotifications(accessToken, { limit: 5 });
+        if (!isMounted) {
+          return;
+        }
+        setNotifications(result?.data?.notifications || []);
+        setUnreadCount(result?.data?.unreadCount || 0);
+        setNotificationError("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        setNotifications([]);
+        setUnreadCount(0);
+        setNotificationError("Notifications could not be loaded.");
+      }
+    }
+
+    loadInitialNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken]);
+
   async function handleLogout() {
     try {
       await logoutUser();
@@ -64,6 +127,56 @@ export default function DashboardLayout() {
     } finally {
       clearAuthUser();
       navigate(ROUTES.login, { replace: true });
+    }
+  }
+
+  async function toggleNotifications() {
+    const nextOpen = !isNotificationsOpen;
+    setIsNotificationsOpen(nextOpen);
+
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!accessToken || unreadCount === 0) {
+      return;
+    }
+
+    try {
+      await markAllNotificationsRead(accessToken);
+      setNotifications((current) =>
+        current.map((notification) => ({
+          ...notification,
+          readAt: notification.readAt || new Date().toISOString(),
+        })),
+      );
+      setUnreadCount(0);
+      setNotificationError("");
+    } catch {
+      setNotificationError("Notifications could not be updated.");
+    }
+  }
+
+  async function handleNotificationRead(notification) {
+    if (!accessToken || notification.readAt) {
+      return;
+    }
+
+    try {
+      await markNotificationRead(accessToken, notification.id);
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? { ...item, readAt: item.readAt || new Date().toISOString() }
+            : item,
+        ),
+      );
+      setUnreadCount((current) => Math.max(current - 1, 0));
+      setNotificationError("");
+    } catch {
+      setNotificationError("Notification could not be updated.");
     }
   }
 
@@ -131,10 +244,68 @@ export default function DashboardLayout() {
                 type="button"
                 className="relative flex h-10 w-10 items-center justify-center rounded-full border border-(--gw-color-border) bg-white text-(--gw-color-green) transition hover:border-(--gw-color-gold)"
                 aria-label="Notifications"
+                onClick={toggleNotifications}
               >
                 <Bell className="h-5 w-5" aria-hidden="true" />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-(--gw-color-gold)" />
+                {unreadCount > 0 ? (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-(--gw-color-gold)" />
+                ) : null}
               </button>
+
+              {isNotificationsOpen ? (
+                <div className="absolute right-16 top-14 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-(--gw-color-border) bg-white p-3 shadow-[0_24px_70px_rgba(26,54,45,0.16)]">
+                  <div className="flex items-center justify-between gap-3 px-2 py-1">
+                    <p className="text-sm font-semibold text-(--gw-color-green)">
+                      Notifications
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      disabled={unreadCount === 0}
+                      className="text-xs font-semibold text-(--gw-color-muted) transition hover:text-(--gw-color-green) disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      Mark read
+                    </button>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {notificationError ? (
+                      <p className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-xs font-semibold text-(--gw-color-copper)">
+                        {notificationError}
+                      </p>
+                    ) : null}
+                    {notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          onClick={() => handleNotificationRead(notification)}
+                          className="w-full rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-left transition hover:bg-(--gw-color-gold)/12"
+                        >
+                          <div className="flex items-start gap-3">
+                            {!notification.readAt ? (
+                              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-(--gw-color-gold)" />
+                            ) : (
+                              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-transparent" />
+                            )}
+                            <div>
+                              <p className="text-sm font-semibold text-(--gw-color-green)">
+                                {notification.title}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-(--gw-color-muted)">
+                                {notification.body}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-sm text-(--gw-color-muted)">
+                        No notifications.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="relative">
                 <button

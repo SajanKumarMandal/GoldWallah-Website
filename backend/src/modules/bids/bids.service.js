@@ -1,5 +1,6 @@
 import { withTransaction } from "../../config/db.js";
 import { requireJewellerCanTransact } from "../jewellerVerification/jewellerTransactionGuard.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 import {
   acceptBid,
   createBid,
@@ -74,6 +75,17 @@ export async function placeBid({ user, payload, requestMeta }) {
         bid,
         requestMeta,
       }, client);
+      await notifyUser(
+        {
+          userId: listing.sellerId,
+          type: "PRIVATE_BID_RECEIVED",
+          title: "New private bid",
+          body: "A verified jeweller placed a private bid on your listing.",
+          entityType: "PRIVATE_BID",
+          entityId: bid.id,
+        },
+        client,
+      );
 
       return {
         success: true,
@@ -155,6 +167,17 @@ export async function acceptSellerBid({ user, bidId, requestMeta }) {
       bid,
       requestMeta,
     }, client);
+    await notifyUser(
+      {
+        userId: bid.jewellerId,
+        type: "PRIVATE_BID_ACCEPTED",
+        title: "Private bid accepted",
+        body: "Your private bid was accepted. Commission settlement is now required before further bidding.",
+        entityType: "PRIVATE_BID",
+        entityId: bid.id,
+      },
+      client,
+    );
 
     return {
       success: true,
@@ -189,6 +212,17 @@ export async function rejectSellerBid({ user, bidId, requestMeta }) {
       bid,
       requestMeta,
     }, client);
+    await notifyUser(
+      {
+        userId: bid.jewellerId,
+        type: "PRIVATE_BID_REJECTED",
+        title: "Private bid rejected",
+        body: "Your private bid was not selected by the seller.",
+        entityType: "PRIVATE_BID",
+        entityId: bid.id,
+      },
+      client,
+    );
 
     return {
       success: true,
