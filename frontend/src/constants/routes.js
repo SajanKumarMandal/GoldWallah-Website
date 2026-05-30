@@ -15,6 +15,7 @@ export const ROUTES = {
   adminLogin: "/admin/login",
   adminChangePassword: "/admin/change-password",
   adminDashboard: "/admin/dashboard",
+  adminCommissions: "/admin/commissions",
   adminKyc: "/admin/kyc",
   adminKycDetail: "/admin/kyc/:kycId",
 };

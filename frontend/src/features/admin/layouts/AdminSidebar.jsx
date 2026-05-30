@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BarChart3,
   FileCheck2,
+  ReceiptIndianRupee,
   LogOut,
   Shield,
   UsersRound,
@@ -22,6 +23,12 @@ const navItems = [
     icon: FileCheck2,
     permission: "admin.kyc.seller.view",
     disabled: true,
+  },
+  {
+    to: "/admin/commissions",
+    label: "Commissions",
+    icon: ReceiptIndianRupee,
+    permission: "admin.commissions.view",
   },
   {
     to: "/admin/sub-admins",

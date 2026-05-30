@@ -47,6 +47,7 @@ export async function getDashboardSummary() {
     totalJewellers,
     pendingSellerKyc,
     pendingJewellerKyc,
+    pendingCommissions,
     approvedSellerKyc,
     approvedJewellerKyc,
     suspendedAdmins,
@@ -67,6 +68,12 @@ export async function getDashboardSummary() {
        JOIN users u ON u.id = k.user_id
        WHERE u.role = $1 AND k.status = $2`,
       ["JEWELLER", "PENDING"],
+    ),
+    countRows(
+      `SELECT COUNT(*) AS count
+       FROM platform_commissions
+       WHERE status IN ($1, $2, $3, $4)`,
+      ["PENDING", "PAYMENT_INITIATED", "FAILED", "DISPUTED"],
     ),
     countRows(
       `SELECT COUNT(*) AS count
@@ -119,6 +126,7 @@ export async function getDashboardSummary() {
     totalJewellers,
     pendingSellerKyc,
     pendingJewellerKyc,
+    pendingCommissions,
     pendingBusinessVerifications,
     approvedSellerKyc,
     approvedJewellerKyc,

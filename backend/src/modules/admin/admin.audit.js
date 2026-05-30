@@ -19,6 +19,8 @@ export const ADMIN_AUDIT_ACTIONS = {
   sellerKycSelfieViewed: "ADMIN_SELLER_KYC_SELFIE_VIEWED",
   jewellerBusinessIdentityViewed: "ADMIN_JEWELLER_BUSINESS_IDENTITY_VIEWED",
   jewellerBusinessDocumentViewed: "ADMIN_JEWELLER_BUSINESS_DOCUMENT_VIEWED",
+  commissionMarkedPaid: "ADMIN_COMMISSION_MARKED_PAID",
+  commissionWaived: "ADMIN_COMMISSION_WAIVED",
 };
 
 export function requestAuditMeta(request) {

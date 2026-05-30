@@ -28,6 +28,9 @@ export const ADMIN_PERMISSIONS = [
   "admin.roles.view",
   "admin.roles.update",
   "admin.audit.view",
+  "admin.commissions.view",
+  "admin.commissions.settle",
+  "admin.commissions.waive",
   "admin.users.block",
   "admin.users.unblock",
 ];
@@ -79,6 +82,9 @@ export const SYSTEM_ROLE_DEFINITIONS = [
       "admin.users.view",
       "admin.jewellers.view",
       "admin.audit.view",
+      "admin.commissions.view",
+      "admin.commissions.settle",
+      "admin.commissions.waive",
     ],
   },
   {

@@ -36,6 +36,9 @@ const AdminLayout = lazy(() => import("@/features/admin/layouts/AdminLayout"));
 const AdminDashboardPage = lazy(
   () => import("@/features/admin/dashboard/pages/AdminDashboardPage"),
 );
+const AdminCommissionsPage = lazy(
+  () => import("@/features/admin/commissions/pages/AdminCommissionsPage"),
+);
 const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
 );
@@ -75,6 +78,10 @@ export default function AppRouter() {
               <Route
                 path={ROUTES.adminDashboard}
                 element={<AdminDashboardPage />}
+              />
+              <Route
+                path={ROUTES.adminCommissions}
+                element={<AdminCommissionsPage />}
               />
             </Route>
           </Route>

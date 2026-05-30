@@ -19,6 +19,7 @@ const statCards = [
   ["pendingSellerKyc", "Pending Seller KYC", "gold"],
   ["pendingJewellerKyc", "Pending Jeweller KYC", "gold"],
   ["pendingBusinessVerifications", "Pending Business Verifications", "gold"],
+  ["pendingCommissions", "Pending Commissions", "copper"],
   ["criticalAuditEventsLast24h", "Critical Security Alerts", "copper"],
 ];
 
