@@ -32,6 +32,47 @@ function mapBid(row) {
   };
 }
 
+function mapDeal(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    acceptedBidId: row.accepted_bid_id,
+    sellerId: row.seller_id,
+    jewellerId: row.jeweller_id,
+    finalAmount: toNumber(row.final_amount),
+    status: row.status,
+    completedAt: row.completed_at,
+    cancelledAt: row.cancelled_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCommission(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    dealId: row.deal_id,
+    jewellerId: row.jeweller_id,
+    sellerId: row.seller_id,
+    grossDealAmount: toNumber(row.gross_deal_amount),
+    commissionRate: toNumber(row.commission_rate),
+    commissionAmount: toNumber(row.commission_amount),
+    status: row.status,
+    dueAt: row.due_at,
+    paidAt: row.paid_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export async function findActiveListingForBid(listingId, client) {
   const result = await db(client).query(
     `SELECT id, seller_id, title, status
@@ -130,7 +171,7 @@ export async function findBidForSellerDecision({ bidId, sellerId }, client) {
   return mapBid(result.rows[0]);
 }
 
-export async function acceptBid({ bidId, listingId }, client) {
+export async function acceptBid({ bidId, listingId, sellerId }, client) {
   const bidResult = await db(client).query(
     `UPDATE private_bids
      SET status = 'ACCEPTED',
@@ -161,15 +202,79 @@ export async function acceptBid({ bidId, listingId }, client) {
      SET status = 'BID_ACCEPTED',
          accepted_bid_id = $2
      WHERE id = $1
+       AND seller_id = $3
        AND status = 'ACTIVE'`,
-    [listingId, bidId],
+    [listingId, bidId, sellerId],
   );
 
   if (!listingResult.rows[0]) {
     return null;
   }
 
-  return mapBid(bidResult.rows[0]);
+  const bid = mapBid(bidResult.rows[0]);
+  const dealResult = await db(client).query(
+    `INSERT INTO deals (
+      id,
+      listing_id,
+      accepted_bid_id,
+      seller_id,
+      jeweller_id,
+      final_amount
+    )
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *`,
+    [
+      randomUUID(),
+      listingId,
+      bidId,
+      sellerId,
+      bid.jewellerId,
+      bid.bidAmount,
+    ],
+  );
+  const deal = mapDeal(dealResult.rows[0]);
+  const commissionRate = 0.02;
+  const commissionAmount = Number((bid.bidAmount * commissionRate).toFixed(2));
+  const commissionResult = await db(client).query(
+    `INSERT INTO platform_commissions (
+      id,
+      deal_id,
+      jeweller_id,
+      seller_id,
+      gross_deal_amount,
+      commission_rate,
+      commission_amount,
+      status,
+      due_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', now() + interval '7 days')
+    RETURNING *`,
+    [
+      randomUUID(),
+      deal.id,
+      bid.jewellerId,
+      sellerId,
+      bid.bidAmount,
+      commissionRate,
+      commissionAmount,
+    ],
+  );
+  const commission = mapCommission(commissionResult.rows[0]);
+
+  await db(client).query(
+    `UPDATE users
+     SET commission_lock_status = 'LOCKED',
+         commission_locked_at = now(),
+         commission_lock_reason = $2
+     WHERE id = $1`,
+    [bid.jewellerId, `Pending commission for deal ${deal.id}`],
+  );
+
+  return {
+    ...bid,
+    deal,
+    commission,
+  };
 }
 
 export async function rejectBid(bidId, client) {

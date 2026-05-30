@@ -87,9 +87,9 @@ export default function SellerDashboardPage() {
       tone: "green",
     },
     {
-      title: "Total bids received",
-      value: String(stats.totalBidsReceived || 0),
-      description: "Verified jeweller bids will appear here.",
+      title: "Accepted bids",
+      value: String(stats.acceptedBids || 0),
+      description: "Accepted private bids become deal records.",
       icon: Gavel,
       tone: "copper",
     },

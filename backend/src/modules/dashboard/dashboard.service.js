@@ -1,5 +1,6 @@
 import {
   getJewellerStats,
+  getPendingCommissionSummary,
   getRecentActivity,
   getSellerStats,
 } from "./dashboard.repository.js";
@@ -16,6 +17,8 @@ export async function getSellerDashboard(user) {
 }
 
 export async function getJewellerDashboard(user) {
+  const commissionSummary = await getPendingCommissionSummary(user.id);
+
   return {
     success: true,
     data: {
@@ -23,6 +26,8 @@ export async function getJewellerDashboard(user) {
       recentActivity: await getRecentActivity(user.id),
       kycStatus: user.kycStatus,
       businessVerificationStatus: user.businessVerificationStatus,
+      commissionLockStatus: user.commissionLockStatus,
+      commissionSummary,
     },
   };
 }

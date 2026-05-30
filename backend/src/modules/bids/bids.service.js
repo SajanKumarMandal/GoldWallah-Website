@@ -137,7 +137,11 @@ export async function acceptSellerBid({ user, bidId, requestMeta }) {
     }
 
     const bid = await acceptBid(
-      { bidId, listingId: existingBid.listingId },
+      {
+        bidId,
+        listingId: existingBid.listingId,
+        sellerId: user.id,
+      },
       client,
     );
 

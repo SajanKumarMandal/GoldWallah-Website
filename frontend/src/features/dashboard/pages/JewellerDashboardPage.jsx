@@ -21,12 +21,19 @@ import {
   getJewellerDashboard,
 } from "@/features/dashboard/services/dashboardService";
 
+function formatMoney(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
+
 export default function JewellerDashboardPage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
   const firstName = user?.fullName?.split(" ")[0] || "Jeweller";
 
   useEffect(() => {
@@ -76,6 +83,7 @@ export default function JewellerDashboardPage() {
     "NOT_SUBMITTED";
   const commissionLockStatus =
     dashboard?.commissionLockStatus || user?.commissionLockStatus || "CLEAR";
+  const commissionSummary = dashboard?.commissionSummary || {};
   const canBid =
     kycStatus === "APPROVED" &&
     businessVerificationStatus === "APPROVED" &&
@@ -96,9 +104,9 @@ export default function JewellerDashboardPage() {
       tone: "gold",
     },
     {
-      title: "Commission lock",
-      value: commissionLockStatus,
-      description: "Commission dues must be clear before bidding.",
+      title: "Pending commission",
+      value: formatMoney(commissionSummary.pendingCommissionAmount),
+      description: `${commissionSummary.pendingCommissionCount || 0} pending commission record${commissionSummary.pendingCommissionCount === 1 ? "" : "s"}.`,
       icon: WalletCards,
       tone: "copper",
     },
@@ -117,15 +125,6 @@ export default function JewellerDashboardPage() {
       tone: "copper",
     },
   ];
-
-  function handleBidAction() {
-    if (!canBid) {
-      setActionMessage("Verification is required before placing bids.");
-      return;
-    }
-
-    setActionMessage("Bid placement is coming soon.");
-  }
 
   return (
     <div className="space-y-6">
@@ -180,22 +179,11 @@ export default function JewellerDashboardPage() {
                 Commission payment pending. Bidding will remain locked until payment is cleared.
               </h2>
               <p className="mt-1 text-sm text-(--gw-color-muted)">
-                Payment handling will be available when the commission workflow is built.
+                Pending commission total: {formatMoney(commissionSummary.pendingCommissionAmount)}.
               </p>
             </div>
           </div>
         </div>
-      ) : null}
-
-      {actionMessage ? (
-        <p className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-(--gw-color-green)">
-          {actionMessage}{" "}
-          {!canBid ? (
-            <Link to={ROUTES.jewellerVerification} className="font-semibold underline">
-              Go to verification
-            </Link>
-          ) : null}
-        </p>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -228,9 +216,8 @@ export default function JewellerDashboardPage() {
                 Seller listings will appear here when available.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleBidAction}
+            <Link
+              to={canBid ? ROUTES.jewellerMarketplace : ROUTES.jewellerVerification}
               aria-disabled={!canBid}
               className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition ${
                 canBid
@@ -238,8 +225,8 @@ export default function JewellerDashboardPage() {
                   : "cursor-not-allowed border border-(--gw-color-border) bg-white text-(--gw-color-muted)"
               }`}
             >
-              Place bid
-            </button>
+              {canBid ? "Browse listings" : "Complete verification"}
+            </Link>
           </div>
         </div>
       </DashboardSection>

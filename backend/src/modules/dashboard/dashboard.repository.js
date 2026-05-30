@@ -38,23 +38,28 @@ async function safeCount({ tableName, requiredColumns = [], where = "", params =
 
 export async function getSellerStats(sellerId) {
   const activeListings = await safeCount({
-    tableName: "listings",
+    tableName: "gold_listings",
     requiredColumns: ["seller_id", "status"],
     where: "WHERE seller_id = $1 AND status = 'ACTIVE'",
     params: [sellerId],
   });
 
   const totalBidsReceived = await safeCount({
-    tableName: "bids",
-    requiredColumns: ["seller_id"],
-    where: "WHERE seller_id = $1",
+    tableName: "private_bids",
+    requiredColumns: ["listing_id"],
+    where: `WHERE listing_id IN (
+      SELECT id FROM gold_listings WHERE seller_id = $1
+    )`,
     params: [sellerId],
   });
 
-  const shortlistedBids = await safeCount({
-    tableName: "bids",
-    requiredColumns: ["seller_id", "status"],
-    where: "WHERE seller_id = $1 AND status = 'SHORTLISTED'",
+  const acceptedBids = await safeCount({
+    tableName: "private_bids",
+    requiredColumns: ["listing_id", "status"],
+    where: `WHERE status = 'ACCEPTED'
+      AND listing_id IN (
+        SELECT id FROM gold_listings WHERE seller_id = $1
+      )`,
     params: [sellerId],
   });
 
@@ -68,29 +73,29 @@ export async function getSellerStats(sellerId) {
   return {
     activeListings,
     totalBidsReceived,
-    shortlistedBids,
+    acceptedBids,
     completedDeals,
   };
 }
 
 export async function getJewellerStats(jewellerId) {
   const nearbyListings = await safeCount({
-    tableName: "listings",
+    tableName: "gold_listings",
     requiredColumns: ["status"],
     where: "WHERE status = 'ACTIVE'",
   });
 
   const activeBids = await safeCount({
-    tableName: "bids",
+    tableName: "private_bids",
     requiredColumns: ["jeweller_id", "status"],
-    where: "WHERE jeweller_id = $1 AND status = 'ACTIVE'",
+    where: "WHERE jeweller_id = $1 AND status = 'PENDING'",
     params: [jewellerId],
   });
 
   const wonDeals = await safeCount({
-    tableName: "bids",
+    tableName: "private_bids",
     requiredColumns: ["jeweller_id", "status"],
-    where: "WHERE jeweller_id = $1 AND status = 'WON'",
+    where: "WHERE jeweller_id = $1 AND status = 'ACCEPTED'",
     params: [jewellerId],
   });
 
@@ -106,6 +111,30 @@ export async function getJewellerStats(jewellerId) {
     activeBids,
     wonDeals,
     completedPurchases,
+  };
+}
+
+export async function getPendingCommissionSummary(jewellerId) {
+  if (!(await tableExists("platform_commissions"))) {
+    return {
+      pendingCommissionCount: 0,
+      pendingCommissionAmount: 0,
+    };
+  }
+
+  const result = await query(
+    `SELECT
+       COUNT(*)::int AS count,
+       COALESCE(SUM(commission_amount), 0)::numeric AS amount
+     FROM platform_commissions
+     WHERE jeweller_id = $1
+       AND status IN ('PENDING', 'PAYMENT_INITIATED', 'FAILED')`,
+    [jewellerId],
+  );
+
+  return {
+    pendingCommissionCount: Number(result.rows[0]?.count || 0),
+    pendingCommissionAmount: Number(result.rows[0]?.amount || 0),
   };
 }
 
