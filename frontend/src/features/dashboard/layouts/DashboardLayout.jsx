@@ -21,6 +21,7 @@ import { ROUTES } from "@/constants/routes";
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/context/useAuth";
 import { logoutUser } from "@/features/auth/services/authService";
+import { getDashboardHomePath } from "@/features/auth/utils/dashboardHomePath";
 import SidebarItem from "@/features/dashboard/components/SidebarItem";
 import {
   getNotifications,
@@ -59,6 +60,7 @@ export default function DashboardLayout() {
   const location = useLocation();
 
   const navigation = useMemo(() => navByRole[user?.role] || [], [user?.role]);
+  const dashboardHomePath = useMemo(() => getDashboardHomePath(user), [user]);
   const roleLabel =
     user?.role === USER_ROLES.admin
       ? "Admin"
@@ -185,7 +187,11 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen min-w-0 bg-(--gw-color-cream) text-(--gw-color-green)">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-(--gw-color-border) bg-white/82 px-4 py-5 backdrop-blur-xl lg:block">
-        <SidebarContent navigation={navigation} userRole={roleLabel} />
+        <SidebarContent
+          dashboardHomePath={dashboardHomePath}
+          navigation={navigation}
+          userRole={roleLabel}
+        />
       </aside>
 
       {isDrawerOpen ? (
@@ -208,6 +214,7 @@ export default function DashboardLayout() {
               </button>
             </div>
             <SidebarContent
+              dashboardHomePath={dashboardHomePath}
               navigation={navigation}
               userRole={roleLabel}
               onNavigate={() => setIsDrawerOpen(false)}
@@ -354,11 +361,11 @@ export default function DashboardLayout() {
   );
 }
 
-function SidebarContent({ navigation, userRole, onNavigate }) {
+function SidebarContent({ dashboardHomePath, navigation, userRole, onNavigate }) {
   return (
     <div className="flex h-full min-w-0 flex-col">
       <Link
-        to={ROUTES.home}
+        to={dashboardHomePath}
         className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-2 transition hover:bg-white/70"
         onClick={onNavigate}
       >
