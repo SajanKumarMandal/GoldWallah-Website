@@ -16,6 +16,7 @@ export function createApp() {
   const app = express();
   app.locals.apiVersion = env.apiVersion;
 
+  app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(requestContext);
   app.use(requestLogger);

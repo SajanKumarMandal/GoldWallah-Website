@@ -1,4 +1,5 @@
 import * as authService from "./auth.service.js";
+import { env } from "../../config/env.js";
 import {
   facebookLoginSchema,
   facebookRegisterSchema,
@@ -16,17 +17,58 @@ import {
 
 const refreshCookieName = "goldwallah_refresh_token";
 
+function isCrossSiteFrontend(request) {
+  try {
+    const frontendOrigin = new URL(env.frontendOrigin).origin;
+    const requestOrigin = `${request.protocol}://${request.get("host")}`;
+
+    return frontendOrigin !== requestOrigin;
+  } catch {
+    return true;
+  }
+}
+
 function sendSuccess(response, result, statusCode = 200) {
   response.status(statusCode).json(result);
 }
 
 function refreshCookieOptions(request) {
+  const useCrossSiteCookie = env.isProduction && isCrossSiteFrontend(request);
+
   return {
     httpOnly: true,
-    secure: request.app.get("env") === "production",
-    sameSite: "lax",
+    secure: env.isProduction,
+    sameSite: useCrossSiteCookie ? "none" : "lax",
     path: `/api/${request.app.locals.apiVersion || "v1"}/auth`,
   };
+}
+
+function assertTrustedBrowserOrigin(request) {
+  const origin = request.get("origin");
+
+  if (!origin) {
+    return;
+  }
+
+  let normalizedOrigin;
+  let normalizedFrontendOrigin;
+
+  try {
+    normalizedOrigin = new URL(origin).origin;
+    normalizedFrontendOrigin = new URL(env.frontendOrigin).origin;
+  } catch {
+    const error = new Error("Invalid request origin");
+    error.statusCode = 403;
+    error.code = "UNTRUSTED_ORIGIN";
+    throw error;
+  }
+
+  if (normalizedOrigin !== normalizedFrontendOrigin) {
+    const error = new Error("Invalid request origin");
+    error.statusCode = 403;
+    error.code = "UNTRUSTED_ORIGIN";
+    throw error;
+  }
 }
 
 function readCookie(request, name) {
@@ -71,6 +113,7 @@ function clearRefreshCookie(request, response) {
 
 export async function register(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(registerSchema, request.body);
     sendAuthSuccess(
       request,
@@ -85,6 +128,7 @@ export async function register(request, response, next) {
 
 export async function login(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(loginSchema, request.body);
     sendAuthSuccess(request, response, await authService.loginWithEmail(payload));
   } catch (error) {
@@ -94,6 +138,7 @@ export async function login(request, response, next) {
 
 export async function refresh(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(refreshSchema, {
       refreshToken:
         request.body?.refreshToken || readCookie(request, refreshCookieName),
@@ -112,6 +157,7 @@ export async function refresh(request, response, next) {
 
 export async function logout(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(logoutSchema, {
       refreshToken:
         request.body?.refreshToken || readCookie(request, refreshCookieName),
@@ -140,6 +186,7 @@ export async function sendLoginOtp(request, response, next) {
 
 export async function verifyLoginOtp(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(verifyLoginOtpSchema, request.body);
     sendAuthSuccess(request, response, await authService.verifyLoginOtp(payload));
   } catch (error) {
@@ -158,6 +205,7 @@ export async function sendRegisterOtp(request, response, next) {
 
 export async function verifyRegisterOtp(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(verifyRegisterOtpSchema, request.body);
     sendAuthSuccess(
       request,

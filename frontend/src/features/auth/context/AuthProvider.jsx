@@ -1,15 +1,18 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthContext } from "@/features/auth/context/authContextValue";
+import { refreshUserSession } from "@/features/auth/services/authService";
 
-// Browser-side user session state. The access token is kept in frontend state;
-// the refresh token is managed by the backend as an HttpOnly cookie.
+// Browser-side user session state. Access tokens stay in memory only; the
+// backend-owned HttpOnly refresh cookie restores the session after a reload.
 const AUTH_STORAGE_KEY = "goldwallah.auth.session";
+let bootSessionRefreshPromise = null;
 
 const initialAuthState = {
   user: null,
   accessToken: null,
   isAuthenticated: false,
+  isSessionLoading: true,
 };
 
 function readStoredAuthState() {
@@ -17,47 +20,118 @@ function readStoredAuthState() {
     const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
 
     if (!storedSession) {
-      return initialAuthState;
+      return {
+        ...initialAuthState,
+        isSessionLoading: true,
+      };
     }
 
     const parsedSession = JSON.parse(storedSession);
 
-    if (!parsedSession?.user || !parsedSession?.accessToken) {
+    if (!parsedSession?.user) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return initialAuthState;
+      return {
+        ...initialAuthState,
+        isSessionLoading: true,
+      };
     }
 
     return {
       user: parsedSession.user,
-      accessToken: parsedSession.accessToken,
-      isAuthenticated: true,
+      accessToken: null,
+      isAuthenticated: false,
+      isSessionLoading: true,
     };
   } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return initialAuthState;
+    return {
+      ...initialAuthState,
+      isSessionLoading: true,
+    };
   }
 }
 
-function persistAuthState({ user, accessToken }) {
-  if (!user || !accessToken) {
+function persistAuthState({ user }) {
+  if (!user) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     return;
   }
 
-  window.localStorage.setItem(
-    AUTH_STORAGE_KEY,
-    JSON.stringify({ user, accessToken }),
-  );
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user }));
+}
+
+function refreshBootSession() {
+  if (!bootSessionRefreshPromise) {
+    bootSessionRefreshPromise = refreshUserSession().finally(() => {
+      bootSessionRefreshPromise = null;
+    });
+  }
+
+  return bootSessionRefreshPromise;
 }
 
 export default function AuthProvider({ children }) {
   const [authState, setAuthState] = useState(readStoredAuthState);
+  const sessionVersionRef = useRef(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const restoreVersion = sessionVersionRef.current;
+
+    async function restoreSession() {
+      try {
+        const result = await refreshBootSession();
+        const user = result?.data?.user || null;
+        const accessToken = result?.data?.accessToken || null;
+
+        if (!isMounted || sessionVersionRef.current !== restoreVersion) {
+          return;
+        }
+
+        if (!user || !accessToken) {
+          persistAuthState({ user: null });
+          setAuthState({
+            ...initialAuthState,
+            isSessionLoading: false,
+          });
+          return;
+        }
+
+        persistAuthState({ user });
+        setAuthState({
+          user,
+          accessToken,
+          isAuthenticated: true,
+          isSessionLoading: false,
+        });
+      } catch {
+        if (!isMounted || sessionVersionRef.current !== restoreVersion) {
+          return;
+        }
+
+        persistAuthState({ user: null });
+        setAuthState({
+          ...initialAuthState,
+          isSessionLoading: false,
+        });
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const setAuthUser = useCallback((user) => {
+    sessionVersionRef.current += 1;
     setAuthState((currentState) => {
       const nextState = {
         user,
         accessToken: currentState.accessToken,
         isAuthenticated: Boolean(user && currentState.accessToken),
+        isSessionLoading: false,
       };
 
       persistAuthState(nextState);
@@ -66,7 +140,8 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const setAuthSession = useCallback(({ user, accessToken }) => {
-    persistAuthState({ user, accessToken });
+    sessionVersionRef.current += 1;
+    persistAuthState({ user });
     if (import.meta.env.DEV) {
       console.debug("Auth session stored", {
         hasUser: Boolean(user),
@@ -77,12 +152,17 @@ export default function AuthProvider({ children }) {
       user,
       accessToken: accessToken || null,
       isAuthenticated: Boolean(user && accessToken),
+      isSessionLoading: false,
     });
   }, []);
 
   const clearAuthUser = useCallback(() => {
+    sessionVersionRef.current += 1;
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setAuthState(initialAuthState);
+    setAuthState({
+      ...initialAuthState,
+      isSessionLoading: false,
+    });
   }, []);
 
   const value = useMemo(
@@ -90,6 +170,7 @@ export default function AuthProvider({ children }) {
       user: authState.user,
       accessToken: authState.accessToken,
       isAuthenticated: authState.isAuthenticated,
+      isSessionLoading: authState.isSessionLoading,
       setAuthUser,
       setAuthSession,
       clearAuthUser,
