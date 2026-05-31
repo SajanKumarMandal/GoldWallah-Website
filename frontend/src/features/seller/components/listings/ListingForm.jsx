@@ -6,14 +6,26 @@ import ListingLocationFields from "@/features/seller/components/listings/Listing
 const GOLD_TYPES = ["JEWELLERY", "COIN", "BAR", "SCRAP", "OTHER"];
 const PURITIES = ["24K", "22K", "18K", "14K", "UNKNOWN"];
 const CONDITIONS = ["NEW", "USED", "DAMAGED", "OLD", "UNKNOWN"];
+const WEIGHT_UNITS = [
+  { value: "g", label: "Grams (g)", gramsMultiplier: 1 },
+  { value: "mg", label: "Milligrams (mg)", gramsMultiplier: 0.001 },
+  { value: "kg", label: "Kilograms (kg)", gramsMultiplier: 1000 },
+  { value: "tola", label: "Tola", gramsMultiplier: 11.6638 },
+  { value: "carat", label: "Carat (ct)", gramsMultiplier: 0.2 },
+];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const DECIMAL_PATTERN = /^\d+(\.\d{1,2})?$/;
+const WHOLE_NUMBER_PATTERN = /^\d+$/;
+const MAX_WEIGHT_GRAMS = 99999999.99;
+const MAX_EXPECTED_PRICE = 999999999999.99;
 
 const initialValues = {
   title: "",
   goldType: "",
   purity: "",
-  weightGrams: "",
+  weightValue: "",
+  weightUnit: "g",
   expectedPrice: "",
   description: "",
   condition: "",
@@ -35,7 +47,8 @@ function toFormValues(listing) {
     title: listing.title || "",
     goldType: listing.goldType || "",
     purity: listing.purity || "",
-    weightGrams: listing.weightGrams === null ? "" : String(listing.weightGrams),
+    weightValue: listing.weightGrams === null ? "" : String(listing.weightGrams),
+    weightUnit: "g",
     expectedPrice: listing.expectedPrice === null ? "" : String(listing.expectedPrice),
     description: listing.description || "",
     condition: listing.condition || "",
@@ -49,6 +62,29 @@ function toFormValues(listing) {
   };
 }
 
+function getWeightUnit(unitValue) {
+  return WEIGHT_UNITS.find((unit) => unit.value === unitValue) || null;
+}
+
+function normalizeDecimalInput(value) {
+  return value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+}
+
+function normalizeIntegerInput(value) {
+  return value.replace(/\D/g, "");
+}
+
+function toWeightGrams(values) {
+  const unit = getWeightUnit(values.weightUnit);
+
+  if (!unit || !DECIMAL_PATTERN.test(values.weightValue.trim())) {
+    return null;
+  }
+
+  const grams = Number(values.weightValue) * unit.gramsMultiplier;
+  return Math.round((grams + Number.EPSILON) * 100) / 100;
+}
+
 function validate(values, images, mode) {
   const errors = {};
   const currentYear = new Date().getFullYear();
@@ -56,7 +92,7 @@ function validate(values, images, mode) {
   const city = values.city.trim();
   const state = values.state.trim();
   const description = values.description.trim();
-  const weightGrams = Number(values.weightGrams);
+  const weightGrams = toWeightGrams(values);
   const expectedPrice = Number(values.expectedPrice);
   const latitude = Number(values.latitude);
   const longitude = Number(values.longitude);
@@ -75,15 +111,28 @@ function validate(values, images, mode) {
     errors.purity = "Select a valid purity.";
   }
 
-  if (!values.weightGrams || !Number.isFinite(weightGrams) || weightGrams <= 0) {
-    errors.weightGrams = "Weight must be greater than 0.";
+  if (!values.weightValue.trim()) {
+    errors.weightValue = "Weight is required.";
+  } else if (!DECIMAL_PATTERN.test(values.weightValue.trim())) {
+    errors.weightValue = "Weight must be a valid number with up to 2 decimal places.";
+  } else if (!weightGrams || weightGrams <= 0) {
+    errors.weightValue = "Weight must be greater than 0.";
+  } else if (weightGrams > MAX_WEIGHT_GRAMS) {
+    errors.weightValue = "Weight is too high.";
   }
 
-  if (
-    values.expectedPrice &&
-    (!Number.isFinite(expectedPrice) || expectedPrice <= 0)
-  ) {
-    errors.expectedPrice = "Expected price must be greater than 0.";
+  if (!getWeightUnit(values.weightUnit)) {
+    errors.weightUnit = "Select a valid weight unit.";
+  }
+
+  if (values.expectedPrice) {
+    if (!DECIMAL_PATTERN.test(values.expectedPrice.trim())) {
+      errors.expectedPrice = "Expected price must be a valid amount with up to 2 decimal places.";
+    } else if (!Number.isFinite(expectedPrice) || expectedPrice <= 0) {
+      errors.expectedPrice = "Expected price must be greater than 0.";
+    } else if (expectedPrice > MAX_EXPECTED_PRICE) {
+      errors.expectedPrice = "Expected price is too high.";
+    }
   }
 
   if (description.length > 2000) {
@@ -94,13 +143,17 @@ function validate(values, images, mode) {
     errors.condition = "Select a valid condition.";
   }
 
-  if (
-    values.purchaseYear &&
-    (Number(values.purchaseYear) < 1900 ||
-      Number(values.purchaseYear) > currentYear ||
-      !Number.isInteger(Number(values.purchaseYear)))
-  ) {
-    errors.purchaseYear = `Purchase year must be between 1900 and ${currentYear}.`;
+  if (values.purchaseYear) {
+    const purchaseYear = Number(values.purchaseYear);
+
+    if (
+      !WHOLE_NUMBER_PATTERN.test(values.purchaseYear) ||
+      purchaseYear < 1900 ||
+      purchaseYear > currentYear ||
+      !Number.isInteger(purchaseYear)
+    ) {
+      errors.purchaseYear = `Purchase year must be between 1900 and ${currentYear}.`;
+    }
   }
 
   if (!city) {
@@ -160,12 +213,13 @@ function appendIfPresent(formData, key, value) {
 
 function buildFormData(values, images) {
   const formData = new FormData();
+  const weightGrams = toWeightGrams(values);
 
   formData.append("title", values.title.trim());
   formData.append("goldType", values.goldType);
   formData.append("purity", values.purity);
-  formData.append("weightGrams", values.weightGrams);
-  appendIfPresent(formData, "expectedPrice", values.expectedPrice);
+  formData.append("weightGrams", String(weightGrams));
+  appendIfPresent(formData, "expectedPrice", values.expectedPrice.trim());
   appendIfPresent(formData, "description", values.description.trim());
   appendIfPresent(formData, "condition", values.condition);
   formData.append("hallmarkAvailable", String(values.hallmarkAvailable));
@@ -197,7 +251,17 @@ export default function ListingForm({
   const [errors, setErrors] = useState({});
 
   function updateField(name, value) {
-    setValues((currentValues) => ({ ...currentValues, [name]: value }));
+    let nextValue = value;
+
+    if (name === "weightValue" || name === "expectedPrice") {
+      nextValue = normalizeDecimalInput(value);
+    }
+
+    if (name === "purchaseYear") {
+      nextValue = normalizeIntegerInput(value).slice(0, 4);
+    }
+
+    setValues((currentValues) => ({ ...currentValues, [name]: nextValue }));
     setErrors((currentErrors) => ({ ...currentErrors, [name]: "" }));
   }
 
@@ -230,15 +294,28 @@ export default function ListingForm({
           maxLength={160}
           onChange={(value) => updateField("title", value)}
         />
-        <Input
-          id="weightGrams"
-          label="Weight in grams"
-          value={values.weightGrams}
-          error={errors.weightGrams}
-          disabled={isSubmitting}
-          inputMode="decimal"
-          onChange={(value) => updateField("weightGrams", value)}
-        />
+        <div className="grid gap-3 sm:grid-cols-[1fr_13rem]">
+          <Input
+            id="weightValue"
+            label="Weight"
+            value={values.weightValue}
+            error={errors.weightValue}
+            disabled={isSubmitting}
+            inputMode="decimal"
+            placeholder="Example: 10.5"
+            onChange={(value) => updateField("weightValue", value)}
+          />
+          <Select
+            id="weightUnit"
+            label="Unit"
+            value={values.weightUnit}
+            error={errors.weightUnit}
+            disabled={isSubmitting}
+            options={WEIGHT_UNITS}
+            placeholder="Select unit"
+            onChange={(value) => updateField("weightUnit", value)}
+          />
+        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-3">
@@ -282,6 +359,7 @@ export default function ListingForm({
           error={errors.expectedPrice}
           disabled={isSubmitting}
           inputMode="decimal"
+          placeholder="Amount in INR"
           onChange={(value) => updateField("expectedPrice", value)}
         />
         <Input
@@ -291,6 +369,8 @@ export default function ListingForm({
           error={errors.purchaseYear}
           disabled={isSubmitting}
           inputMode="numeric"
+          maxLength={4}
+          placeholder="Example: 2024"
           onChange={(value) => updateField("purchaseYear", value)}
         />
       </div>
@@ -391,11 +471,16 @@ function Select({ id, label, value, onChange, disabled, error, options, placehol
         className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm text-(--gw-color-green) outline-none transition focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:bg-(--gw-color-border)/35"
       >
         <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {options.map((option) => {
+          const value = typeof option === "string" ? option : option.value;
+          const label = typeof option === "string" ? option : option.label;
+
+          return (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          );
+        })}
       </select>
       {error ? <FieldError message={error} /> : null}
     </label>
