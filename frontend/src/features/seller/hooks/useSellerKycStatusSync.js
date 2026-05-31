@@ -9,7 +9,7 @@ function resolveStatus(payload) {
   return payload?.submission?.status || payload?.kycStatus || "";
 }
 
-export function useSellerKycStatusSync({ intervalMs = 10_000 } = {}) {
+export function useSellerKycStatusSync({ intervalMs = 5_000 } = {}) {
   const { accessToken, user, setAuthUser } = useAuth();
   const userRef = useRef(user);
 

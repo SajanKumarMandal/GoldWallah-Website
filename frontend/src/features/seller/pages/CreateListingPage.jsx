@@ -1,19 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
+import { getCurrentUser } from "@/features/dashboard/services/dashboardService";
 import ListingForm from "@/features/seller/components/listings/ListingForm";
 import { createListing } from "@/features/seller/services/sellerListingService";
 
 export default function CreateListingPage() {
-  const { accessToken, user } = useAuth();
+  const { accessToken, user, setAuthUser } = useAuth();
   const navigate = useNavigate();
+  const [isCheckingKyc, setIsCheckingKyc] = useState(user?.kycStatus !== "APPROVED");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const hasApprovedKyc = user?.kycStatus === "APPROVED";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function refreshKycGate() {
+      if (!accessToken || hasApprovedKyc) {
+        setIsCheckingKyc(false);
+        return;
+      }
+
+      setIsCheckingKyc(true);
+
+      try {
+        const result = await getCurrentUser(accessToken);
+
+        if (isMounted && result?.data) {
+          setAuthUser(result.data);
+        }
+      } catch {
+        if (isMounted) {
+          setErrorMessage("Unable to refresh KYC status. Please try again.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingKyc(false);
+        }
+      }
+    }
+
+    refreshKycGate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, hasApprovedKyc, setAuthUser]);
 
   async function handleSubmit(formData) {
     setIsSubmitting(true);
@@ -44,6 +81,16 @@ export default function CreateListingPage() {
           description="You can explore the dashboard now. Creating gold listings unlocks after seller KYC approval."
         />
         <DashboardSection title="Complete KYC to create listings">
+          {isCheckingKyc ? (
+            <p className="mb-4 rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-sm text-(--gw-color-muted)">
+              Checking latest KYC approval status...
+            </p>
+          ) : null}
+          {errorMessage ? (
+            <p className="mb-4 rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper)">
+              {errorMessage}
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             <Link
               to={ROUTES.sellerKyc}

@@ -25,6 +25,7 @@ export default function SellerDashboardPage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingKyc, setIsCheckingKyc] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [nearbyJewellers, setNearbyJewellers] = useState([]);
@@ -110,8 +111,30 @@ export default function SellerDashboardPage() {
     },
   ];
 
-  function handleNewListing() {
+  async function handleNewListing() {
     if (!hasApprovedKyc) {
+      setIsCheckingKyc(true);
+      setActionMessage("");
+
+      try {
+        const currentUserResult = await getCurrentUser(accessToken);
+        const currentUser = currentUserResult?.data;
+
+        if (currentUser) {
+          setAuthUser(currentUser);
+
+          if (currentUser.kycStatus === "APPROVED") {
+            navigate(ROUTES.sellerNewListing);
+            return;
+          }
+        }
+      } catch {
+        setActionMessage("Unable to refresh KYC status. Please try again.");
+        return;
+      } finally {
+        setIsCheckingKyc(false);
+      }
+
       setActionMessage("KYC approval is required before listing gold.");
       return;
     }
@@ -128,15 +151,16 @@ export default function SellerDashboardPage() {
         action={
           <button
             type="button"
-            onClick={handleNewListing}
-            aria-disabled={!hasApprovedKyc}
-            className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
+          onClick={handleNewListing}
+          aria-disabled={!hasApprovedKyc || isCheckingKyc}
+          disabled={isCheckingKyc}
+          className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
               hasApprovedKyc
                 ? "bg-(--gw-color-gold) text-(--gw-color-green) hover:bg-[#e0ad62]"
                 : "cursor-not-allowed border border-white/20 bg-white/10 text-white"
             }`}
           >
-            New listing
+            {isCheckingKyc ? "Checking KYC..." : "New listing"}
           </button>
         }
       />

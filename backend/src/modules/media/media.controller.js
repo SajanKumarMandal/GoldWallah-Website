@@ -22,6 +22,7 @@ export async function privateMedia(request, response, next) {
       dotfiles: "deny",
       headers: {
         "Cache-Control": "private, no-store",
+        "Cross-Origin-Resource-Policy": "cross-origin",
         "X-Content-Type-Options": "nosniff",
       },
     });
