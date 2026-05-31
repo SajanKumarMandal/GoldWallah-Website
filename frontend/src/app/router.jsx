@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import { USER_ROLES } from "@/constants/roles";
@@ -79,6 +79,10 @@ export default function AppRouter() {
 
           <Route path={ROUTES.adminLogin} element={<AdminLoginPage />} />
           <Route element={<AdminProtectedRoute />}>
+            <Route
+              path={ROUTES.adminRoot}
+              element={<Navigate to={ROUTES.adminDashboard} replace />}
+            />
             <Route
               path={ROUTES.adminChangePassword}
               element={<AdminChangePasswordPage />}

@@ -15,6 +15,7 @@ export const ROUTES = {
   jewellerMarketplace: "/jeweller/marketplace",
   jewellerDeals: "/jeweller/deals",
   adminLogin: "/admin/login",
+  adminRoot: "/admin",
   adminChangePassword: "/admin/change-password",
   adminDashboard: "/admin/dashboard",
   adminCommissions: "/admin/commissions",
