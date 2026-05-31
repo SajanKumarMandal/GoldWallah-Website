@@ -1,8 +1,18 @@
 import { z } from "zod";
 
+function optionalCoordinate(schema) {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    return value;
+  }, schema.optional());
+}
+
 const coordinateQuery = {
-  latitude: z.coerce.number().min(-90).max(90).optional(),
-  longitude: z.coerce.number().min(-180).max(180).optional(),
+  latitude: optionalCoordinate(z.coerce.number().min(-90).max(90)),
+  longitude: optionalCoordinate(z.coerce.number().min(-180).max(180)),
 };
 
 export const geoMatchedListingsQuerySchema = z.object({

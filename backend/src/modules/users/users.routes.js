@@ -14,3 +14,4 @@ usersRouter.get("/", (_request, response) => {
 });
 
 usersRouter.get("/me", authenticate, usersController.me);
+usersRouter.patch("/location", authenticate, usersController.updateLocation);

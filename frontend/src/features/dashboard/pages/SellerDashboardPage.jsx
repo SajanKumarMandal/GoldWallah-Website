@@ -19,6 +19,7 @@ import {
   getCurrentUser,
   getSellerDashboard,
 } from "@/features/dashboard/services/dashboardService";
+import { requestBrowserLocation } from "@/features/location/utils/browserLocation";
 import { getNearbyJewellers } from "@/features/seller/services/sellerGeoService";
 
 export default function SellerDashboardPage() {
@@ -32,6 +33,11 @@ export default function SellerDashboardPage() {
   const [nearbyOrigin, setNearbyOrigin] = useState(null);
   const firstName = user?.fullName?.split(" ")[0] || "Seller";
   const navigate = useNavigate();
+  const nearbyOriginDescription = nearbyOrigin
+    ? nearbyOrigin.city && nearbyOrigin.state
+      ? `Matched from ${nearbyOrigin.listingTitle || "your browser location"} in ${nearbyOrigin.city}, ${nearbyOrigin.state}.`
+      : "Matched from your browser location."
+    : "Share your browser location or create a listing with a city and optional coordinates to discover nearby verified jewellers.";
 
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +61,19 @@ export default function SellerDashboardPage() {
         }
         setDashboard(dashboardResult?.data || null);
         try {
-          const nearbyResult = await getNearbyJewellers(accessToken);
+          let locationQuery = {};
+
+          try {
+            const browserLocation = await requestBrowserLocation();
+            locationQuery = {
+              latitude: browserLocation.latitude,
+              longitude: browserLocation.longitude,
+            };
+          } catch {
+            locationQuery = {};
+          }
+
+          const nearbyResult = await getNearbyJewellers(accessToken, locationQuery);
           if (isMounted) {
             setNearbyJewellers(nearbyResult?.data || []);
             setNearbyOrigin(nearbyResult?.meta?.origin || null);
@@ -220,11 +238,7 @@ export default function SellerDashboardPage() {
 
       <DashboardSection
         title="Nearest jewellers"
-        description={
-          nearbyOrigin
-            ? `Matched from ${nearbyOrigin.listingTitle || "your latest listing"} in ${nearbyOrigin.city}, ${nearbyOrigin.state}.`
-            : "Create a listing with a city and optional coordinates to discover nearby verified jewellers."
-        }
+        description={nearbyOriginDescription}
       >
         {nearbyJewellers.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -251,7 +265,7 @@ export default function SellerDashboardPage() {
           <EmptyState
             icon={MapPinned}
             title="Nearest jewellers will appear here"
-            description="Once you create a listing, approved jewellers near that listing location will be ranked here."
+            description="Share your browser location or create a listing so approved jewellers near you can be ranked here."
           />
         )}
       </DashboardSection>

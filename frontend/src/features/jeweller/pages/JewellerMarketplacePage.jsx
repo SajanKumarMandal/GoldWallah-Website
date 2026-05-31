@@ -9,6 +9,7 @@ import {
   getMarketplaceListings,
   placePrivateBid,
 } from "@/features/jeweller/services/jewellerMarketplaceService";
+import { requestBrowserLocation } from "@/features/location/utils/browserLocation";
 import { resolveAssetUrl } from "@/features/seller/services/sellerListingService";
 
 const MAX_BID_AMOUNT = 999999999999.99;
@@ -75,7 +76,19 @@ export default function JewellerMarketplacePage() {
       setErrorMessage("");
 
       try {
-        const result = await getMarketplaceListings(accessToken);
+        let locationFilters = {};
+
+        try {
+          const browserLocation = await requestBrowserLocation();
+          locationFilters = {
+            latitude: browserLocation.latitude,
+            longitude: browserLocation.longitude,
+          };
+        } catch {
+          locationFilters = {};
+        }
+
+        const result = await getMarketplaceListings(accessToken, locationFilters);
 
         if (isMounted) {
           setListings(result?.data || []);
