@@ -15,6 +15,10 @@ import {
   sendLoginOtp,
   verifyLoginOtp,
 } from "@/features/auth/services/authService";
+import {
+  getFacebookAccessToken,
+  getGoogleIdToken,
+} from "@/features/auth/services/socialIdentityService";
 import { AUTH_METHODS } from "@/features/auth/utils/authConstants";
 import {
   validateLoginForm,
@@ -97,12 +101,14 @@ export default function LoginPage() {
     setErrors({});
 
     try {
+      const providerToken =
+        provider === "google"
+          ? await getGoogleIdToken()
+          : await getFacebookAccessToken();
       const result =
         provider === "google"
-          ? await loginWithGoogle({ idToken: "oauth-provider-not-configured" })
-          : await loginWithFacebook({
-              accessToken: "oauth-provider-not-configured",
-            });
+          ? await loginWithGoogle({ idToken: providerToken })
+          : await loginWithFacebook({ accessToken: providerToken });
 
       if (result?.data?.user) {
         setAuthSession({

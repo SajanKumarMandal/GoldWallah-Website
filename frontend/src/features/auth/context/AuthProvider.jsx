@@ -70,9 +70,30 @@ function refreshBootSession() {
   return bootSessionRefreshPromise;
 }
 
+function getJwtExpiryMs(accessToken) {
+  try {
+    const [, payload] = accessToken.split(".");
+    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(window.atob(normalizedPayload));
+
+    return decoded?.exp ? decoded.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default function AuthProvider({ children }) {
   const [authState, setAuthState] = useState(readStoredAuthState);
   const sessionVersionRef = useRef(0);
+
+  const clearAuthUser = useCallback(() => {
+    sessionVersionRef.current += 1;
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthState({
+      ...initialAuthState,
+      isSessionLoading: false,
+    });
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -124,6 +145,42 @@ export default function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!authState.accessToken) {
+      return undefined;
+    }
+
+    const expiresAtMs = getJwtExpiryMs(authState.accessToken);
+    const refreshInMs = Math.max(expiresAtMs - Date.now() - 60_000, 30_000);
+    const timerId = window.setTimeout(async () => {
+      const refreshVersion = sessionVersionRef.current;
+
+      try {
+        const result = await refreshBootSession();
+        const user = result?.data?.user || null;
+        const accessToken = result?.data?.accessToken || null;
+
+        if (!user || !accessToken || sessionVersionRef.current !== refreshVersion) {
+          return;
+        }
+
+        persistAuthState({ user });
+        setAuthState({
+          user,
+          accessToken,
+          isAuthenticated: true,
+          isSessionLoading: false,
+        });
+      } catch {
+        if (sessionVersionRef.current === refreshVersion) {
+          clearAuthUser();
+        }
+      }
+    }, refreshInMs);
+
+    return () => window.clearTimeout(timerId);
+  }, [authState.accessToken, clearAuthUser]);
+
   const setAuthUser = useCallback((user) => {
     sessionVersionRef.current += 1;
     setAuthState((currentState) => {
@@ -152,15 +209,6 @@ export default function AuthProvider({ children }) {
       user,
       accessToken: accessToken || null,
       isAuthenticated: Boolean(user && accessToken),
-      isSessionLoading: false,
-    });
-  }, []);
-
-  const clearAuthUser = useCallback(() => {
-    sessionVersionRef.current += 1;
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setAuthState({
-      ...initialAuthState,
       isSessionLoading: false,
     });
   }, []);

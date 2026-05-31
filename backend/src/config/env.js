@@ -33,6 +33,7 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional().default(""),
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
+  TWILIO_FROM_PHONE: z.string().optional().default(""),
   KYC_ENCRYPTION_KEY: z.string().optional().default(""),
   PRIVATE_MEDIA_SIGNING_SECRET: z.string().optional().default(""),
   PG_SSL_CA: z.string().optional().default(""),
@@ -67,6 +68,14 @@ if (
   !parsedEnv.data.JWT_ACCESS_SECRET
 ) {
   console.error("Missing required environment variable: JWT_ACCESS_SECRET");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  !parsedEnv.data.JWT_REFRESH_SECRET
+) {
+  console.error("Missing required environment variable: JWT_REFRESH_SECRET");
   process.exit(1);
 }
 
@@ -133,6 +142,7 @@ export const env = {
   twilioAccountSid: parsedEnv.data.TWILIO_ACCOUNT_SID,
   twilioAuthToken: parsedEnv.data.TWILIO_AUTH_TOKEN,
   twilioVerifyServiceSid: parsedEnv.data.TWILIO_VERIFY_SERVICE_SID,
+  twilioFromPhone: parsedEnv.data.TWILIO_FROM_PHONE,
   kycEncryptionKey: parsedEnv.data.KYC_ENCRYPTION_KEY,
   privateMediaSigningSecret:
     parsedEnv.data.PRIVATE_MEDIA_SIGNING_SECRET ||

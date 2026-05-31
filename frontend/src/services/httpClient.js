@@ -24,11 +24,14 @@ function buildUrl(path, query) {
 export async function apiRequest(path, options = {}) {
   const { query, headers, ...fetchOptions } = options;
   const isFormData = fetchOptions.body instanceof FormData;
+  const method = (fetchOptions.method || "GET").toUpperCase();
+  const isUnsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(method);
   const response = await fetch(buildUrl(path, query), {
     credentials: "include",
     ...fetchOptions,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(isUnsafeMethod ? { "X-CSRF-Token": "goldwallah-browser-request" } : {}),
       ...headers,
     },
   });

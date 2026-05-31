@@ -1,7 +1,60 @@
+import { randomInt } from "node:crypto";
+
 import { env } from "../../../config/env.js";
 
 export function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
+}
+
+function otpProviderError(message, code = "OTP_PROVIDER_FAILED") {
+  const error = new Error(message);
+  error.statusCode = 502;
+  error.code = code;
+  return error;
+}
+
+async function sendMsg91Otp({ phone, otp }) {
+  const url = new URL("https://control.msg91.com/api/v5/otp");
+  url.searchParams.set("template_id", env.msg91TemplateId);
+  url.searchParams.set("mobile", `91${phone}`);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authkey: env.msg91AuthKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ otp }),
+  });
+
+  if (!response.ok) {
+    throw otpProviderError("Unable to send OTP right now");
+  }
+}
+
+async function sendTwilioSmsOtp({ phone, otp }) {
+  const credentials = Buffer.from(
+    `${env.twilioAccountSid}:${env.twilioAuthToken}`,
+  ).toString("base64");
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${env.twilioAccountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: `+91${phone}`,
+        From: env.twilioFromPhone,
+        Body: `Your GoldWallah verification code is ${otp}. It expires in ${env.otpExpiryMinutes} minutes.`,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw otpProviderError("Unable to send OTP right now");
+  }
 }
 
 export async function sendOtp({ phone, otp }) {
@@ -23,26 +76,24 @@ export async function sendOtp({ phone, otp }) {
       };
     }
 
-    void phone;
-    void otp;
+    await sendMsg91Otp({ phone, otp });
     return {
       configured: true,
-      message: "MSG91 OTP provider is configured. Provider API integration is pending.",
+      message: "OTP sent successfully.",
     };
   }
 
-  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioVerifyServiceSid) {
+  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioFromPhone) {
     return {
       configured: false,
       message:
-        "Twilio OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SERVICE_SID in backend .env",
+        "Twilio OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE in backend .env",
     };
   }
 
-  void phone;
-  void otp;
+  await sendTwilioSmsOtp({ phone, otp });
   return {
     configured: true,
-    message: "Twilio OTP provider is configured. Provider API integration is pending.",
+    message: "OTP sent successfully.",
   };
 }

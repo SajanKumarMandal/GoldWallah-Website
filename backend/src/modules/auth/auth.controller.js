@@ -45,8 +45,17 @@ function refreshCookieOptions(request) {
 
 function assertTrustedBrowserOrigin(request) {
   const origin = request.get("origin");
+  const secFetchSite = request.get("sec-fetch-site");
+  const csrfHeader = request.get("x-csrf-token");
 
   if (!origin) {
+    if (["cross-site", "same-site"].includes(secFetchSite)) {
+      const error = new Error("Invalid request origin");
+      error.statusCode = 403;
+      error.code = "UNTRUSTED_ORIGIN";
+      throw error;
+    }
+
     return;
   }
 
@@ -67,6 +76,13 @@ function assertTrustedBrowserOrigin(request) {
     const error = new Error("Invalid request origin");
     error.statusCode = 403;
     error.code = "UNTRUSTED_ORIGIN";
+    throw error;
+  }
+
+  if (request.method !== "GET" && !csrfHeader) {
+    const error = new Error("Missing CSRF protection header");
+    error.statusCode = 403;
+    error.code = "CSRF_HEADER_REQUIRED";
     throw error;
   }
 }
@@ -177,6 +193,7 @@ export async function logout(request, response, next) {
 
 export async function sendLoginOtp(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(sendOtpSchema, request.body);
     sendSuccess(response, await authService.sendLoginOtp(payload));
   } catch (error) {
@@ -196,6 +213,7 @@ export async function verifyLoginOtp(request, response, next) {
 
 export async function sendRegisterOtp(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(sendOtpSchema, request.body);
     sendSuccess(response, await authService.sendRegisterOtp(payload));
   } catch (error) {
@@ -220,8 +238,9 @@ export async function verifyRegisterOtp(request, response, next) {
 
 export async function googleLogin(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(googleLoginSchema, request.body);
-    sendSuccess(response, await authService.loginWithGoogle(payload));
+    sendAuthSuccess(request, response, await authService.loginWithGoogle(payload));
   } catch (error) {
     next(error);
   }
@@ -229,8 +248,14 @@ export async function googleLogin(request, response, next) {
 
 export async function googleRegister(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(googleRegisterSchema, request.body);
-    sendSuccess(response, await authService.registerWithGoogle(payload), 201);
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.registerWithGoogle(payload),
+      201,
+    );
   } catch (error) {
     next(error);
   }
@@ -238,8 +263,9 @@ export async function googleRegister(request, response, next) {
 
 export async function facebookLogin(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(facebookLoginSchema, request.body);
-    sendSuccess(response, await authService.loginWithFacebook(payload));
+    sendAuthSuccess(request, response, await authService.loginWithFacebook(payload));
   } catch (error) {
     next(error);
   }
@@ -247,8 +273,14 @@ export async function facebookLogin(request, response, next) {
 
 export async function facebookRegister(request, response, next) {
   try {
+    assertTrustedBrowserOrigin(request);
     const payload = validateBody(facebookRegisterSchema, request.body);
-    sendSuccess(response, await authService.registerWithFacebook(payload), 201);
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.registerWithFacebook(payload),
+      201,
+    );
   } catch (error) {
     next(error);
   }

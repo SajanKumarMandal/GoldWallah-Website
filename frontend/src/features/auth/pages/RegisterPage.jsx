@@ -10,10 +10,16 @@ import AuthMethodTabs from "@/features/auth/components/AuthMethodTabs";
 import PasswordInput from "@/features/auth/components/PasswordInput";
 import RoleSelector from "@/features/auth/components/RoleSelector";
 import {
+  registerWithFacebook,
+  registerWithGoogle,
   registerUser,
   sendRegisterOtp,
   verifyRegisterOtp,
 } from "@/features/auth/services/authService";
+import {
+  getFacebookAccessToken,
+  getGoogleIdToken,
+} from "@/features/auth/services/socialIdentityService";
 import {
   AUTH_METHODS,
   AUTH_ROLES,
@@ -63,6 +69,7 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [socialProvider, setSocialProvider] = useState("");
 
   function clearFeedback() {
     setErrors({});
@@ -160,6 +167,46 @@ export default function RegisterPage() {
         }),
       "Account created with phone verification.",
     );
+  }
+
+  async function handleSocialRegister(provider) {
+    setIsSubmitting(true);
+    setSocialProvider(provider);
+    setStatusMessage("");
+    setErrors({});
+
+    try {
+      const providerToken =
+        provider === "google"
+          ? await getGoogleIdToken()
+          : await getFacebookAccessToken();
+      const result =
+        provider === "google"
+          ? await registerWithGoogle({
+              idToken: providerToken,
+              role: values.role,
+            })
+          : await registerWithFacebook({
+              accessToken: providerToken,
+              role: values.role,
+            });
+
+      if (result?.data?.user) {
+        setAuthSession({
+          user: result.data.user,
+          accessToken: result.data.accessToken,
+        });
+        navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
+      }
+    } catch (error) {
+      setStatusMessage(
+        error.message ||
+          `${provider === "google" ? "Google" : "Facebook"} registration failed.`,
+      );
+    } finally {
+      setSocialProvider("");
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -342,6 +389,44 @@ export default function RegisterPage() {
               </button>
             </form>
           )}
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-(--gw-color-border)" />
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
+                Or create with
+              </span>
+              <span className="h-px flex-1 bg-(--gw-color-border)" />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleSocialRegister("google")}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4285F4] text-xs font-bold text-white">
+                  G
+                </span>
+                {socialProvider === "google" ? "Connecting..." : "Continue with Google"}
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleSocialRegister("facebook")}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1877F2] text-xs font-bold text-white">
+                  f
+                </span>
+                {socialProvider === "facebook"
+                  ? "Connecting..."
+                  : "Continue with Facebook"}
+              </button>
+            </div>
+          </div>
 
           {statusMessage ? (
             <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm text-(--gw-color-green)">

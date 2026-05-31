@@ -51,9 +51,10 @@ authRouter.get("/", (_request, response) => {
     capabilities: [
       "email-password auth",
       "mobile OTP auth",
-      "Google OAuth endpoint disabled until provider verification is implemented",
-      "Facebook OAuth endpoint disabled until provider verification is implemented",
-      "JWT token generation when secrets are configured",
+      "Google ID token verification",
+      "Facebook access token verification",
+      "JWT access tokens with HttpOnly refresh-token rotation",
+      "CSRF-resistant browser auth requests",
     ],
   });
 });

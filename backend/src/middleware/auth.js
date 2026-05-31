@@ -24,7 +24,11 @@ export async function authenticate(request, _response, next) {
     let payload;
 
     try {
-      payload = jwt.verify(token, env.jwtAccessSecret);
+      payload = jwt.verify(token, env.jwtAccessSecret, {
+        issuer: "goldwallah-api",
+        audience: "goldwallah-web",
+        algorithms: ["HS256"],
+      });
     } catch {
       throw createAuthError();
     }

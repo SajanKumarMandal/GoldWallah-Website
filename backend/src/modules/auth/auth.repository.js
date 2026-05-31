@@ -94,6 +94,64 @@ export async function createUser(data, client) {
   return mapUser(result.rows[0]);
 }
 
+export async function findOAuthAccount(provider, providerSubject, client) {
+  const result = await db(client).query(
+    `SELECT users.*
+     FROM user_oauth_accounts
+     INNER JOIN users ON users.id = user_oauth_accounts.user_id
+     WHERE user_oauth_accounts.provider = $1
+       AND user_oauth_accounts.provider_subject = $2`,
+    [provider, providerSubject],
+  );
+
+  return mapUser(result.rows[0]);
+}
+
+export async function linkOAuthAccount(data, client) {
+  const result = await db(client).query(
+    `INSERT INTO user_oauth_accounts (
+      id,
+      user_id,
+      provider,
+      provider_subject,
+      email
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (provider, provider_subject)
+    DO NOTHING
+    RETURNING *`,
+    [
+      randomUUID(),
+      data.userId,
+      data.provider,
+      data.providerSubject,
+      data.email || null,
+    ],
+  );
+
+  if (result.rows[0]) {
+    return result.rows[0];
+  }
+
+  const existingResult = await db(client).query(
+    `SELECT *
+     FROM user_oauth_accounts
+     WHERE provider = $1
+       AND provider_subject = $2`,
+    [data.provider, data.providerSubject],
+  );
+  const existingAccount = existingResult.rows[0];
+
+  if (existingAccount?.user_id !== data.userId) {
+    const error = new Error("OAuth identity is already linked");
+    error.statusCode = 409;
+    error.code = "OAUTH_IDENTITY_LINKED";
+    throw error;
+  }
+
+  return existingAccount;
+}
+
 export async function findUserByEmail(email, client) {
   const result = await db(client).query("SELECT * FROM users WHERE email = $1", [email]);
   return mapUser(result.rows[0]);

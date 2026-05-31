@@ -13,12 +13,23 @@ const indianPhoneSchema = z
 const emailSchema = z.string().trim().email().transform((email) => email.toLowerCase());
 const roleSchema = z.enum([AUTH_ROLES.seller, AUTH_ROLES.jeweller]);
 const otpSchema = z.string().trim().regex(/^(\d{4}|\d{6})$/, "OTP must be 4 or 6 digits");
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Full name is required")
+  .max(120, "Full name is too long")
+  .regex(/^[\p{L}\p{M}.' -]+$/u, "Full name contains unsupported characters");
+const passwordSchema = z
+  .string()
+  .min(10, "Password must be at least 10 characters")
+  .max(128, "Password is too long")
+  .refine((value) => !/^\s|\s$/.test(value), "Password cannot start or end with spaces");
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(1, "Full name is required"),
+  fullName: fullNameSchema,
   email: emailSchema,
   phone: indianPhoneSchema,
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   role: roleSchema,
 });
 
@@ -37,7 +48,7 @@ export const verifyLoginOtpSchema = z.object({
 });
 
 export const verifyRegisterOtpSchema = z.object({
-  fullName: z.string().trim().min(1, "Full name is required"),
+  fullName: fullNameSchema,
   phone: indianPhoneSchema,
   role: roleSchema,
   otp: otpSchema,

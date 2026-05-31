@@ -12,11 +12,13 @@ import {
   createUser,
   createOtp,
   findLatestActiveOtp,
+  findOAuthAccount,
   findRefreshTokenByHash,
   findUserByEmail,
   findUserById,
   findUserByPhone,
   incrementOtpAttempts,
+  linkOAuthAccount,
   consumeOtp,
   revokeAllActiveRefreshTokens,
   revokeRefreshToken,
@@ -77,11 +79,17 @@ async function createAuthResponse(user, message, client) {
   const accessToken = env.jwtAccessSecret
     ? jwt.sign(tokenPayload, env.jwtAccessSecret, {
         expiresIn: env.jwtAccessExpiresIn,
+        issuer: "goldwallah-api",
+        audience: "goldwallah-web",
+        algorithm: "HS256",
       })
     : null;
   const refreshToken = env.jwtRefreshSecret
     ? jwt.sign({ ...tokenPayload, jti: randomUUID() }, env.jwtRefreshSecret, {
         expiresIn: env.jwtRefreshExpiresIn,
+        issuer: "goldwallah-api",
+        audience: "goldwallah-web",
+        algorithm: "HS256",
       })
     : null;
 
@@ -117,7 +125,11 @@ function verifyRefreshToken(refreshToken) {
   }
 
   try {
-    return jwt.verify(refreshToken, env.jwtRefreshSecret);
+    return jwt.verify(refreshToken, env.jwtRefreshSecret, {
+      issuer: "goldwallah-api",
+      audience: "goldwallah-web",
+      algorithms: ["HS256"],
+    });
   } catch {
     throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
   }
@@ -175,14 +187,19 @@ async function createAndSendOtp({ phone, purpose }) {
   const otpHash = await hashSecret(otp);
   const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000).toISOString();
 
+  const providerResult = await sendOtp({ phone, otp });
+
+  if (!providerResult.configured) {
+    const error = createError(providerResult.message, 503, "OTP_NOT_CONFIGURED");
+    throw error;
+  }
+
   await createOtp({
     phone,
     otpHash,
     purpose,
     expiresAt,
   });
-
-  const providerResult = await sendOtp({ phone, otp });
 
   return {
     success: true,
@@ -380,17 +397,90 @@ export async function verifyRegisterOtp(payload) {
 }
 
 export async function loginWithGoogle(payload) {
-  await verifyGoogleIdToken(payload.idToken);
+  const profile = await verifyGoogleIdToken(payload.idToken);
+  return loginWithOAuthProfile(profile);
 }
 
 export async function registerWithGoogle(payload) {
-  await verifyGoogleIdToken(payload.idToken);
+  const profile = await verifyGoogleIdToken(payload.idToken);
+  return registerWithOAuthProfile(profile, payload.role);
 }
 
 export async function loginWithFacebook(payload) {
-  await verifyFacebookAccessToken(payload.accessToken);
+  const profile = await verifyFacebookAccessToken(payload.accessToken);
+  return loginWithOAuthProfile(profile);
 }
 
 export async function registerWithFacebook(payload) {
-  await verifyFacebookAccessToken(payload.accessToken);
+  const profile = await verifyFacebookAccessToken(payload.accessToken);
+  return registerWithOAuthProfile(profile, payload.role);
+}
+
+async function loginWithOAuthProfile(profile) {
+  const linkedUser = await findOAuthAccount(
+    profile.provider,
+    profile.providerSubject,
+  );
+
+  if (linkedUser) {
+    return createAuthResponse(linkedUser, "Login successful");
+  }
+
+  const emailUser = await findUserByEmail(profile.email);
+
+  if (emailUser) {
+    await linkOAuthAccount({
+      userId: emailUser.id,
+      provider: profile.provider,
+      providerSubject: profile.providerSubject,
+      email: profile.email,
+    });
+    return createAuthResponse(emailUser, "Login successful");
+  }
+
+  throw createError("Account does not exist", 404, "ACCOUNT_NOT_FOUND");
+}
+
+async function registerWithOAuthProfile(profile, role) {
+  return withTransaction(async (client) => {
+    const linkedUser = await findOAuthAccount(
+      profile.provider,
+      profile.providerSubject,
+      client,
+    );
+
+    if (linkedUser) {
+      return createAuthResponse(linkedUser, "Login successful", client);
+    }
+
+    let user = await findUserByEmail(profile.email, client);
+
+    if (!user) {
+      user = await createUser(
+        {
+          fullName: profile.fullName,
+          email: profile.email,
+          phone: null,
+          passwordHash: null,
+          role: toRole(role),
+          authProvider: profile.provider,
+          isEmailVerified: profile.isEmailVerified,
+          isPhoneVerified: false,
+        },
+        client,
+      );
+    }
+
+    await linkOAuthAccount(
+      {
+        userId: user.id,
+        provider: profile.provider,
+        providerSubject: profile.providerSubject,
+        email: profile.email,
+      },
+      client,
+    );
+
+    return createAuthResponse(user, "Account registered successfully", client);
+  });
 }
