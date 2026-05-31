@@ -22,7 +22,6 @@ const navItems = [
     label: "Seller KYC",
     icon: FileCheck2,
     permission: "admin.kyc.seller.view",
-    disabled: true,
   },
   {
     to: "/admin/commissions",

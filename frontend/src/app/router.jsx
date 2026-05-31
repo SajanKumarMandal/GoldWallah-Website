@@ -42,6 +42,12 @@ const AdminDashboardPage = lazy(
 const AdminCommissionsPage = lazy(
   () => import("@/features/admin/commissions/pages/AdminCommissionsPage"),
 );
+const AdminKycListPage = lazy(
+  () => import("@/features/admin/pages/AdminKycListPage"),
+);
+const AdminKycDetailPage = lazy(
+  () => import("@/features/admin/pages/AdminKycDetailPage"),
+);
 const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
 );
@@ -85,6 +91,11 @@ export default function AppRouter() {
               <Route
                 path={ROUTES.adminCommissions}
                 element={<AdminCommissionsPage />}
+              />
+              <Route path={ROUTES.adminKyc} element={<AdminKycListPage />} />
+              <Route
+                path={ROUTES.adminKycDetail}
+                element={<AdminKycDetailPage />}
               />
             </Route>
           </Route>

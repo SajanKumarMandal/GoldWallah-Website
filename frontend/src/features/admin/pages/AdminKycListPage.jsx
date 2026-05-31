@@ -1,6 +1,6 @@
 import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useLocation, useOutletContext } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
@@ -22,6 +22,7 @@ function formatDate(value) {
 
 export default function AdminKycListPage() {
   const { accessToken } = useOutletContext();
+  const location = useLocation();
   const [activeStatus, setActiveStatus] = useState("PENDING");
   const [submissions, setSubmissions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function AdminKycListPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, activeStatus]);
+  }, [accessToken, activeStatus, location.state?.refreshedAt]);
 
   return (
     <div className="space-y-6">
