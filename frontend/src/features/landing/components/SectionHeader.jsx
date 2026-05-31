@@ -14,15 +14,15 @@ export default function SectionHeader({
   const descriptionClass = isInverse ? "text-white/65" : "text-(--gw-color-muted)";
 
   return (
-    <div className={`max-w-3xl ${alignment}`}>
-      <p className={`text-xs font-medium uppercase tracking-[0.25em] ${eyebrowClass}`}>
+    <div className={`min-w-0 max-w-3xl ${alignment}`}>
+      <p className={`text-xs font-medium uppercase tracking-[0.18em] sm:tracking-[0.25em] ${eyebrowClass}`}>
         {eyebrow}
       </p>
-      <h2 className={`mt-4 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl ${titleClass}`}>
+      <h2 className={`gw-break-text gw-text-section mt-4 font-semibold leading-tight ${titleClass}`}>
         {title}
       </h2>
       {description ? (
-        <p className={`mt-5 text-base leading-relaxed sm:text-lg ${descriptionClass}`}>
+        <p className={`gw-text-body mt-4 leading-relaxed sm:mt-5 ${descriptionClass}`}>
           {description}
         </p>
       ) : null}

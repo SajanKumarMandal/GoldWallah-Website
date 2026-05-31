@@ -181,7 +181,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex h-12 items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex h-12 w-full items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {isSubmitting ? "Submitting..." : "Submit KYC"}
       </button>
@@ -201,7 +201,7 @@ function KycInput({
   ...props
 }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <input
         id={id}
@@ -223,7 +223,7 @@ function KycInput({
 
 function KycTextArea({ id, label, value, onChange, disabled, error }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <textarea
         id={id}

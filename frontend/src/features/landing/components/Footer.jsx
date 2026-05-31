@@ -3,16 +3,18 @@ import { footerGroups } from "@/features/landing/constants/landingContent";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-(--gw-color-border) bg-[#f7f5f1] px-6 py-12 lg:px-12">
+    <footer className="border-t border-(--gw-color-border) bg-[#f7f5f1] px-4 py-10 sm:px-6 sm:py-12 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <div className="flex items-center gap-3">
             <img
               src={logo}
               alt="GoldWallah"
+              loading="lazy"
+              decoding="async"
               className="h-11 w-11 rounded-full object-cover"
             />
-            <span className="text-2xl font-semibold text-(--gw-color-green)">
+            <span className="text-xl font-semibold text-(--gw-color-green) sm:text-2xl">
               GoldWallah
             </span>
           </div>
@@ -28,7 +30,7 @@ export default function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:col-span-8 lg:grid-cols-4">
           {footerGroups.map(({ title, links }) => (
             <div key={title}>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-(--gw-color-green)">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-(--gw-color-green) sm:tracking-[0.18em]">
                 {title}
               </h3>
               <ul className="mt-4 space-y-3">

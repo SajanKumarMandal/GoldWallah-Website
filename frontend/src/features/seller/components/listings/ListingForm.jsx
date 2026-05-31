@@ -338,11 +338,11 @@ export default function ListingForm({
         onChange={updateImages}
       />
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex h-12 items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex h-12 items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
           {isSubmitting ? "Submitting..." : submitLabel}
         </button>
@@ -351,7 +351,7 @@ export default function ListingForm({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="inline-flex h-12 items-center justify-center rounded-full border border-(--gw-color-border) bg-white px-6 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-12 items-center justify-center rounded-full border border-(--gw-color-border) bg-white px-6 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           >
             Cancel
           </button>
@@ -363,7 +363,7 @@ export default function ListingForm({
 
 function Input({ id, label, value, onChange, disabled, error, ...props }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <input
         id={id}
@@ -381,7 +381,7 @@ function Input({ id, label, value, onChange, disabled, error, ...props }) {
 
 function Select({ id, label, value, onChange, disabled, error, options, placeholder }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <select
         id={id}
@@ -423,7 +423,7 @@ function Checkbox({ id, label, checked, onChange, disabled }) {
 
 function TextArea({ id, label, value, onChange, disabled, error, ...props }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <textarea
         id={id}

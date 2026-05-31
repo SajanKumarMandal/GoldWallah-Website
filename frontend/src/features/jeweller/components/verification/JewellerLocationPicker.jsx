@@ -37,7 +37,7 @@ export default function JewellerLocationPicker({
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-[1fr_1fr_auto] md:items-end">
+    <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
       <Field
         id="latitude"
         label="Latitude"
@@ -60,13 +60,13 @@ export default function JewellerLocationPicker({
         type="button"
         onClick={useCurrentLocation}
         disabled={disabled || isLocating}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-(--gw-color-border) bg-white px-5 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-(--gw-color-border) bg-white px-5 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
       >
         <LocateFixed className="h-4 w-4" aria-hidden="true" />
         {isLocating ? "Locating..." : "Use current location"}
       </button>
       {geoMessage ? (
-        <p className="md:col-span-3 text-xs font-medium text-(--gw-color-muted)">
+        <p className="gw-break-text text-xs font-medium text-(--gw-color-muted) md:col-span-3">
           {geoMessage}
         </p>
       ) : null}
@@ -76,7 +76,7 @@ export default function JewellerLocationPicker({
 
 function Field({ id, label, value, onChange, disabled, error, ...props }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <input
         id={id}

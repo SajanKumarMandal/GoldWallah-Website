@@ -83,17 +83,17 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-(--gw-color-green) p-6 text-(--gw-color-cream) shadow-[0_24px_70px_rgba(26,54,45,0.18)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--gw-color-gold)">
+      <section className="min-w-0 rounded-3xl bg-(--gw-color-green) p-5 text-(--gw-color-cream) shadow-[0_24px_70px_rgba(26,54,45,0.18)] sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--gw-color-gold) sm:tracking-[0.22em]">
           Admin dashboard
         </p>
-        <h1 className="mt-3 text-3xl font-semibold">
+        <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">
           Operational overview
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
           Monitor verification queues, audit activity, and platform risk signals.
         </p>
-        <p className="mt-4 text-sm font-semibold text-white/80">
+        <p className="gw-break-text mt-4 text-sm font-semibold text-white/80">
           Signed in as {admin?.name || "Admin"}
         </p>
       </section>

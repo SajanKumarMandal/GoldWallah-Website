@@ -98,10 +98,10 @@ export default function AdminChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-(--gw-color-green) px-4 py-8 text-(--gw-color-cream)">
+    <div className="min-h-screen min-w-0 bg-(--gw-color-green) px-4 py-8 text-(--gw-color-cream) sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl items-center justify-center">
         <form
-          className="w-full max-w-xl rounded-3xl border border-white/15 bg-(--gw-color-cream) p-6 text-(--gw-color-green) shadow-[0_30px_90px_rgba(0,0,0,0.28)]"
+          className="w-full min-w-0 max-w-xl rounded-3xl border border-white/15 bg-(--gw-color-cream) p-5 text-(--gw-color-green) shadow-[0_30px_90px_rgba(0,0,0,0.28)] sm:p-6"
           onSubmit={handleSubmit}
           noValidate
         >
@@ -109,14 +109,14 @@ export default function AdminChangePasswordPage() {
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-(--gw-color-green) text-(--gw-color-gold)">
               <KeyRound className="h-6 w-6" aria-hidden="true" />
             </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--gw-color-muted)">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted) sm:tracking-[0.2em]">
                 Admin password
               </p>
-              <h1 className="mt-1 text-2xl font-semibold">
+              <h1 className="gw-break-text mt-1 text-xl font-semibold sm:text-2xl">
                 Change temporary password
               </h1>
-              <p className="mt-2 text-sm leading-6 text-(--gw-color-muted)">
+              <p className="gw-break-text mt-2 text-sm leading-6 text-(--gw-color-muted)">
                 Password change is required before accessing the admin dashboard.
               </p>
             </div>
@@ -169,7 +169,7 @@ export default function AdminChangePasswordPage() {
                     check.passed ? "text-(--gw-color-green)" : "text-(--gw-color-muted)"
                   }`}
                 >
-                  {check.passed ? "✓" : "•"} {check.label}
+                  {check.passed ? "Pass:" : "Pending:"} {check.label}
                 </li>
               ))}
             </ul>

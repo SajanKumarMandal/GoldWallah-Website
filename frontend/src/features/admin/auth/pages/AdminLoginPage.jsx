@@ -73,24 +73,24 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-(--gw-color-green) px-4 py-8 text-(--gw-color-cream)">
+    <div className="min-h-screen min-w-0 bg-(--gw-color-green) px-4 py-8 text-(--gw-color-cream) sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center">
-        <div className="grid w-full gap-8 lg:grid-cols-[1fr_28rem] lg:items-center">
-          <section>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-(--gw-color-gold)">
+        <div className="grid w-full min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:items-center">
+          <section className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--gw-color-gold) sm:tracking-[0.28em]">
               GoldWallah Admin
             </p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+            <h1 className="gw-break-text gw-text-section mt-4 max-w-3xl font-semibold leading-tight">
               Secure operations console for verification, risk, and finance.
             </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-white/70">
+            <p className="gw-text-body mt-5 max-w-2xl leading-7 text-white/70">
               Admin access is separated from seller and jeweller accounts. Use only
               your assigned admin credentials.
             </p>
           </section>
 
           <form
-            className="rounded-3xl border border-white/15 bg-(--gw-color-cream) p-6 text-(--gw-color-green) shadow-[0_30px_90px_rgba(0,0,0,0.28)]"
+            className="min-w-0 rounded-3xl border border-white/15 bg-(--gw-color-cream) p-5 text-(--gw-color-green) shadow-[0_30px_90px_rgba(0,0,0,0.28)] sm:p-6"
             onSubmit={handleSubmit}
             noValidate
           >
@@ -98,11 +98,11 @@ export default function AdminLoginPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--gw-color-green) text-(--gw-color-gold)">
                 <ShieldCheck className="h-6 w-6" aria-hidden="true" />
               </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--gw-color-muted)">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted) sm:tracking-[0.2em]">
                   Admin login
                 </p>
-                <h2 className="text-xl font-semibold">Sign in</h2>
+                <h2 className="gw-break-text text-xl font-semibold">Sign in</h2>
               </div>
             </div>
 

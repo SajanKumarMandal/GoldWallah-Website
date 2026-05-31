@@ -15,7 +15,7 @@ export default function TopScrollBar() {
           <div key={row} className="animate-marquee flex items-center py-4">
             {features.map((item) => (
               <div key={`${row}-${item}`} className="flex items-center">
-                <span className="mx-12 text-[15px] font-medium tracking-[0.28em] text-(--gw-color-muted)">
+                <span className="mx-6 text-sm font-medium tracking-[0.18em] text-(--gw-color-muted) sm:mx-12 sm:tracking-[0.28em]">
                   {item}
                 </span>
                 <span className="text-(--gw-color-muted) opacity-60">

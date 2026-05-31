@@ -43,15 +43,15 @@ export default function RoleSelector({ value, onChange, error, disabled }) {
                 onChange={(event) => onChange(event.target.value)}
                 className="sr-only"
               />
-              <span className="flex items-start gap-3">
+              <span className="flex min-w-0 items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-(--gw-color-green) text-(--gw-color-gold)">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <span>
+                <span className="min-w-0">
                   <span className="block text-sm font-semibold text-(--gw-color-green)">
                     {label}
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-(--gw-color-muted)">
+                  <span className="gw-break-text mt-1 block text-xs leading-5 text-(--gw-color-muted)">
                     {description}
                   </span>
                 </span>

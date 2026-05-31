@@ -72,7 +72,7 @@ export default function LiveGoldRateSection() {
   }, [rate.pricePerGram24k]);
 
   return (
-    <section className="px-6 py-20 lg:px-12">
+    <section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-6">
           <SectionHeader
@@ -83,15 +83,14 @@ export default function LiveGoldRateSection() {
         </div>
 
         <div className="lg:col-span-6">
-          <article className="relative overflow-hidden rounded-3xl border border-(--gw-color-border) bg-white p-6 shadow-[0_24px_80px_rgba(26,54,45,0.08)] sm:p-8">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#D19C4C]/14 blur-3xl" />
+          <article className="relative overflow-hidden rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-[0_24px_80px_rgba(26,54,45,0.08)] sm:p-8">
             <div className="relative">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-(--gw-color-muted)">
+                  <p className="text-xs uppercase tracking-[0.16em] text-(--gw-color-muted) sm:tracking-[0.22em]">
                     24K reference · INR / gram
                   </p>
-                  <div className="mt-4 text-5xl font-semibold text-(--gw-color-green) sm:text-6xl">
+                  <div className="gw-break-text mt-4 font-semibold text-(--gw-color-green) [font-size:clamp(1.875rem,4vw,3.75rem)]">
                     {status === "loading" ? "Loading" : formatInr(rate.pricePerGram24k)}
                   </div>
                 </div>
@@ -104,7 +103,7 @@ export default function LiveGoldRateSection() {
                 </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="mt-6 grid gap-3 min-[520px]:grid-cols-3">
                 {purityRates.map(([purity, value]) => (
                   <div
                     key={purity}
@@ -126,7 +125,7 @@ export default function LiveGoldRateSection() {
                   : "Gold-rate data is a reference point. Seller-selected bids still depend on item details and verified jeweller offers."}
               </div>
 
-              <p className="mt-4 text-xs uppercase tracking-[0.18em] text-(--gw-color-muted)">
+              <p className="gw-break-text mt-4 text-xs uppercase tracking-[0.14em] text-(--gw-color-muted) sm:tracking-[0.18em]">
                 {rate.source}
               </p>
             </div>

@@ -4,32 +4,32 @@ import heroImage from "@/assets/heroImage.jpg";
 
 export default function HeroImageCard() {
   return (
-    <div className="space-y-6 lg:col-span-5 lg:pl-6">
-      <div className="relative h-80 overflow-hidden rounded-3xl sm:h-90">
+    <div className="min-w-0 space-y-5 sm:space-y-6 lg:col-span-5 lg:pl-6">
+      <div className="relative h-72 overflow-hidden rounded-3xl sm:h-80 md:h-90">
         <img
           src={heroImage}
           alt="Elegant gold jewellery"
+          loading="eager"
+          decoding="async"
           className="h-full w-full object-cover"
         />
 
         <div className="absolute inset-0 bg-linear-to-t from-[#1A362D]/60 to-transparent" />
 
-        <div className="absolute bottom-6 left-6 right-6">
-          <div className="text-xs uppercase tracking-[0.2em] text-[#FDFCF9]/80">
+        <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6 sm:right-6">
+          <div className="text-xs uppercase tracking-[0.16em] text-[#FDFCF9]/80 sm:tracking-[0.2em]">
             From heirloom
           </div>
-          <div className="text-3xl font-medium text-[#FDFCF9]">
+          <div className="mt-1 text-2xl font-medium text-[#FDFCF9] sm:text-3xl">
             to fair offer
           </div>
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream) p-8">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-[#D19C4C]/10 blur-3xl" />
-
+      <div className="relative overflow-hidden rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream) p-5 sm:p-8">
         <div className="relative z-10">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-(--gw-color-muted)">
+          <div className="mb-5 flex items-center justify-between gap-4 sm:mb-6">
+            <div className="text-xs uppercase tracking-[0.16em] text-(--gw-color-muted) sm:tracking-[0.2em]">
               Live 24K Rate &middot; INR / gram
             </div>
 
@@ -42,11 +42,11 @@ export default function HeroImageCard() {
             </button>
           </div>
 
-          <div className="text-5xl font-semibold text-(--gw-color-green) lg:text-6xl">
+          <div className="gw-break-text font-semibold text-(--gw-color-green) [font-size:clamp(2rem,4vw,3.75rem)]">
             &#8377;7,850
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
+          <div className="mt-5 grid gap-3 text-sm min-[420px]:grid-cols-3 sm:mt-6">
             {[
               ["22K", "7,191"],
               ["20K", "6,539"],

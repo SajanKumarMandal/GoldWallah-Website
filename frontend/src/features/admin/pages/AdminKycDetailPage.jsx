@@ -27,11 +27,11 @@ function formatDate(value) {
 
 function DetailItem({ label, value }) {
   return (
-    <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
+    <div className="min-w-0">
+      <dt className="gw-break-text text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted) sm:tracking-[0.16em]">
         {label}
       </dt>
-      <dd className="mt-2 break-words text-sm font-semibold text-(--gw-color-green)">
+      <dd className="gw-break-text mt-2 text-sm font-semibold text-(--gw-color-green)">
         {value || "Not available"}
       </dd>
     </div>
@@ -172,7 +172,7 @@ export default function AdminKycDetailPage() {
       ) : null}
 
       {submission ? (
-        <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
           <DashboardSection
             title="Submitted identity"
             description="Exact identity details submitted by the seller."
@@ -203,6 +203,8 @@ export default function AdminKycDetailPage() {
               <img
                 src={selfieImageUrl}
                 alt="Seller KYC selfie"
+                loading="lazy"
+                decoding="async"
                 className="aspect-[4/3] w-full rounded-2xl object-cover"
                 onError={() => setHasImageError(true)}
               />
@@ -228,12 +230,12 @@ export default function AdminKycDetailPage() {
             placeholder="Required when rejecting"
             className="w-full resize-none rounded-2xl border border-(--gw-color-border) bg-white px-4 py-3 text-sm text-(--gw-color-green) outline-none transition placeholder:text-(--gw-color-muted)/55 focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:bg-(--gw-color-border)/35"
           />
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               disabled={!canReview || isMutating}
               onClick={handleApprove}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               Approve
             </button>
@@ -241,7 +243,7 @@ export default function AdminKycDetailPage() {
               type="button"
               disabled={!canReview || isMutating}
               onClick={handleReject}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-copper) px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-copper) px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               Reject
             </button>

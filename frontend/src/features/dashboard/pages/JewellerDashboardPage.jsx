@@ -145,12 +145,12 @@ export default function JewellerDashboardPage() {
       {businessVerificationStatus !== "APPROVED" ? (
         <div className="rounded-3xl border border-(--gw-color-gold)/45 bg-(--gw-color-gold)/10 p-5 text-(--gw-color-green)">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
+            <div className="flex min-w-0 gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
                 <LockKeyhole className="h-5 w-5 text-(--gw-color-gold)" aria-hidden="true" />
               </span>
-              <div>
-                <h2 className="text-lg font-semibold">
+              <div className="min-w-0">
+                <h2 className="gw-break-text text-lg font-semibold">
                   Complete business verification to start bidding.
                 </h2>
                 <p className="mt-1 text-sm text-(--gw-color-muted)">
@@ -160,7 +160,7 @@ export default function JewellerDashboardPage() {
             </div>
             <Link
               to={ROUTES.jewellerVerification}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) sm:w-auto"
             >
               Complete Verification
             </Link>
@@ -170,12 +170,12 @@ export default function JewellerDashboardPage() {
 
       {commissionLockStatus === "LOCKED" ? (
         <div className="rounded-3xl border border-(--gw-color-copper)/35 bg-(--gw-color-copper)/10 p-5 text-(--gw-color-copper)">
-          <div className="flex gap-3">
+          <div className="flex min-w-0 gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
               <WalletCards className="h-5 w-5" aria-hidden="true" />
             </span>
-            <div>
-              <h2 className="text-lg font-semibold">
+            <div className="min-w-0">
+              <h2 className="gw-break-text text-lg font-semibold">
                 Commission payment pending. Bidding will remain locked until payment is cleared.
               </h2>
               <p className="mt-1 text-sm text-(--gw-color-muted)">
@@ -210,8 +210,8 @@ export default function JewellerDashboardPage() {
       >
         <div className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold text-(--gw-color-green)">Marketplace listings</p>
+            <div className="min-w-0">
+              <p className="gw-break-text font-semibold text-(--gw-color-green)">Marketplace listings</p>
               <p className="mt-1 text-sm text-(--gw-color-muted)">
                 Seller listings will appear here when available.
               </p>
@@ -219,7 +219,7 @@ export default function JewellerDashboardPage() {
             <Link
               to={canBid ? ROUTES.jewellerMarketplace : ROUTES.jewellerVerification}
               aria-disabled={!canBid}
-              className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition ${
+              className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:w-auto ${
                 canBid
                   ? "bg-(--gw-color-green) text-(--gw-color-cream) hover:bg-(--gw-color-green-soft)"
                   : "cursor-not-allowed border border-(--gw-color-border) bg-white text-(--gw-color-muted)"
@@ -240,7 +240,7 @@ export default function JewellerDashboardPage() {
             {dashboard.recentActivity.map((activity) => (
               <div
                 key={activity.id}
-                className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4 text-sm text-(--gw-color-muted)"
+                className="gw-break-text rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4 text-sm text-(--gw-color-muted)"
               >
                 {activity.message}
               </div>

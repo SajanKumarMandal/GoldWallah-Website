@@ -343,15 +343,6 @@ export default function RegisterPage() {
             </form>
           )}
 
-          <div className="rounded-2xl border border-(--gw-color-border) bg-white/70 p-4">
-            <RoleSelector
-              value={values.role}
-              onChange={(role) => updateField("role", role)}
-              error={errors.role}
-              disabled={isSubmitting}
-            />
-          </div>
-
           {statusMessage ? (
             <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm text-(--gw-color-green)">
               {statusMessage}

@@ -1,6 +1,6 @@
 export default function HeroStats() {
   return (
-    <div className="mt-12 flex flex-wrap items-center gap-8 text-sm text-(--gw-color-muted)">
+    <div className="mt-10 grid gap-4 text-sm text-(--gw-color-muted) sm:mt-12 sm:flex sm:flex-wrap sm:items-center sm:gap-8">
       <div>
         <span className="text-xl font-semibold text-(--gw-color-green)">
           500+
@@ -8,7 +8,7 @@ export default function HeroStats() {
         jewellers
       </div>
 
-      <div className="h-8 w-px bg-(--gw-color-border)" />
+      <div className="hidden h-8 w-px bg-(--gw-color-border) sm:block" />
 
       <div>
         <span className="text-xl font-semibold text-(--gw-color-green)">
@@ -17,7 +17,7 @@ export default function HeroStats() {
         gold transacted
       </div>
 
-      <div className="h-8 w-px bg-(--gw-color-border)" />
+      <div className="hidden h-8 w-px bg-(--gw-color-border) sm:block" />
 
       <div>
         <span className="text-xl font-semibold text-(--gw-color-green)">

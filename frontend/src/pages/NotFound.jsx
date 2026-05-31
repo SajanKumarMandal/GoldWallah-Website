@@ -4,12 +4,12 @@ import { ROUTES } from "@/constants/routes";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-(--gw-color-cream) px-6 text-center">
-      <div className="max-w-md">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-(--gw-color-copper)">
+    <main className="flex min-h-screen min-w-0 items-center justify-center bg-(--gw-color-cream) px-4 text-center sm:px-6">
+      <div className="max-w-md min-w-0">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-(--gw-color-copper) sm:tracking-[0.2em]">
           404
         </p>
-        <h1 className="mt-4 text-4xl font-semibold text-(--gw-color-green)">
+        <h1 className="gw-break-text gw-text-section mt-4 font-semibold text-(--gw-color-green)">
           Page not found
         </h1>
         <p className="mt-4 text-(--gw-color-muted)">

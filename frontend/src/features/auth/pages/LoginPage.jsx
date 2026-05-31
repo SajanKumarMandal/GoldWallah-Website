@@ -9,6 +9,8 @@ import AuthLayout from "@/features/auth/components/AuthLayout";
 import AuthMethodTabs from "@/features/auth/components/AuthMethodTabs";
 import PasswordInput from "@/features/auth/components/PasswordInput";
 import {
+  loginWithFacebook,
+  loginWithGoogle,
   loginUser,
   sendLoginOtp,
   verifyLoginOtp,
@@ -47,6 +49,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [socialProvider, setSocialProvider] = useState("");
 
   function clearFeedback() {
     setErrors({});
@@ -83,6 +86,38 @@ export default function LoginPage() {
     } catch (error) {
       setStatusMessage(error.message || "Unable to complete request. Please try again.");
     } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSocialLogin(provider) {
+    setIsSubmitting(true);
+    setSocialProvider(provider);
+    setStatusMessage("");
+    setErrors({});
+
+    try {
+      const result =
+        provider === "google"
+          ? await loginWithGoogle({ idToken: "oauth-provider-not-configured" })
+          : await loginWithFacebook({
+              accessToken: "oauth-provider-not-configured",
+            });
+
+      if (result?.data?.user) {
+        setAuthSession({
+          user: result.data.user,
+          accessToken: result.data.accessToken,
+        });
+        navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
+      }
+    } catch (error) {
+      setStatusMessage(
+        error.message ||
+          `${provider === "google" ? "Google" : "Facebook"} login is not available yet.`,
+      );
+    } finally {
+      setSocialProvider("");
       setIsSubmitting(false);
     }
   }
@@ -278,6 +313,44 @@ export default function LoginPage() {
               ) : null}
             </form>
           )}
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-(--gw-color-border)" />
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
+                Or continue with
+              </span>
+              <span className="h-px flex-1 bg-(--gw-color-border)" />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleSocialLogin("google")}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4285F4] text-xs font-bold text-white">
+                  G
+                </span>
+                {socialProvider === "google" ? "Connecting..." : "Continue with Google"}
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleSocialLogin("facebook")}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1877F2] text-xs font-bold text-white">
+                  f
+                </span>
+                {socialProvider === "facebook"
+                  ? "Connecting..."
+                  : "Continue with Facebook"}
+              </button>
+            </div>
+          </div>
 
           {statusMessage ? (
             <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm text-(--gw-color-green)">

@@ -11,7 +11,7 @@ function formatDate(value) {
 
 export default function PendingVerificationList({ items, isLoading }) {
   return (
-    <section className="rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-(--gw-color-green)">
         Pending verifications
       </h2>
@@ -29,11 +29,11 @@ export default function PendingVerificationList({ items, isLoading }) {
               className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream)/70 p-4"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold text-(--gw-color-green)">
+                <div className="min-w-0">
+                  <p className="gw-break-text font-semibold text-(--gw-color-green)">
                     {item.displayName || "Unnamed submission"}
                   </p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-(--gw-color-muted)">
+                  <p className="gw-break-text mt-1 text-xs uppercase tracking-[0.16em] text-(--gw-color-muted)">
                     {item.type}
                   </p>
                 </div>

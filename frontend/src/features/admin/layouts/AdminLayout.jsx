@@ -25,7 +25,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-(--gw-color-cream) text-(--gw-color-green)">
+    <div className="min-h-screen min-w-0 bg-(--gw-color-cream) text-(--gw-color-green)">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 lg:block">
         <AdminSidebar admin={admin} onLogout={handleLogout} />
       </aside>
@@ -38,7 +38,7 @@ export default function AdminLayout() {
             className="absolute inset-0 bg-(--gw-color-green)/50"
             onClick={() => setIsDrawerOpen(false)}
           />
-          <aside className="relative h-full w-[min(19rem,86vw)]">
+          <aside className="relative h-full w-[min(19rem,86vw)] overflow-y-auto">
             <AdminSidebar
               admin={admin}
               onLogout={handleLogout}
@@ -48,9 +48,9 @@ export default function AdminLayout() {
         </div>
       ) : null}
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <AdminTopbar admin={admin} onMenuClick={() => setIsDrawerOpen(true)} />
-        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Outlet context={{ admin, accessToken }} />
         </main>
       </div>

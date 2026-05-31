@@ -8,8 +8,8 @@ import SectionHeader from "./SectionHeader";
 
 export default function FinalCtaSection() {
   return (
-    <section className="px-6 pb-20 pt-8 lg:px-12">
-      <div className="mx-auto max-w-7xl rounded-3xl border border-(--gw-color-border) bg-white p-6 shadow-[0_24px_80px_rgba(26,54,45,0.08)] sm:p-10">
+    <section className="px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8 lg:px-12">
+      <div className="mx-auto max-w-7xl rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-[0_24px_80px_rgba(26,54,45,0.08)] sm:p-10">
         <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
           <div className="lg:col-span-7">
             <SectionHeader
@@ -22,7 +22,7 @@ export default function FinalCtaSection() {
           <div className="grid gap-4 sm:grid-cols-2 lg:col-span-5">
             <Link
               to={ROUTES.registerSeller}
-              className="group rounded-3xl bg-(--gw-color-green) p-6 text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold)"
+              className="group rounded-3xl bg-(--gw-color-green) p-5 text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:p-6"
             >
               <UserRoundCheck className="h-7 w-7 text-(--gw-color-gold)" aria-hidden="true" />
               <h3 className="mt-5 text-xl font-semibold">Seller</h3>
@@ -37,7 +37,7 @@ export default function FinalCtaSection() {
 
             <Link
               to={ROUTES.registerJeweller}
-              className="group rounded-3xl border border-(--gw-color-green) bg-(--gw-color-cream) p-6 text-(--gw-color-green) transition hover:bg-[#f7f5f1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold)"
+              className="group rounded-3xl border border-(--gw-color-green) bg-(--gw-color-cream) p-5 text-(--gw-color-green) transition hover:bg-[#f7f5f1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:p-6"
             >
               <Store className="h-7 w-7 text-(--gw-color-copper)" aria-hidden="true" />
               <h3 className="mt-5 text-xl font-semibold">Jeweller</h3>

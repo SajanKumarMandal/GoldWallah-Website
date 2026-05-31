@@ -131,20 +131,20 @@ export default function AdminCommissionsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-white p-6 shadow-sm">
+      <section className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-(--gw-color-muted)">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--gw-color-muted) sm:tracking-[0.22em]">
               Admin finance
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-(--gw-color-green)">
+            <h1 className="mt-2 text-2xl font-semibold text-(--gw-color-green) sm:text-3xl">
               Platform commissions
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-(--gw-color-muted)">
               Review unpaid commission dues and settle jeweller transaction locks.
             </p>
           </div>
-          <label className="block text-sm font-semibold text-(--gw-color-green)">
+          <label className="block w-full text-sm font-semibold text-(--gw-color-green) sm:w-auto">
             Status
             <select
               value={statusFilter}
@@ -153,7 +153,7 @@ export default function AdminCommissionsPage() {
                 setErrorMessage("");
                 setStatusFilter(event.target.value);
               }}
-              className="mt-2 h-11 rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) px-4 text-sm outline-none focus:border-(--gw-color-gold)"
+              className="mt-2 h-11 w-full rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) px-4 text-sm outline-none focus:border-(--gw-color-gold) sm:w-auto"
             >
               <option value="">All</option>
               <option value="PENDING">Pending</option>
@@ -175,7 +175,7 @@ export default function AdminCommissionsPage() {
 
       <section className="overflow-hidden rounded-3xl border border-(--gw-color-border) bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-(--gw-color-border) text-left text-sm">
+          <table className="min-w-[58rem] divide-y divide-(--gw-color-border) text-left text-sm">
             <thead className="bg-(--gw-color-cream) text-xs uppercase tracking-[0.16em] text-(--gw-color-muted)">
               <tr>
                 <th className="px-5 py-4">Jeweller</th>
@@ -207,7 +207,7 @@ export default function AdminCommissionsPage() {
                         <p className="font-semibold text-(--gw-color-green)">
                           {commission.jewellerName || "Jeweller"}
                         </p>
-                        <p className="mt-1 text-xs text-(--gw-color-muted)">
+                        <p className="gw-break-text mt-1 text-xs text-(--gw-color-muted)">
                           {commission.jewellerEmail || commission.jewellerId}
                         </p>
                       </td>

@@ -129,12 +129,12 @@ export default function SellerDashboardPage() {
       {!hasApprovedKyc ? (
         <div className="rounded-3xl border border-(--gw-color-gold)/45 bg-(--gw-color-gold)/10 p-5 text-(--gw-color-green)">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
+            <div className="flex min-w-0 gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
                 <LockKeyhole className="h-5 w-5 text-(--gw-color-gold)" aria-hidden="true" />
               </span>
-              <div>
-                <h2 className="text-lg font-semibold">Complete KYC to list gold.</h2>
+              <div className="min-w-0">
+                <h2 className="gw-break-text text-lg font-semibold">Complete KYC to list gold.</h2>
                 <p className="mt-1 text-sm text-(--gw-color-muted)">
                   You can explore your dashboard and nearby jewellers while verification is pending.
                 </p>
@@ -142,7 +142,7 @@ export default function SellerDashboardPage() {
             </div>
             <Link
               to={ROUTES.sellerKyc}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) sm:w-auto"
             >
               Complete KYC
             </Link>
@@ -207,7 +207,7 @@ export default function SellerDashboardPage() {
             {dashboard.recentActivity.map((activity) => (
               <div
                 key={activity.id}
-                className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4 text-sm text-(--gw-color-muted)"
+                className="gw-break-text rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4 text-sm text-(--gw-color-muted)"
               >
                 {activity.message}
               </div>

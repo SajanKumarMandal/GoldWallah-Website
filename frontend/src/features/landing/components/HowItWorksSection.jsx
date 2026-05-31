@@ -13,8 +13,8 @@ function FlowCard({ title, description, steps, tone }) {
       : "bg-[#D19C4C]/18 text-(--gw-color-green)";
 
   return (
-    <article className="rounded-3xl border border-(--gw-color-border) bg-white p-6 shadow-[0_24px_80px_rgba(26,54,45,0.07)] sm:p-8">
-      <div className={`inline-flex rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] ${badgeClass}`}>
+    <article className="rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-[0_24px_80px_rgba(26,54,45,0.07)] sm:p-8">
+      <div className={`inline-flex rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] sm:tracking-[0.18em] ${badgeClass}`}>
         {title}
       </div>
       <p className="mt-5 text-lg leading-relaxed text-(--gw-color-muted)">
@@ -23,7 +23,7 @@ function FlowCard({ title, description, steps, tone }) {
 
       <div className="mt-8 space-y-5">
         {steps.map(({ title: stepTitle, description: stepDescription, icon: Icon }, index) => (
-          <div key={stepTitle} className="flex gap-4">
+          <div key={stepTitle} className="flex gap-3 sm:gap-4">
             <div className="flex flex-col items-center">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-(--gw-color-border) bg-(--gw-color-cream) text-(--gw-color-green)">
                 <Icon className="h-5 w-5" aria-hidden="true" />
@@ -32,8 +32,8 @@ function FlowCard({ title, description, steps, tone }) {
                 <div className="mt-3 h-10 w-px bg-(--gw-color-border)" />
               ) : null}
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-(--gw-color-green)">
+            <div className="min-w-0">
+              <h3 className="gw-break-text text-base font-semibold text-(--gw-color-green) sm:text-lg">
                 {stepTitle}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-(--gw-color-muted)">
@@ -49,7 +49,7 @@ function FlowCard({ title, description, steps, tone }) {
 
 export default function HowItWorksSection() {
   return (
-    <section className="px-6 py-20 lg:px-12">
+    <section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
           eyebrow={sectionEyebrows.howItWorks}

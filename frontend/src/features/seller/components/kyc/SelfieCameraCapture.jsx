@@ -154,6 +154,8 @@ export default function SelfieCameraCapture({
               <img
                 src={previewUrl}
                 alt="Captured selfie preview"
+                loading="lazy"
+                decoding="async"
                 className="aspect-video w-full object-cover"
               />
               <div className="bg-white px-4 py-3 text-(--gw-color-green)">
@@ -173,13 +175,13 @@ export default function SelfieCameraCapture({
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {!isCameraOpen && !previewUrl ? (
             <button
               type="button"
               disabled={disabled}
               onClick={openCamera}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               Open Camera
             </button>

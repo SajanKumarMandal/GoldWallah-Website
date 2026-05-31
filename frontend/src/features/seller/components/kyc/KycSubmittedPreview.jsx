@@ -4,11 +4,11 @@ import { resolveUploadedImageUrl } from "@/utils/resolveUploadedImageUrl";
 
 function SafeDetail({ label, value }) {
   return (
-    <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
+    <div className="min-w-0">
+      <dt className="gw-break-text text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted) sm:tracking-[0.16em]">
         {label}
       </dt>
-      <dd className="mt-2 text-sm font-semibold text-(--gw-color-green)">
+      <dd className="gw-break-text mt-2 text-sm font-semibold text-(--gw-color-green)">
         {value || "Not available"}
       </dd>
     </div>
@@ -38,7 +38,7 @@ export default function KycSubmittedPreview({ submission }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
+    <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,18rem)]">
       <div className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/70 p-5">
         <dl className="grid gap-4 sm:grid-cols-2">
           <SafeDetail label="Full name" value={submission.fullName} />
@@ -61,6 +61,8 @@ export default function KycSubmittedPreview({ submission }) {
           <img
             src={selfieImageUrl}
             alt="Submitted selfie"
+            loading="lazy"
+            decoding="async"
             className="aspect-[4/3] w-full rounded-2xl object-cover"
             onError={() => setHasImageError(true)}
           />

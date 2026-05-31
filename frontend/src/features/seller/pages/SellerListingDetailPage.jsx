@@ -250,13 +250,15 @@ export default function SellerListingDetailPage() {
             title="Listing preview"
             action={<ListingStatusBadge status={listing.status} />}
           >
-            <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="space-y-3">
                 <div className="aspect-[4/3] overflow-hidden rounded-3xl bg-(--gw-color-border)/45">
                   {resolvedImages[0]?.imageUrl ? (
                     <img
                       src={resolvedImages[0].imageUrl}
                       alt={listing.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -266,12 +268,14 @@ export default function SellerListingDetailPage() {
                   )}
                 </div>
                 {resolvedImages.length > 1 ? (
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {resolvedImages.slice(1).map((image, index) => (
                       <img
                         key={image.id || image.imageUrl}
                         src={image.imageUrl}
                         alt={`${listing.title} ${index + 2}`}
+                        loading="lazy"
+                        decoding="async"
                         className="aspect-square rounded-2xl border border-(--gw-color-border) object-cover"
                       />
                     ))}
@@ -297,9 +301,11 @@ export default function SellerListingDetailPage() {
                   label="Purchase year"
                   value={listing.purchaseYear || "Not set"}
                 />
-                <div className="flex items-center gap-2 rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-sm text-(--gw-color-muted)">
+                <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-sm text-(--gw-color-muted)">
                   <MapPin className="h-4 w-4" aria-hidden="true" />
-                  {listing.city}, {listing.state}
+                  <span className="gw-break-text min-w-0">
+                    {listing.city}, {listing.state}
+                  </span>
                 </div>
                 {listing.latitude && listing.longitude ? (
                   <DetailRow
@@ -317,7 +323,7 @@ export default function SellerListingDetailPage() {
                 <h3 className="text-sm font-semibold text-(--gw-color-green)">
                   Description
                 </h3>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-(--gw-color-muted)">
+                <p className="gw-break-text mt-2 whitespace-pre-wrap text-sm leading-6 text-(--gw-color-muted)">
                   {listing.description}
                 </p>
               </div>
@@ -388,22 +394,22 @@ export default function SellerListingDetailPage() {
                       className="rounded-2xl border border-(--gw-color-border) bg-white p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-semibold text-(--gw-color-green)">
                             {formatMoney(bid.bidAmount)}
                           </p>
-                          <p className="mt-1 text-sm text-(--gw-color-muted)">
+                          <p className="gw-break-text mt-1 text-sm text-(--gw-color-muted)">
                             {bid.jewellerName || "Verified jeweller"} · {bid.status}
                           </p>
                           {bid.message ? (
-                            <p className="mt-2 text-sm text-(--gw-color-muted)">
+                            <p className="gw-break-text mt-2 text-sm text-(--gw-color-muted)">
                               {bid.message}
                             </p>
                           ) : null}
                         </div>
 
                         {canDecide ? (
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2 min-[420px]:flex-row sm:shrink-0">
                             <button
                               type="button"
                               disabled={bidActionId === bid.id}
@@ -441,7 +447,7 @@ function DetailRow({ label, value }) {
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold text-(--gw-color-green)">{value}</p>
+      <p className="gw-break-text mt-1 text-sm font-semibold text-(--gw-color-green)">{value}</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import SectionHeader from "./SectionHeader";
 
 export default function PrivateBiddingSection() {
   return (
-    <section className="px-6 py-20 lg:px-12">
+    <section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-6">
           <SectionHeader
@@ -32,15 +32,14 @@ export default function PrivateBiddingSection() {
         </div>
 
         <div className="lg:col-span-6">
-          <div className="relative overflow-hidden rounded-3xl bg-(--gw-color-green) p-6 text-(--gw-color-cream) shadow-[0_30px_100px_rgba(26,54,45,0.22)] sm:p-8">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#D19C4C]/20 blur-3xl" />
+          <div className="relative overflow-hidden rounded-3xl bg-(--gw-color-green) p-5 text-(--gw-color-cream) shadow-[0_30px_100px_rgba(26,54,45,0.22)] sm:p-8">
             <div className="relative">
-              <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-5">
+              <div className="flex items-start justify-between gap-4 border-b border-white/15 pb-5">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/60">
+                  <p className="text-xs uppercase tracking-[0.16em] text-white/60 sm:tracking-[0.25em]">
                     Seller view
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold">All offers visible</h3>
+                  <h3 className="mt-2 text-xl font-semibold sm:text-2xl">All offers visible</h3>
                 </div>
                 <EyeOff className="h-7 w-7 text-(--gw-color-gold)" aria-hidden="true" />
               </div>
@@ -49,7 +48,7 @@ export default function PrivateBiddingSection() {
                 {["Jeweller A", "Jeweller B", "Jeweller C"].map((name, index) => (
                   <div
                     key={name}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/8 px-4 py-4 backdrop-blur"
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-4 backdrop-blur min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between"
                   >
                     <div>
                       <p className="font-medium">{name}</p>

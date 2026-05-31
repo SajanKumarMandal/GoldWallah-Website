@@ -305,7 +305,7 @@ export default function JewellerBusinessVerificationForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex h-12 items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex h-12 w-full items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {isSubmitting ? "Submitting..." : "Submit for Verification"}
       </button>
@@ -315,9 +315,9 @@ export default function JewellerBusinessVerificationForm({
 
 function FormSection({ title, description, children }) {
   return (
-    <section className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/50 p-5">
+    <section className="min-w-0 rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/50 p-4 sm:p-5">
       <div className="mb-5">
-        <h3 className="text-lg font-semibold text-(--gw-color-green)">{title}</h3>
+        <h3 className="gw-break-text text-lg font-semibold text-(--gw-color-green)">{title}</h3>
         {description ? (
           <p className="mt-1 text-sm text-(--gw-color-muted)">{description}</p>
         ) : null}
@@ -329,7 +329,7 @@ function FormSection({ title, description, children }) {
 
 function Input({ id, label, value, onChange, disabled, error, ...props }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <input
         id={id}
@@ -347,7 +347,7 @@ function Input({ id, label, value, onChange, disabled, error, ...props }) {
 
 function Select({ id, label, value, onChange, disabled, error, options, placeholder }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <select
         id={id}
@@ -370,7 +370,7 @@ function Select({ id, label, value, onChange, disabled, error, options, placehol
 
 function TextArea({ id, label, value, onChange, disabled, error, ...props }) {
   return (
-    <label className="block" htmlFor={id}>
+    <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
       <textarea
         id={id}

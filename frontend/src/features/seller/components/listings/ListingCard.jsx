@@ -39,6 +39,8 @@ export default function ListingCard({ listing }) {
           <img
             src={firstImage}
             alt={listing.title}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover"
           />
         ) : (
@@ -47,28 +49,30 @@ export default function ListingCard({ listing }) {
           </div>
         )}
       </div>
-      <div className="space-y-4 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="line-clamp-2 text-lg font-semibold text-(--gw-color-green)">
+      <div className="space-y-4 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
+          <div className="min-w-0">
+            <h3 className="gw-break-text line-clamp-2 text-lg font-semibold text-(--gw-color-green)">
               {listing.title}
             </h3>
-            <p className="mt-1 text-sm text-(--gw-color-muted)">
+            <p className="gw-break-text mt-1 text-sm text-(--gw-color-muted)">
               {listing.goldType} / {listing.purity} / {listing.weightGrams}g
             </p>
           </div>
-          <ListingStatusBadge status={listing.status} />
+          <div className="shrink-0">
+            <ListingStatusBadge status={listing.status} />
+          </div>
         </div>
         <p className="text-base font-semibold text-(--gw-color-green)">
           {formatMoney(listing.expectedPrice)}
         </p>
-        <div className="flex items-center gap-2 text-sm text-(--gw-color-muted)">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-(--gw-color-muted)">
           <MapPin className="h-4 w-4" aria-hidden="true" />
-          <span>
+          <span className="gw-break-text min-w-0">
             {listing.city}, {listing.state}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-(--gw-color-border) pt-4">
+        <div className="flex flex-col gap-3 border-t border-(--gw-color-border) pt-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
           <p className="text-xs font-medium text-(--gw-color-muted)">
             {formatDate(listing.createdAt)}
           </p>

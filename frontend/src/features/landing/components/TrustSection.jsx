@@ -4,7 +4,7 @@ import SectionHeader from "./SectionHeader";
 
 export default function TrustSection() {
   return (
-    <section className="border-y border-(--gw-color-border) bg-white/55 px-6 py-16 lg:px-12">
+    <section className="border-y border-(--gw-color-border) bg-white/55 px-4 py-14 sm:px-6 sm:py-16 lg:px-12">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
           eyebrow={sectionEyebrows.trust}
@@ -21,7 +21,7 @@ export default function TrustSection() {
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#D19C4C]/14 text-(--gw-color-green)">
                 <Icon className="h-5 w-5" aria-hidden="true" />
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-(--gw-color-green)">
+              <h3 className="gw-break-text mt-5 text-lg font-semibold text-(--gw-color-green)">
                 {title}
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-(--gw-color-muted)">

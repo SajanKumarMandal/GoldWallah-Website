@@ -7,7 +7,7 @@ import SectionHeader from "./SectionHeader";
 
 export default function LocationMatchingSection() {
   return (
-    <section className="bg-[#f7f5f1] px-6 py-20 lg:px-12">
+    <section className="bg-[#f7f5f1] px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-5">
           <SectionHeader
@@ -21,7 +21,7 @@ export default function LocationMatchingSection() {
           {locationPoints.map(({ title, description, icon: Icon }) => (
             <article
               key={title}
-              className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream) p-6"
+              className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream) p-5 sm:p-6"
             >
               <Icon className="h-7 w-7 text-(--gw-color-copper)" aria-hidden="true" />
               <h3 className="mt-6 text-lg font-semibold text-(--gw-color-green)">

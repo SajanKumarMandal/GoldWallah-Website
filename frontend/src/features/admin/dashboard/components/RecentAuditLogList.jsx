@@ -2,7 +2,7 @@ import { formatAuditDate } from "@/features/admin/dashboard/components/auditForm
 
 export default function RecentAuditLogList({ items, isLoading }) {
   return (
-    <section className="rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-(--gw-color-green)">
         Recent audit logs
       </h2>
@@ -17,14 +17,14 @@ export default function RecentAuditLogList({ items, isLoading }) {
           {items.map((item, index) => (
             <div key={`${item.action}-${item.createdAt}-${index}`} className="py-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-semibold text-(--gw-color-green)">
+                <p className="gw-break-text text-sm font-semibold text-(--gw-color-green)">
                   {item.action}
                 </p>
                 <span className="w-fit rounded-full bg-(--gw-color-cream) px-3 py-1 text-xs font-semibold text-(--gw-color-muted)">
                   {item.severity}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-(--gw-color-muted)">
+              <p className="gw-break-text mt-1 text-xs text-(--gw-color-muted)">
                 {item.actorAdminName || "System"} · {item.resourceType}
                 {item.resourceId ? ` · ${item.resourceId}` : ""} ·{" "}
                 {formatAuditDate(item.createdAt)}

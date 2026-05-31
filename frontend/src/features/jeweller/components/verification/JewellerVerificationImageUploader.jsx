@@ -17,7 +17,7 @@ export default function JewellerVerificationImageUploader({
   onChange,
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid min-w-0 gap-4 lg:grid-cols-3">
       <UploadCard
         fieldName="shopFrontImage"
         title="Shop front image"
@@ -100,9 +100,9 @@ function UploadCard({ fieldName, title, required, image, error, disabled, onChan
   const visibleError = error || localError;
 
   return (
-    <div className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/60 p-4">
+    <div className="min-w-0 rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/60 p-4">
       <div>
-        <p className="text-sm font-semibold text-(--gw-color-green)">
+        <p className="gw-break-text text-sm font-semibold text-(--gw-color-green)">
           {title} {required ? "" : "(optional)"}
         </p>
         <p className="mt-1 text-xs text-(--gw-color-muted)">
@@ -115,6 +115,8 @@ function UploadCard({ fieldName, title, required, image, error, disabled, onChan
           <img
             src={image.previewUrl}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className="aspect-[4/3] w-full rounded-2xl border border-(--gw-color-border) object-cover"
           />
           <button
@@ -150,7 +152,7 @@ function UploadCard({ fieldName, title, required, image, error, disabled, onChan
       )}
 
       {image ? (
-        <label className="mt-3 inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold)">
+        <label className="mt-3 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) sm:w-auto">
           Reselect
           <input
             type="file"

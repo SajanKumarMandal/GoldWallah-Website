@@ -15,11 +15,11 @@ function formatDate(value) {
 
 function SafeDetail({ label, value }) {
   return (
-    <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
+    <div className="min-w-0">
+      <dt className="gw-break-text text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted) sm:tracking-[0.16em]">
         {label}
       </dt>
-      <dd className="mt-2 text-sm font-semibold text-(--gw-color-green)">
+      <dd className="gw-break-text mt-2 text-sm font-semibold text-(--gw-color-green)">
         {value || "Not available"}
       </dd>
     </div>
@@ -93,11 +93,13 @@ function PreviewImage({ label, imageUrl }) {
   const resolvedUrl = useMemo(() => resolveUploadedImageUrl(imageUrl), [imageUrl]);
 
   return (
-    <div className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/70 p-3">
+    <div className="min-w-0 rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/70 p-3">
       {resolvedUrl && !hasError ? (
         <img
           src={resolvedUrl}
           alt={label}
+          loading="lazy"
+          decoding="async"
           className="aspect-[4/3] w-full rounded-2xl object-cover"
           onError={() => setHasError(true)}
         />

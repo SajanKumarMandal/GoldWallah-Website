@@ -140,20 +140,22 @@ export default function JewellerMarketplacePage() {
           />
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           {listings.map((listing) => {
             const imageUrl = resolveAssetUrl(listing.images?.[0]?.imageUrl);
 
             return (
               <article
                 key={listing.id}
-                className="grid gap-4 rounded-2xl border border-(--gw-color-border) bg-white p-4 sm:grid-cols-[10rem_1fr]"
+                className="grid min-w-0 gap-4 rounded-2xl border border-(--gw-color-border) bg-white p-4 md:grid-cols-[10rem_1fr]"
               >
                 <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-(--gw-color-cream)">
                   {imageUrl ? (
                     <img
                       src={imageUrl}
                       alt={listing.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -164,24 +166,26 @@ export default function JewellerMarketplacePage() {
                 </div>
 
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-(--gw-color-green)">
+                  <h2 className="gw-break-text text-base font-semibold text-(--gw-color-green)">
                     {listing.title}
                   </h2>
-                  <p className="mt-1 text-sm text-(--gw-color-muted)">
+                  <p className="gw-break-text mt-1 text-sm text-(--gw-color-muted)">
                     {listing.goldType} / {listing.purity} / {listing.weightGrams}g
                   </p>
                   <p className="mt-2 text-sm font-semibold text-(--gw-color-green)">
                     Expected: {formatMoney(listing.expectedPrice)}
                   </p>
-                  <p className="mt-2 flex items-center gap-2 text-sm text-(--gw-color-muted)">
+                  <p className="mt-2 flex min-w-0 items-center gap-2 text-sm text-(--gw-color-muted)">
                     <MapPin className="h-4 w-4" aria-hidden="true" />
-                    {listing.city}, {listing.state}
+                    <span className="gw-break-text min-w-0">
+                      {listing.city}, {listing.state}
+                    </span>
                   </p>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted)">
+                  <p className="gw-break-text mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted) sm:tracking-[0.16em]">
                     {formatDistance(listing)} / {listing.matchMode || "MATCHED"}
                   </p>
 
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <div className="mt-4 flex flex-col gap-2 min-[520px]:flex-row">
                     <input
                       type="number"
                       min="1"

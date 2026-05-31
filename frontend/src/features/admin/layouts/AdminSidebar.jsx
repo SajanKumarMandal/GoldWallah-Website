@@ -55,14 +55,14 @@ export default function AdminSidebar({ admin, onLogout, onClose }) {
   const visibleItems = navItems.filter((item) => hasPermission(admin, item.permission));
 
   return (
-    <div className="flex h-full flex-col bg-(--gw-color-green) px-4 py-5 text-(--gw-color-cream)">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/admin/dashboard" className="flex items-center gap-3" onClick={onClose}>
+    <div className="flex h-full min-w-0 flex-col bg-(--gw-color-green) px-4 py-5 text-(--gw-color-cream)">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3" onClick={onClose}>
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-(--gw-color-gold) text-(--gw-color-green)">
             <Shield className="h-6 w-6" aria-hidden="true" />
           </span>
-          <div>
-            <p className="text-lg font-semibold">GoldWallah</p>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold">GoldWallah</p>
             <p className="text-xs uppercase tracking-[0.2em] text-white/55">
               Admin
             </p>
@@ -84,7 +84,7 @@ export default function AdminSidebar({ admin, onLogout, onClose }) {
         {visibleItems.map((item) => {
           const ItemIcon = item.icon;
           const isActive = location.pathname === item.to;
-          const className = `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+          const className = `flex w-full min-w-0 items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
             isActive
               ? "bg-(--gw-color-gold) text-(--gw-color-green)"
               : "text-white/72 hover:bg-white/10 hover:text-white"
@@ -94,7 +94,7 @@ export default function AdminSidebar({ admin, onLogout, onClose }) {
             return (
               <span key={item.to} className={className}>
                 <ItemIcon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </span>
             );
           }
@@ -102,7 +102,7 @@ export default function AdminSidebar({ admin, onLogout, onClose }) {
           return (
             <Link key={item.to} to={item.to} className={className} onClick={onClose}>
               <ItemIcon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}

@@ -183,7 +183,7 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-(--gw-color-cream) text-(--gw-color-green)">
+    <div className="min-h-screen min-w-0 bg-(--gw-color-cream) text-(--gw-color-green)">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-(--gw-color-border) bg-white/82 px-4 py-5 backdrop-blur-xl lg:block">
         <SidebarContent navigation={navigation} userRole={roleLabel} />
       </aside>
@@ -196,7 +196,7 @@ export default function DashboardLayout() {
             className="absolute inset-0 bg-(--gw-color-green)/45"
             onClick={() => setIsDrawerOpen(false)}
           />
-          <aside className="relative h-full w-[min(19rem,86vw)] border-r border-(--gw-color-border) bg-(--gw-color-cream) px-4 py-5 shadow-2xl">
+          <aside className="relative h-full w-[min(19rem,86vw)] overflow-y-auto border-r border-(--gw-color-border) bg-(--gw-color-cream) px-4 py-5 shadow-2xl">
             <div className="mb-4 flex justify-end">
               <button
                 type="button"
@@ -216,10 +216,10 @@ export default function DashboardLayout() {
         </div>
       ) : null}
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-(--gw-color-border)/80 bg-(--gw-color-cream)/88 backdrop-blur-xl">
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
+          <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-(--gw-color-green) shadow-sm transition hover:bg-(--gw-color-gold)/12 lg:hidden"
@@ -228,11 +228,11 @@ export default function DashboardLayout() {
               >
                 <Menu className="h-5 w-5" aria-hidden="true" />
               </button>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--gw-color-muted)">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-(--gw-color-muted) sm:tracking-[0.2em]">
                   GoldWallah
                 </p>
-                <p className="text-sm font-semibold text-(--gw-color-green)">
+                <p className="truncate text-sm font-semibold text-(--gw-color-green)">
                   {location.pathname.includes("verification") ||
                   location.pathname.includes("kyc")
                     ? "Verification"
@@ -241,7 +241,7 @@ export default function DashboardLayout() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 className="relative flex h-10 w-10 items-center justify-center rounded-full border border-(--gw-color-border) bg-white text-(--gw-color-green) transition hover:border-(--gw-color-gold)"
@@ -255,7 +255,7 @@ export default function DashboardLayout() {
               </button>
 
               {isNotificationsOpen ? (
-                <div className="absolute right-16 top-14 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-(--gw-color-border) bg-white p-3 shadow-[0_24px_70px_rgba(26,54,45,0.16)]">
+                <div className="absolute right-4 top-14 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-(--gw-color-border) bg-white p-3 shadow-[0_24px_70px_rgba(26,54,45,0.16)] sm:right-16">
                   <div className="flex items-center justify-between gap-3 px-2 py-1">
                     <p className="text-sm font-semibold text-(--gw-color-green)">
                       Notifications
@@ -289,11 +289,11 @@ export default function DashboardLayout() {
                             ) : (
                               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-transparent" />
                             )}
-                            <div>
-                              <p className="text-sm font-semibold text-(--gw-color-green)">
+                            <div className="min-w-0">
+                              <p className="gw-break-text text-sm font-semibold text-(--gw-color-green)">
                                 {notification.title}
                               </p>
-                              <p className="mt-1 text-xs leading-5 text-(--gw-color-muted)">
+                              <p className="gw-break-text mt-1 text-xs leading-5 text-(--gw-color-muted)">
                                 {notification.body}
                               </p>
                             </div>
@@ -324,7 +324,7 @@ export default function DashboardLayout() {
                 </button>
 
                 {isProfileOpen ? (
-                  <div className="absolute right-0 mt-3 w-64 rounded-3xl border border-(--gw-color-border) bg-white p-3 shadow-[0_24px_70px_rgba(26,54,45,0.16)]">
+                  <div className="absolute right-0 mt-3 w-[min(16rem,calc(100vw-2rem))] rounded-3xl border border-(--gw-color-border) bg-white p-3 shadow-[0_24px_70px_rgba(26,54,45,0.16)]">
                     <div className="rounded-2xl bg-(--gw-color-cream) p-4">
                       <p className="font-semibold text-(--gw-color-green)">{userName}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.18em] text-(--gw-color-muted)">
@@ -346,7 +346,7 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </main>
       </div>
@@ -356,16 +356,22 @@ export default function DashboardLayout() {
 
 function SidebarContent({ navigation, userRole, onNavigate }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       <Link
         to={ROUTES.home}
-        className="flex items-center gap-3 rounded-2xl px-2 py-2 transition hover:bg-white/70"
+        className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-2 transition hover:bg-white/70"
         onClick={onNavigate}
       >
-        <img src={logo} alt="GoldWallah" className="h-11 w-11 rounded-full object-cover" />
-        <div>
-          <p className="text-xl font-semibold text-(--gw-color-green)">GoldWallah</p>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--gw-color-muted)">
+        <img
+          src={logo}
+          alt="GoldWallah"
+          loading="lazy"
+          decoding="async"
+          className="h-11 w-11 rounded-full object-cover"
+        />
+        <div className="min-w-0">
+          <p className="truncate text-xl font-semibold text-(--gw-color-green)">GoldWallah</p>
+          <p className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-(--gw-color-muted)">
             {userRole}
           </p>
         </div>

@@ -94,7 +94,7 @@ export default function ListingImageUploader({
     <div className="rounded-3xl border border-(--gw-color-border) bg-(--gw-color-cream)/60 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-(--gw-color-green)">
+          <p className="gw-break-text text-sm font-semibold text-(--gw-color-green)">
             Listing images {required ? "" : "(optional replacement)"}
           </p>
           <p className="mt-1 text-xs text-(--gw-color-muted)">
@@ -102,7 +102,7 @@ export default function ListingImageUploader({
           </p>
         </div>
         <label
-          className={`inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition ${
+          className={`inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition sm:w-auto ${
             disabled || images.length >= MAX_IMAGES
               ? "pointer-events-none bg-(--gw-color-border) text-(--gw-color-muted)"
               : "bg-(--gw-color-green) text-(--gw-color-cream) hover:bg-(--gw-color-green-soft)"
@@ -132,6 +132,8 @@ export default function ListingImageUploader({
                 key={image.id || image.imageUrl}
                 src={image.imageUrl}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="aspect-square rounded-2xl border border-(--gw-color-border) object-cover"
               />
             ))}
@@ -146,6 +148,8 @@ export default function ListingImageUploader({
               <img
                 src={image.previewUrl}
                 alt={`Selected listing ${index + 1}`}
+                loading="lazy"
+                decoding="async"
                 className="aspect-square w-full rounded-2xl border border-(--gw-color-border) object-cover"
               />
               <button

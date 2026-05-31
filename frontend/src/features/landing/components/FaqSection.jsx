@@ -4,7 +4,7 @@ import SectionHeader from "./SectionHeader";
 
 export default function FaqSection() {
   return (
-    <section className="px-6 py-20 lg:px-12">
+    <section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
           eyebrow={sectionEyebrows.faq}
@@ -17,9 +17,9 @@ export default function FaqSection() {
           {faqs.map(({ question, answer }) => (
             <details
               key={question}
-              className="group rounded-3xl border border-(--gw-color-border) bg-white p-6 shadow-[0_18px_60px_rgba(26,54,45,0.05)]"
+              className="group rounded-3xl border border-(--gw-color-border) bg-white p-5 shadow-[0_18px_60px_rgba(26,54,45,0.05)] sm:p-6"
             >
-              <summary className="cursor-pointer list-none text-lg font-semibold text-(--gw-color-green) outline-none transition group-open:text-(--gw-color-copper) focus-visible:ring-2 focus-visible:ring-(--gw-color-gold)">
+              <summary className="gw-break-text cursor-pointer list-none text-base font-semibold text-(--gw-color-green) outline-none transition group-open:text-(--gw-color-copper) focus-visible:ring-2 focus-visible:ring-(--gw-color-gold) sm:text-lg">
                 {question}
               </summary>
               <p className="mt-4 text-sm leading-relaxed text-(--gw-color-muted)">

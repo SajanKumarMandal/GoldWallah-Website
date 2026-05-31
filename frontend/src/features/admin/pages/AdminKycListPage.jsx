@@ -70,7 +70,7 @@ export default function AdminKycListPage() {
       />
 
       <DashboardSection title="KYC queue" description="List view shows only safe identity details.">
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mb-5 grid gap-2 min-[420px]:flex min-[420px]:flex-wrap">
           {statusTabs.map((status) => (
             <button
               key={status}
@@ -108,7 +108,7 @@ export default function AdminKycListPage() {
         {!isLoading && submissions.length > 0 ? (
           <div className="overflow-hidden rounded-2xl border border-(--gw-color-border)">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-(--gw-color-border) text-left text-sm">
+              <table className="min-w-[54rem] divide-y divide-(--gw-color-border) text-left text-sm">
                 <thead className="bg-(--gw-color-cream)">
                   <tr className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
                     <th className="px-4 py-3">Seller</th>
@@ -123,7 +123,7 @@ export default function AdminKycListPage() {
                 <tbody className="divide-y divide-(--gw-color-border) bg-white">
                   {submissions.map((submission) => (
                     <tr key={submission.id}>
-                      <td className="px-4 py-3 font-semibold text-(--gw-color-green)">
+                      <td className="gw-break-text px-4 py-3 font-semibold text-(--gw-color-green)">
                         {submission.fullName || "Not available"}
                       </td>
                       <td className="px-4 py-3 text-(--gw-color-muted)">
