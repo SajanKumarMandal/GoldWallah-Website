@@ -1,6 +1,56 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INDIAN_PHONE_PATTERN = /^(\+91[\s-]?)?[6-9]\d{9}$/;
 const OTP_PATTERN = /^(\d{4}|\d{6})$/;
+const FULL_NAME_PATTERN = /^[\p{L}\p{M}.' -]+$/u;
+const MIN_PASSWORD_LENGTH = 10;
+const MAX_PASSWORD_LENGTH = 128;
+const VALID_AUTH_ROLES = new Set(["seller", "jeweller", "SELLER", "JEWELLER"]);
+
+function validatePassword(password) {
+  if (!password) {
+    return "Password is required.";
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return "Password is too long.";
+  }
+
+  if (/^\s|\s$/.test(password)) {
+    return "Password cannot start or end with spaces.";
+  }
+
+  return "";
+}
+
+function validateFullName(fullName) {
+  const trimmedName = fullName.trim();
+
+  if (!trimmedName) {
+    return "Full name is required.";
+  }
+
+  if (trimmedName.length < 2) {
+    return "Full name must be at least 2 characters.";
+  }
+
+  if (trimmedName.length > 120) {
+    return "Full name is too long.";
+  }
+
+  if (!FULL_NAME_PATTERN.test(trimmedName)) {
+    return "Full name contains unsupported characters.";
+  }
+
+  return "";
+}
+
+function validateRole(role) {
+  return VALID_AUTH_ROLES.has(role) ? "" : "Choose a valid account role.";
+}
 
 export function validateIndianPhone(phone) {
   return INDIAN_PHONE_PATTERN.test(phone.trim());
@@ -15,14 +65,12 @@ export function validateLoginForm(values) {
 
   if (!values.email.trim()) {
     errors.email = "Email is required.";
-  } else if (!EMAIL_PATTERN.test(values.email)) {
+  } else if (!EMAIL_PATTERN.test(values.email.trim())) {
     errors.email = "Enter a valid email address.";
   }
 
   if (!values.password) {
     errors.password = "Password is required.";
-  } else if (values.password.length < 8) {
-    errors.password = "Password must be at least 8 characters.";
   }
 
   return errors;
@@ -54,14 +102,17 @@ export function validateLoginOtpVerifyForm(values) {
 
 export function validateRegisterForm(values) {
   const errors = {};
+  const fullNameError = validateFullName(values.fullName);
+  const passwordError = validatePassword(values.password);
+  const roleError = validateRole(values.role);
 
-  if (!values.fullName.trim()) {
-    errors.fullName = "Full name is required.";
+  if (fullNameError) {
+    errors.fullName = fullNameError;
   }
 
   if (!values.email.trim()) {
     errors.email = "Email is required.";
-  } else if (!EMAIL_PATTERN.test(values.email)) {
+  } else if (!EMAIL_PATTERN.test(values.email.trim())) {
     errors.email = "Enter a valid email address.";
   }
 
@@ -71,10 +122,8 @@ export function validateRegisterForm(values) {
     errors.phone = "Enter a valid Indian phone number.";
   }
 
-  if (!values.password) {
-    errors.password = "Password is required.";
-  } else if (values.password.length < 8) {
-    errors.password = "Password must be at least 8 characters.";
+  if (passwordError) {
+    errors.password = passwordError;
   }
 
   if (!values.confirmPassword) {
@@ -83,8 +132,8 @@ export function validateRegisterForm(values) {
     errors.confirmPassword = "Passwords must match.";
   }
 
-  if (!values.role) {
-    errors.role = "Choose an account role.";
+  if (roleError) {
+    errors.role = roleError;
   }
 
   if (!values.acceptTerms) {
@@ -96,9 +145,11 @@ export function validateRegisterForm(values) {
 
 export function validateRegisterOtpSendForm(values) {
   const errors = {};
+  const fullNameError = validateFullName(values.fullName);
+  const roleError = validateRole(values.role);
 
-  if (!values.fullName.trim()) {
-    errors.fullName = "Full name is required.";
+  if (fullNameError) {
+    errors.fullName = fullNameError;
   }
 
   if (!values.phone.trim()) {
@@ -107,8 +158,8 @@ export function validateRegisterOtpSendForm(values) {
     errors.phone = "Enter a valid Indian phone number.";
   }
 
-  if (!values.role) {
-    errors.role = "Choose an account role.";
+  if (roleError) {
+    errors.role = roleError;
   }
 
   if (!values.acceptTerms) {
@@ -132,9 +183,10 @@ export function validateRegisterOtpVerifyForm(values) {
 
 export function validateSocialRegisterForm(values) {
   const errors = {};
+  const roleError = validateRole(values.role);
 
-  if (!values.role) {
-    errors.role = "Choose an account role.";
+  if (roleError) {
+    errors.role = roleError;
   }
 
   return errors;
