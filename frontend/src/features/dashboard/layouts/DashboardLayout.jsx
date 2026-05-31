@@ -29,6 +29,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/features/notifications/notificationService";
+import { useSellerKycStatusSync } from "@/features/seller/hooks/useSellerKycStatusSync";
 
 const navByRole = {
   [USER_ROLES.seller]: [
@@ -61,6 +62,7 @@ export default function DashboardLayout() {
   const { user, accessToken, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  useSellerKycStatusSync();
 
   const navigation = useMemo(() => navByRole[user?.role] || [], [user?.role]);
   const dashboardHomePath = useMemo(() => getDashboardHomePath(user), [user]);

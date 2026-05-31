@@ -19,6 +19,19 @@ function resolveStatus(payload) {
   return payload?.submission?.status || payload?.kycStatus || KYC_STATUS.notSubmitted;
 }
 
+function resolveLiveStatus(payload, user) {
+  const payloadStatus = resolveStatus(payload);
+
+  if (
+    payloadStatus === KYC_STATUS.pending &&
+    [KYC_STATUS.approved, KYC_STATUS.rejected].includes(user?.kycStatus)
+  ) {
+    return user.kycStatus;
+  }
+
+  return payloadStatus;
+}
+
 export default function SellerKycPage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const userRef = useRef(user);
@@ -91,7 +104,7 @@ export default function SellerKycPage() {
   }, [accessToken, setAuthUser]);
 
   const submission = kycPayload?.submission || null;
-  const status = resolveStatus(kycPayload);
+  const status = resolveLiveStatus(kycPayload, user);
   const canSubmit = status === KYC_STATUS.notSubmitted || status === KYC_STATUS.rejected;
 
   async function handleSubmit(formData) {

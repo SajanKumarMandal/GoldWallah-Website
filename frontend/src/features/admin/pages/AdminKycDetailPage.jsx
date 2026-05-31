@@ -124,12 +124,6 @@ export default function AdminKycDetailPage() {
   }, [accessToken, kycId, navigate]);
 
   async function handleApprove() {
-    const confirmed = window.confirm("Approve this seller KYC submission?");
-
-    if (!confirmed) {
-      return;
-    }
-
     setIsApproving(true);
     setErrorMessage("");
     setStatusMessage("");
@@ -137,11 +131,9 @@ export default function AdminKycDetailPage() {
     try {
       const result = await approveSellerKyc({ accessToken, kycId });
       setSubmission(normalizeSubmission(result));
-      setStatusMessage("Seller KYC approved.");
-      navigate(ROUTES.adminKyc, {
-        replace: false,
-        state: { refreshedAt: Date.now(), status: "PENDING" },
-      });
+      setStatusMessage(
+        "Seller KYC approved. The seller account is now unlocked for listing creation.",
+      );
     } catch (error) {
       if (error.status === 401) {
         clearAdminSession();
@@ -177,11 +169,7 @@ export default function AdminKycDetailPage() {
       });
       setSubmission(normalizeSubmission(result));
       setRejectionReason("");
-      setStatusMessage("Seller KYC rejected.");
-      navigate(ROUTES.adminKyc, {
-        replace: false,
-        state: { refreshedAt: Date.now(), status: "PENDING" },
-      });
+      setStatusMessage("Seller KYC rejected. The seller can now correct and resubmit KYC.");
     } catch (error) {
       if (error.status === 401) {
         clearAdminSession();

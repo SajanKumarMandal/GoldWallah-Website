@@ -5,6 +5,7 @@ import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
 } from "../admin/admin.audit.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 import {
   approveKycSubmission,
   createSellerKycSubmission,
@@ -220,6 +221,17 @@ export async function approveSellerKyc({ kycId, adminUser }) {
     }
 
     await updateUserKycStatus(submission.userId, "APPROVED", client);
+    await notifyUser(
+      {
+        userId: submission.userId,
+        type: "KYC_APPROVED",
+        title: "Seller KYC approved",
+        body: "Your identity verification is approved. You can now create gold listings.",
+        entityType: "SELLER_KYC",
+        entityId: submission.id,
+      },
+      client,
+    );
 
     return {
       success: true,
@@ -258,6 +270,17 @@ export async function rejectSellerKyc({ kycId, adminUser, rejectionReason }) {
     }
 
     await updateUserKycStatus(submission.userId, "REJECTED", client);
+    await notifyUser(
+      {
+        userId: submission.userId,
+        type: "KYC_REJECTED",
+        title: "Seller KYC needs correction",
+        body: "Your identity verification was rejected. Review the reason and submit KYC again.",
+        entityType: "SELLER_KYC",
+        entityId: submission.id,
+      },
+      client,
+    );
 
     return {
       success: true,
