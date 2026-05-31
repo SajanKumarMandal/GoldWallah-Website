@@ -8,8 +8,8 @@ export async function getNearbyJewellers(accessToken, query = {}) {
   return apiRequest("geo-matching/jewellers", {
     headers: authHeaders(accessToken),
     query: {
-      radiusKm: 50,
-      limit: 6,
+      radiusKm: 30,
+      limit: 9,
       ...query,
     },
   });
