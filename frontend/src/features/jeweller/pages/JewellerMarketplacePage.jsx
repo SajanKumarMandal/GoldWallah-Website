@@ -11,8 +11,9 @@ import {
 } from "@/features/jeweller/services/jewellerMarketplaceService";
 import { resolveAssetUrl } from "@/features/seller/services/sellerListingService";
 
-// Jeweller marketplace screen. Listings come from the geo-matching API and bids
-// are private, so competing jewellers never see each other's bid amounts.
+const MAX_BID_AMOUNT = 999999999999.99;
+const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
+
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") {
     return "Not set";
@@ -31,6 +32,30 @@ function formatDistance(listing) {
   }
 
   return `${Number(listing.distanceKm).toFixed(1)} km away`;
+}
+
+function validateBidAmount(value) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return "Enter a bid amount.";
+  }
+
+  if (!MONEY_PATTERN.test(normalizedValue)) {
+    return "Bid amount must be a valid amount with up to 2 decimal places.";
+  }
+
+  const bidAmount = Number(normalizedValue);
+
+  if (!Number.isFinite(bidAmount) || bidAmount <= 0) {
+    return "Bid amount must be greater than 0.";
+  }
+
+  if (bidAmount > MAX_BID_AMOUNT) {
+    return "Bid amount is too high.";
+  }
+
+  return "";
 }
 
 export default function JewellerMarketplacePage() {
@@ -80,10 +105,11 @@ export default function JewellerMarketplacePage() {
   }
 
   async function submitBid(listing) {
-    const bidAmount = Number(bidValues[listing.id]);
+    const rawBidAmount = String(bidValues[listing.id] || "").trim();
+    const bidAmountError = validateBidAmount(rawBidAmount);
 
-    if (!bidAmount || bidAmount <= 0) {
-      setErrorMessage("Enter a valid bid amount.");
+    if (bidAmountError) {
+      setErrorMessage(bidAmountError);
       return;
     }
 
@@ -94,7 +120,7 @@ export default function JewellerMarketplacePage() {
     try {
       await placePrivateBid(accessToken, {
         listingId: listing.id,
-        bidAmount,
+        bidAmount: Number(rawBidAmount),
       });
       setStatusMessage(`Private bid placed for ${listing.title}.`);
       updateBidValue(listing.id, "");
@@ -187,8 +213,8 @@ export default function JewellerMarketplacePage() {
 
                   <div className="mt-4 flex flex-col gap-2 min-[520px]:flex-row">
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="decimal"
                       value={bidValues[listing.id] || ""}
                       onChange={(event) => updateBidValue(listing.id, event.target.value)}
                       placeholder="Bid amount"
