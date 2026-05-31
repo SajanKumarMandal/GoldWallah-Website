@@ -28,6 +28,7 @@ const CreateListingPage = lazy(
 const SellerListingDetailPage = lazy(
   () => import("@/features/seller/pages/SellerListingDetailPage"),
 );
+const DealsPage = lazy(() => import("@/features/deals/pages/DealsPage"));
 const AdminLoginPage = lazy(
   () => import("@/features/admin/auth/pages/AdminLoginPage"),
 );
@@ -110,6 +111,7 @@ export default function AppRouter() {
                   path={ROUTES.sellerListingDetail}
                   element={<SellerListingDetailPage />}
                 />
+                <Route path={ROUTES.sellerDeals} element={<DealsPage />} />
               </Route>
             </Route>
 
@@ -129,6 +131,7 @@ export default function AppRouter() {
                   path={ROUTES.jewellerMarketplace}
                   element={<JewellerMarketplacePage />}
                 />
+                <Route path={ROUTES.jewellerDeals} element={<DealsPage />} />
               </Route>
             </Route>
           </Route>

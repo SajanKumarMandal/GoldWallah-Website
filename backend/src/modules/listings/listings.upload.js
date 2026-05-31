@@ -10,7 +10,8 @@ const currentFile = fileURLToPath(import.meta.url);
 const backendRoot = path.resolve(path.dirname(currentFile), "../../..");
 export const listingUploadsDir = path.join(backendRoot, "uploads", "listings");
 
-// TODO: Move listing media to S3/R2 when real cloud storage is introduced.
+// Listing product media is public. Production deployments must use shared
+// persistent storage or object storage mounted behind this path.
 const allowedMimeTypes = new Map([
   ["image/jpeg", [".jpg", ".jpeg"]],
   ["image/png", [".png"]],

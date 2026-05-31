@@ -1,6 +1,8 @@
 import { requireJewellerCanTransact } from "../jewellerVerification/jewellerTransactionGuard.js";
 import {
   findApprovedJewellerLocation,
+  findSellerListingLocation,
+  listNearbyJewellersForSeller,
   listMatchedListings,
 } from "./geoMatching.repository.js";
 
@@ -27,6 +29,41 @@ export async function getMatchedListings({ user, query }) {
   return {
     success: true,
     data: await listMatchedListings({
+      location,
+      radiusKm: query.radiusKm,
+      limit: query.limit,
+    }),
+    meta: {
+      origin: location,
+      radiusKm: query.radiusKm,
+    },
+  };
+}
+
+export async function getNearbyJewellers({ user, query }) {
+  if (user.role !== "SELLER") {
+    throw createError("Seller role is required", 403, "SELLER_ROLE_REQUIRED");
+  }
+
+  const location = await findSellerListingLocation({
+    sellerId: user.id,
+    listingId: query.listingId,
+  });
+
+  if (!location) {
+    return {
+      success: true,
+      data: [],
+      meta: {
+        origin: null,
+        radiusKm: query.radiusKm,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: await listNearbyJewellersForSeller({
       location,
       radiusKm: query.radiusKm,
       limit: query.limit,

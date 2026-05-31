@@ -120,7 +120,7 @@ export default function LoginPage() {
     } catch (error) {
       setStatusMessage(
         error.message ||
-          `${provider === "google" ? "Google" : "Facebook"} login is not available yet.`,
+          `${provider === "google" ? "Google" : "Facebook"} login could not be completed.`,
       );
     } finally {
       setSocialProvider("");

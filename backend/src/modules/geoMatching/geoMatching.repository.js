@@ -42,6 +42,19 @@ function mapListing(row, images = []) {
   };
 }
 
+function mapJeweller(row) {
+  return {
+    jewellerId: row.jeweller_id,
+    shopName: row.shop_name,
+    city: row.city,
+    state: row.state,
+    businessType: row.business_type,
+    yearsInBusiness: row.years_in_business,
+    distanceKm: toNumber(row.distance_km),
+    matchMode: row.match_mode,
+  };
+}
+
 async function findImagesByListingIds(listingIds) {
   if (listingIds.length === 0) {
     return new Map();
@@ -163,4 +176,120 @@ export async function listMatchedListings({ location, radiusKm, limit }) {
   );
 
   return result.rows.map((row) => mapListing(row, imagesByListingId.get(row.id) || []));
+}
+
+export async function findSellerListingLocation({ sellerId, listingId }) {
+  const params = [sellerId];
+  const listingFilter = listingId ? "AND id = $2" : "";
+
+  if (listingId) {
+    params.push(listingId);
+  }
+
+  const result = await query(
+    `SELECT id, title, city, state, latitude, longitude
+     FROM gold_listings
+     WHERE seller_id = $1
+       ${listingFilter}
+     ORDER BY
+       CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 0 ELSE 1 END,
+       created_at DESC
+     LIMIT 1`,
+    params,
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    listingId: row.id,
+    listingTitle: row.title,
+    city: row.city,
+    state: row.state,
+    latitude: toNumber(row.latitude),
+    longitude: toNumber(row.longitude),
+  };
+}
+
+export async function listNearbyJewellersForSeller({ location, radiusKm, limit }) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const hasCoordinates =
+    Number.isFinite(location.latitude) && Number.isFinite(location.longitude);
+  const distanceExpression = hasCoordinates
+    ? `(
+        6371 * acos(
+          LEAST(
+            1,
+            GREATEST(
+              -1,
+              cos(radians($1)) * cos(radians(jbv.latitude)) *
+              cos(radians(jbv.longitude) - radians($2)) +
+              sin(radians($1)) * sin(radians(jbv.latitude))
+            )
+          )
+        )
+      )`
+    : "NULL";
+  const result = await query(
+    `SELECT *
+     FROM (
+       SELECT DISTINCT ON (jbv.jeweller_id)
+         jbv.jeweller_id,
+         jbv.shop_name,
+         jbv.city,
+         jbv.state,
+         jbv.business_type,
+         jbv.years_in_business,
+         CASE
+           WHEN $1::numeric IS NOT NULL
+            AND $2::numeric IS NOT NULL
+            AND jbv.latitude IS NOT NULL
+            AND jbv.longitude IS NOT NULL
+           THEN ${distanceExpression}
+           ELSE NULL
+         END AS distance_km,
+         CASE
+           WHEN $1::numeric IS NOT NULL
+            AND $2::numeric IS NOT NULL
+            AND jbv.latitude IS NOT NULL
+            AND jbv.longitude IS NOT NULL
+            AND ${distanceExpression} <= $3
+           THEN 'RADIUS'
+           WHEN lower(jbv.city) = lower($4)
+            AND lower(jbv.state) = lower($5)
+           THEN 'CITY'
+           ELSE 'NEAREST_FALLBACK'
+         END AS match_mode,
+         jbv.reviewed_at,
+         jbv.created_at
+       FROM jeweller_business_verifications jbv
+       JOIN users u ON u.id = jbv.jeweller_id
+       WHERE jbv.status = 'APPROVED'
+         AND u.role = 'JEWELLER'
+         AND u.kyc_status = 'APPROVED'
+         AND u.business_verification_status = 'APPROVED'
+       ORDER BY jbv.jeweller_id, jbv.reviewed_at DESC NULLS LAST, jbv.created_at DESC
+     ) matched
+     ORDER BY
+       CASE match_mode
+         WHEN 'RADIUS' THEN 1
+         WHEN 'CITY' THEN 2
+         ELSE 3
+       END,
+       distance_km ASC NULLS LAST,
+       created_at DESC
+     LIMIT $6`,
+    [
+      location.latitude,
+      location.longitude,
+      radiusKm,
+      location.city,
+      location.state,
+      safeLimit,
+    ],
+  );
+
+  return result.rows.map(mapJeweller);
 }

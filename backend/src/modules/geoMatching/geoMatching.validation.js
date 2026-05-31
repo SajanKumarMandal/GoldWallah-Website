@@ -5,6 +5,12 @@ export const geoMatchedListingsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
+export const nearbyJewellersQuerySchema = z.object({
+  listingId: z.string().uuid("Invalid listing id").optional(),
+  radiusKm: z.coerce.number().positive().max(500).default(50),
+  limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
 export function validateQuery(schema, query) {
   const result = schema.safeParse(query);
 

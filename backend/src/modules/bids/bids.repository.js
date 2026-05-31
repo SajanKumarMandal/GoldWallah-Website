@@ -187,13 +187,14 @@ export async function acceptBid({ bidId, listingId, sellerId }, client) {
     return null;
   }
 
-  await db(client).query(
+  const rejectedResult = await db(client).query(
     `UPDATE private_bids
      SET status = 'REJECTED',
          decided_at = COALESCE(decided_at, now())
      WHERE listing_id = $1
        AND id <> $2
-       AND status = 'PENDING'`,
+       AND status = 'PENDING'
+     RETURNING *`,
     [listingId, bidId],
   );
 
@@ -203,7 +204,8 @@ export async function acceptBid({ bidId, listingId, sellerId }, client) {
          accepted_bid_id = $2
      WHERE id = $1
        AND seller_id = $3
-       AND status = 'ACTIVE'`,
+       AND status = 'ACTIVE'
+     RETURNING id`,
     [listingId, bidId, sellerId],
   );
 
@@ -274,6 +276,7 @@ export async function acceptBid({ bidId, listingId, sellerId }, client) {
     ...bid,
     deal,
     commission,
+    autoRejectedBids: rejectedResult.rows.map(mapBid),
   };
 }
 

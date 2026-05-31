@@ -2,6 +2,7 @@ import {
   Bell,
   Building2,
   ChevronDown,
+  Gavel,
   Gem,
   Home,
   LogOut,
@@ -35,10 +36,12 @@ const navByRole = {
     { to: ROUTES.sellerKyc, label: "KYC", icon: ShieldCheck },
     { to: ROUTES.sellerListings, label: "My Listings", icon: PackageOpen },
     { to: ROUTES.sellerNewListing, label: "Create Listing", icon: PlusCircle },
+    { to: ROUTES.sellerDeals, label: "Deals", icon: Gavel },
   ],
   [USER_ROLES.jeweller]: [
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },
     { to: ROUTES.jewellerMarketplace, label: "Marketplace", icon: Search },
+    { to: ROUTES.jewellerDeals, label: "Deals", icon: Gavel },
     { to: ROUTES.jewellerVerification, label: "Verification", icon: Building2 },
   ],
   [USER_ROLES.admin]: [

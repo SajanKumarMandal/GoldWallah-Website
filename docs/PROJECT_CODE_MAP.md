@@ -19,6 +19,7 @@ This file is a quick guide for where the main production features live.
 - `backend/src/modules/media` serves private KYC/business files only after signed URL and authorization checks.
 - `backend/src/modules/listings` owns seller gold listings and public listing images.
 - `backend/src/modules/bids` owns private jeweller bids, seller bid decisions, deal creation, and commission creation.
+- `backend/src/modules/deals` owns seller/jeweller deal visibility and seller completion after commission clearance.
 - `backend/src/modules/notifications` owns durable user notifications.
 - `backend/src/modules/adminCommissions` owns finance/admin commission settlement and jeweller unlock logic.
 - `backend/src/modules/geoMatching` owns nearby listing ranking and nearest fallback logic.
@@ -32,6 +33,7 @@ This file is a quick guide for where the main production features live.
 - `frontend/src/features/dashboard/layouts/DashboardLayout.jsx` is the shared seller/jeweller dashboard shell.
 - `frontend/src/features/seller` owns seller KYC, listings, listing detail, and seller bid decisions.
 - `frontend/src/features/jeweller` owns jeweller verification and geo-matched marketplace bidding.
+- `frontend/src/features/deals` owns seller/jeweller deal tracking and seller completion.
 - `frontend/src/features/notifications` owns notification API calls used by the dashboard shell.
 - `frontend/src/features/admin` owns admin login, dashboard, KYC review, and commission settlement.
 

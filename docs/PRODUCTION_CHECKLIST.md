@@ -13,6 +13,7 @@
 - `FRONTEND_URL`
 - `PG_SSL_CA_FILE` or `PG_SSL_CA` from the PostgreSQL provider
 - `OTP_PROVIDER` must be `msg91` or `twilio` in production
+- Shared persistent storage or object storage for public listing media mounted behind `/uploads/listings`
 
 ## Deploy Steps
 
@@ -31,6 +32,9 @@
 - Confirm user refresh tokens are set only as HttpOnly cookies.
 - Confirm Postgres TLS uses certificate verification.
 - Confirm mock OTP and placeholder OAuth flows are disabled in production.
+- Confirm listing uploads are not stored on ephemeral per-instance disk in multi-server production.
+- Confirm Meta app publishing requirements are complete before public Facebook Login: app icon, privacy policy URL, user data deletion URL, and category.
+- Confirm Google OAuth production origins include the final frontend domain.
 
 ## Marketplace Smoke Test
 
@@ -39,3 +43,7 @@
 3. Open jeweller marketplace and place a private bid.
 4. Open seller listing detail and accept or reject the bid.
 5. Confirm accepted listing status changes to `BID_ACCEPTED`.
+6. Confirm a deal record is visible to seller and jeweller.
+7. Mark the platform commission paid or waived as an admin.
+8. Confirm the jeweller commission lock clears and the seller can mark the deal completed.
+9. Confirm the completed listing status changes to `SOLD`.

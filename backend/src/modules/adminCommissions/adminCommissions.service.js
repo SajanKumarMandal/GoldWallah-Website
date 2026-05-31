@@ -3,6 +3,7 @@ import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
 } from "../admin/admin.audit.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 import {
   clearJewellerCommissionLock,
   countOutstandingCommissions,
@@ -69,6 +70,17 @@ export async function markAdminCommissionPaid({
 
     await markDealReadyToSettle(commission.dealId, client);
     await unlockJewellerIfClear(commission.jewellerId, client);
+    await notifyUser(
+      {
+        userId: commission.jewellerId,
+        type: "COMMISSION_PAID",
+        title: "Commission cleared",
+        body: "Your GoldWallah commission payment was marked as paid.",
+        entityType: "PLATFORM_COMMISSION",
+        entityId: commission.id,
+      },
+      client,
+    );
     await writeAdminAuditLog(
       {
         actorAdminId: admin.id,
@@ -127,6 +139,17 @@ export async function waiveAdminCommission({
 
     await markDealReadyToSettle(commission.dealId, client);
     await unlockJewellerIfClear(commission.jewellerId, client);
+    await notifyUser(
+      {
+        userId: commission.jewellerId,
+        type: "COMMISSION_WAIVED",
+        title: "Commission waived",
+        body: "Your GoldWallah commission was waived by an administrator.",
+        entityType: "PLATFORM_COMMISSION",
+        entityId: commission.id,
+      },
+      client,
+    );
     await writeAdminAuditLog(
       {
         actorAdminId: admin.id,

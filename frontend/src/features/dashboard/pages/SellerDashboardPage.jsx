@@ -19,6 +19,7 @@ import {
   getCurrentUser,
   getSellerDashboard,
 } from "@/features/dashboard/services/dashboardService";
+import { getNearbyJewellers } from "@/features/seller/services/sellerGeoService";
 
 export default function SellerDashboardPage() {
   const { accessToken, user, setAuthUser } = useAuth();
@@ -26,6 +27,8 @@ export default function SellerDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [nearbyJewellers, setNearbyJewellers] = useState([]);
+  const [nearbyOrigin, setNearbyOrigin] = useState(null);
   const firstName = user?.fullName?.split(" ")[0] || "Seller";
   const navigate = useNavigate();
 
@@ -50,6 +53,18 @@ export default function SellerDashboardPage() {
           setAuthUser(currentUserResult.data);
         }
         setDashboard(dashboardResult?.data || null);
+        try {
+          const nearbyResult = await getNearbyJewellers(accessToken);
+          if (isMounted) {
+            setNearbyJewellers(nearbyResult?.data || []);
+            setNearbyOrigin(nearbyResult?.meta?.origin || null);
+          }
+        } catch {
+          if (isMounted) {
+            setNearbyJewellers([]);
+            setNearbyOrigin(null);
+          }
+        }
       } catch (error) {
         if (isMounted) {
           setErrorMessage(error.message || "Unable to load seller dashboard.");
@@ -181,13 +196,40 @@ export default function SellerDashboardPage() {
 
       <DashboardSection
         title="Nearest jewellers"
-        description="Nearby jeweller discovery remains available before seller KYC approval."
+        description={
+          nearbyOrigin
+            ? `Matched from ${nearbyOrigin.listingTitle || "your latest listing"} in ${nearbyOrigin.city}, ${nearbyOrigin.state}.`
+            : "Create a listing with a city and optional coordinates to discover nearby verified jewellers."
+        }
       >
-        <EmptyState
-          icon={MapPinned}
-          title="Nearest jewellers will appear here"
-          description="Location-matched jewellers can be shown here while listing creation remains locked until KYC approval."
-        />
+        {nearbyJewellers.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {nearbyJewellers.map((jeweller) => (
+              <article
+                key={jeweller.jewellerId}
+                className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4"
+              >
+                <p className="gw-break-text font-semibold text-(--gw-color-green)">
+                  {jeweller.shopName}
+                </p>
+                <p className="gw-break-text mt-1 text-sm text-(--gw-color-muted)">
+                  {jeweller.city}, {jeweller.state}
+                </p>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
+                  {jeweller.distanceKm === null || jeweller.distanceKm === undefined
+                    ? jeweller.matchMode
+                    : `${Number(jeweller.distanceKm).toFixed(1)} km away`}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={MapPinned}
+            title="Nearest jewellers will appear here"
+            description="Once you create a listing, approved jewellers near that listing location will be ranked here."
+          />
+        )}
       </DashboardSection>
 
       <DashboardSection

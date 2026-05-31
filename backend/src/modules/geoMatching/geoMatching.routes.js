@@ -11,3 +11,10 @@ geoMatchingRouter.get(
   requireRole("JEWELLER"),
   controller.matchedListings,
 );
+
+geoMatchingRouter.get(
+  "/jewellers",
+  authenticate,
+  requireRole("SELLER"),
+  controller.nearbyJewellers,
+);

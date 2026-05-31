@@ -184,6 +184,21 @@ export async function acceptSellerBid({ user, bidId, requestMeta }) {
       },
       client,
     );
+    await Promise.all(
+      (bid.autoRejectedBids || []).map((rejectedBid) =>
+        notifyUser(
+          {
+            userId: rejectedBid.jewellerId,
+            type: "PRIVATE_BID_REJECTED",
+            title: "Private bid not selected",
+            body: "Another private bid was accepted for this listing.",
+            entityType: "PRIVATE_BID",
+            entityId: rejectedBid.id,
+          },
+          client,
+        ),
+      ),
+    );
 
     return {
       success: true,

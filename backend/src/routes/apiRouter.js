@@ -11,6 +11,7 @@ import {
   jewellerDashboardRouter,
   sellerDashboardRouter,
 } from "../modules/dashboard/dashboard.routes.js";
+import { dealsRouter } from "../modules/deals/deals.routes.js";
 import { geoMatchingRouter } from "../modules/geoMatching/geoMatching.routes.js";
 import { kycRouter } from "../modules/kyc/kyc.routes.js";
 import {
@@ -37,6 +38,7 @@ apiRouter.get("/status", (_request, response) => {
       "business-verification",
       "listings",
       "bids",
+      "deals",
       "notifications",
       "geo-matching",
       "admin",
@@ -56,6 +58,7 @@ apiRouter.use("/kyc", kycRouter);
 apiRouter.use("/business-verification", businessVerificationRouter);
 apiRouter.use("/listings", listingsRouter);
 apiRouter.use("/bids", bidsRouter);
+apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/geo-matching", geoMatchingRouter);
 apiRouter.use("/admin/dashboard", adminDashboardRouter);
