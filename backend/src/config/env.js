@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 import { z } from "zod";
 
+const optionalUrl = z.union([z.string().url(), z.literal("")]).default("");
+
 // All environment variables are validated at boot so production fails fast
 // instead of silently falling back to unsafe defaults.
 const envSchema = z.object({
@@ -13,7 +15,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(5000),
   FRONTEND_ORIGIN: z.string().url().default("http://localhost:5173"),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
-  BACKEND_PUBLIC_URL: z.string().url().optional().default(""),
+  BACKEND_PUBLIC_URL: optionalUrl,
   API_VERSION: z.string().min(1).default("v1"),
   DATABASE_URL: z.string().optional().default(""),
   JWT_ACCESS_SECRET: z.string().optional().default(""),
