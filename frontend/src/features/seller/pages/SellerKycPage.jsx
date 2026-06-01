@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
@@ -32,6 +32,8 @@ function resolveLiveStatus(payload, user) {
   return payloadStatus;
 }
 
+const KYC_POLL_INTERVAL_MS = 9000;
+
 export default function SellerKycPage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const userRef = useRef(user);
@@ -46,10 +48,20 @@ export default function SellerKycPage() {
     userRef.current = user;
   }, [user]);
 
-  useEffect(() => {
-    let isMounted = true;
+  const applyKycPayload = useCallback(
+    (payload) => {
+      setKycPayload(payload || null);
+      const nextStatus = resolveStatus(payload);
 
-    async function loadKyc() {
+      if (nextStatus && userRef.current) {
+        setAuthUser({ ...userRef.current, kycStatus: nextStatus });
+      }
+    },
+    [setAuthUser],
+  );
+
+  const refreshKyc = useCallback(
+    async ({ showLoading = false, showErrors = true } = {}) => {
       if (!accessToken) {
         setKycPayload(null);
         setErrorMessage("Please login again.");
@@ -60,39 +72,43 @@ export default function SellerKycPage() {
             hasUser: Boolean(userRef.current),
           });
         }
-        return;
+        return null;
       }
 
-      setIsLoading(true);
-      setErrorMessage("");
+      if (showLoading) {
+        setIsLoading(true);
+      }
+      if (showErrors) {
+        setErrorMessage("");
+      }
 
       try {
-        if (import.meta.env.DEV) {
-          console.debug("Seller KYC fetch started", {
-            hasAccessToken: Boolean(accessToken),
-          });
-        }
-
         const result = await getMySellerKyc(accessToken);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setKycPayload(result?.data || null);
-        const nextStatus = resolveStatus(result?.data);
-
-        if (nextStatus && userRef.current) {
-          setAuthUser({ ...userRef.current, kycStatus: nextStatus });
-        }
+        const payload = result?.data || null;
+        applyKycPayload(payload);
+        return payload;
       } catch (error) {
-        if (isMounted) {
+        if (showErrors) {
           setErrorMessage(error.message || "Unable to load seller KYC status.");
         }
+        return null;
       } finally {
-        if (isMounted) {
+        if (showLoading) {
           setIsLoading(false);
         }
+      }
+    },
+    [accessToken, applyKycPayload],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadKyc() {
+      await refreshKyc({ showLoading: true, showErrors: true });
+
+      if (!isMounted) {
+        return;
       }
     }
 
@@ -101,11 +117,41 @@ export default function SellerKycPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, setAuthUser]);
+  }, [refreshKyc]);
 
   const submission = kycPayload?.submission || null;
   const status = resolveLiveStatus(kycPayload, user);
   const canSubmit = status === KYC_STATUS.notSubmitted || status === KYC_STATUS.rejected;
+
+  useEffect(() => {
+    if (status !== KYC_STATUS.pending) {
+      return undefined;
+    }
+
+    let isMounted = true;
+    const intervalId = window.setInterval(async () => {
+      const nextPayload = await refreshKyc({
+        showLoading: false,
+        showErrors: false,
+      });
+
+      if (!isMounted || !nextPayload) {
+        return;
+      }
+
+      const nextStatus = resolveStatus(nextPayload);
+      if (nextStatus === KYC_STATUS.approved) {
+        setStatusMessage("Your KYC has been approved. You can now create a listing.");
+      } else if (nextStatus === KYC_STATUS.rejected) {
+        setStatusMessage("Your KYC was rejected. Review the reason and resubmit.");
+      }
+    }, KYC_POLL_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [refreshKyc, status]);
 
   async function handleSubmit(formData) {
     if (!accessToken) {
@@ -227,10 +273,10 @@ export default function SellerKycPage() {
 
       {status === KYC_STATUS.approved ? (
         <Link
-          to={ROUTES.sellerDashboard}
+          to={ROUTES.sellerNewListing}
           className="inline-flex h-12 items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold)"
         >
-          Go to seller dashboard
+          Create new listing
         </Link>
       ) : null}
 

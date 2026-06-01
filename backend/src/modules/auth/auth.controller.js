@@ -17,12 +17,20 @@ import {
 
 const refreshCookieName = "goldwallah_refresh_token";
 
+function requestOrigin(request) {
+  const forwardedProto = request.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const protocol = forwardedProto || request.protocol;
+  const host = forwardedHost || request.get("host");
+
+  return `${protocol}://${host}`;
+}
+
 function isCrossSiteFrontend(request) {
   try {
     const frontendOrigin = new URL(env.frontendOrigin).origin;
-    const requestOrigin = `${request.protocol}://${request.get("host")}`;
 
-    return frontendOrigin !== requestOrigin;
+    return frontendOrigin !== requestOrigin(request);
   } catch {
     return true;
   }
@@ -34,13 +42,19 @@ function sendSuccess(response, result, statusCode = 200) {
 
 function refreshCookieOptions(request) {
   const useCrossSiteCookie = env.isProduction && isCrossSiteFrontend(request);
-
-  return {
+  const options = {
     httpOnly: true,
     secure: env.isProduction,
     sameSite: useCrossSiteCookie ? "none" : "lax",
     path: `/api/${request.app.locals.apiVersion || "v1"}/auth`,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   };
+
+  if (env.authCookieDomain) {
+    options.domain = env.authCookieDomain;
+  }
+
+  return options;
 }
 
 function assertTrustedBrowserOrigin(request) {

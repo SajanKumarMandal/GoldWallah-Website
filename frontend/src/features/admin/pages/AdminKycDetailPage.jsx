@@ -51,6 +51,7 @@ export default function AdminKycDetailPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [selfieLoadFailed, setSelfieLoadFailed] = useState(false);
 
   const canReview = submission?.status === "PENDING";
   const selfieUrl = submission?.selfieImageUrl || "";
@@ -73,6 +74,7 @@ export default function AdminKycDetailPage() {
     try {
       const result = await getSellerKycSubmission({ accessToken, kycId });
       setSubmission(normalizeSubmission(result));
+      setSelfieLoadFailed(false);
     } catch (error) {
       if (error.status === 401) {
         clearAdminSession();
@@ -98,6 +100,7 @@ export default function AdminKycDetailPage() {
 
         if (isMounted) {
           setSubmission(normalizeSubmission(result));
+          setSelfieLoadFailed(false);
         }
       } catch (error) {
         if (error.status === 401) {
@@ -131,6 +134,7 @@ export default function AdminKycDetailPage() {
     try {
       const result = await approveSellerKyc({ accessToken, kycId });
       setSubmission(normalizeSubmission(result));
+      setSelfieLoadFailed(false);
       setStatusMessage(
         "Seller KYC approved. The seller account is now unlocked for listing creation.",
       );
@@ -168,6 +172,7 @@ export default function AdminKycDetailPage() {
         rejectionReason: reason,
       });
       setSubmission(normalizeSubmission(result));
+      setSelfieLoadFailed(false);
       setRejectionReason("");
       setStatusMessage("Seller KYC rejected. The seller can now correct and resubmit KYC.");
     } catch (error) {
@@ -284,17 +289,30 @@ export default function AdminKycDetailPage() {
                   Live selfie
                 </p>
                 <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream)">
-                  {selfieUrl ? (
+                  {selfieUrl && !selfieLoadFailed ? (
                     <img
                       src={selfieUrl}
                       alt={`${submission.fullName || "Seller"} selfie`}
                       className="h-full w-full object-cover"
                       loading="lazy"
                       decoding="async"
+                      onError={() => setSelfieLoadFailed(true)}
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-sm text-(--gw-color-muted)">
-                      Selfie preview is unavailable.
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-(--gw-color-muted)">
+                      <span>
+                        {selfieLoadFailed
+                          ? "Selfie preview expired or unavailable. Refresh preview."
+                          : "Selfie preview is unavailable."}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={loadSubmission}
+                        disabled={isLoading}
+                        className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:bg-(--gw-color-cream) disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        Refresh preview
+                      </button>
                     </div>
                   )}
                 </div>

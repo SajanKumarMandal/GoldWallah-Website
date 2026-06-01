@@ -22,6 +22,8 @@ import {
 import { useGeolocation } from "@/features/location/hooks/useGeolocation";
 import { getNearbyJewellers } from "@/features/seller/services/sellerGeoService";
 
+const KYC_POLL_INTERVAL_MS = 9000;
+
 export default function SellerDashboardPage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const [dashboard, setDashboard] = useState(null);
@@ -99,8 +101,40 @@ export default function SellerDashboardPage() {
   }, [accessToken, ensureFreshLocation, setAuthUser]);
 
   const stats = dashboard?.stats || {};
-  const kycStatus = dashboard?.kycStatus || user?.kycStatus || "PENDING";
+  const kycStatus = user?.kycStatus || dashboard?.kycStatus || "PENDING";
   const hasApprovedKyc = kycStatus === "APPROVED";
+
+  useEffect(() => {
+    if (kycStatus !== "PENDING" || !accessToken) {
+      return undefined;
+    }
+
+    let isMounted = true;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const currentUserResult = await getCurrentUser(accessToken);
+        const currentUser = currentUserResult?.data;
+
+        if (!isMounted || !currentUser) {
+          return;
+        }
+
+        setAuthUser(currentUser);
+        if (currentUser.kycStatus === "APPROVED") {
+          setActionMessage("KYC approved. You can now create a listing.");
+        } else if (currentUser.kycStatus === "REJECTED") {
+          setActionMessage("KYC was rejected. Review the reason and resubmit KYC.");
+        }
+      } catch {
+        // Keep dashboard polling non-blocking; explicit actions still surface errors.
+      }
+    }, KYC_POLL_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [accessToken, kycStatus, setAuthUser]);
   const sellerStats = [
     {
       title: "KYC status",
@@ -167,7 +201,7 @@ export default function SellerDashboardPage() {
             type="button"
           onClick={handleNewListing}
           aria-disabled={!hasApprovedKyc || isCheckingKyc}
-          disabled={isCheckingKyc}
+          disabled={!hasApprovedKyc || isCheckingKyc}
           className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${
               hasApprovedKyc
                 ? "bg-(--gw-color-gold) text-(--gw-color-green) hover:bg-[#e0ad62]"

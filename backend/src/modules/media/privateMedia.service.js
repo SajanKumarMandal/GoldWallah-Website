@@ -54,6 +54,19 @@ function signingSecret() {
   return env.privateMediaSigningSecret;
 }
 
+function publicBackendOrigin(request) {
+  if (env.backendPublicUrl) {
+    return env.backendPublicUrl.replace(/\/+$/, "");
+  }
+
+  const forwardedProto = request.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const protocol = forwardedProto || request.protocol;
+  const host = forwardedHost || request.get("host");
+
+  return `${protocol}://${host}`;
+}
+
 export function buildPrivateMediaUrl(
   request,
   {
@@ -90,7 +103,7 @@ export function buildPrivateMediaUrl(
   );
 
   const apiBasePath = `/api/${env.apiVersion}/media/private/${scope}/${encodeURIComponent(filename)}`;
-  return `${request.protocol}://${request.get("host")}${apiBasePath}?token=${encodeURIComponent(token)}`;
+  return `${publicBackendOrigin(request)}${apiBasePath}?token=${encodeURIComponent(token)}`;
 }
 
 export function withPrivateMediaUrls(
