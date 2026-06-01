@@ -15,14 +15,21 @@ const coordinateQuery = {
   longitude: optionalCoordinate(z.coerce.number().min(-180).max(180)),
 };
 
+const cursorQuery = {
+  lastDistance: optionalCoordinate(z.coerce.number().nonnegative()),
+  lastId: z.string().uuid("Invalid cursor id").optional(),
+};
+
 export const geoMatchedListingsQuerySchema = z.object({
   ...coordinateQuery,
+  ...cursorQuery,
   radiusKm: z.coerce.number().positive().max(500).default(50),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const nearbyJewellersQuerySchema = z.object({
   ...coordinateQuery,
+  ...cursorQuery,
   listingId: z.string().uuid("Invalid listing id").optional(),
   radiusKm: z.coerce.number().positive().max(500).default(50),
   limit: z.coerce.number().int().positive().max(50).optional(),

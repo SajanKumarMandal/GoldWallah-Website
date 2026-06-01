@@ -19,7 +19,7 @@ import {
   getCurrentUser,
   getSellerDashboard,
 } from "@/features/dashboard/services/dashboardService";
-import { requestBrowserLocation } from "@/features/location/utils/browserLocation";
+import { useGeolocation } from "@/features/location/hooks/useGeolocation";
 import { getNearbyJewellers } from "@/features/seller/services/sellerGeoService";
 
 export default function SellerDashboardPage() {
@@ -31,6 +31,11 @@ export default function SellerDashboardPage() {
   const [actionMessage, setActionMessage] = useState("");
   const [nearbyJewellers, setNearbyJewellers] = useState([]);
   const [nearbyOrigin, setNearbyOrigin] = useState(null);
+  const [nearbyFallbackApplied, setNearbyFallbackApplied] = useState(false);
+  const { locationState, ensureFreshLocation } = useGeolocation({
+    accessToken,
+    setAuthUser,
+  });
   const firstName = user?.fullName?.split(" ")[0] || "Seller";
   const navigate = useNavigate();
   const nearbyOriginDescription = nearbyOrigin
@@ -61,27 +66,18 @@ export default function SellerDashboardPage() {
         }
         setDashboard(dashboardResult?.data || null);
         try {
-          let locationQuery = {};
-
-          try {
-            const browserLocation = await requestBrowserLocation();
-            locationQuery = {
-              latitude: browserLocation.latitude,
-              longitude: browserLocation.longitude,
-            };
-          } catch {
-            locationQuery = {};
-          }
-
-          const nearbyResult = await getNearbyJewellers(accessToken, locationQuery);
+          await ensureFreshLocation(currentUserResult?.data);
+          const nearbyResult = await getNearbyJewellers(accessToken);
           if (isMounted) {
             setNearbyJewellers(nearbyResult?.data || []);
             setNearbyOrigin(nearbyResult?.meta?.origin || null);
+            setNearbyFallbackApplied(Boolean(nearbyResult?.meta?.fallbackApplied));
           }
         } catch {
           if (isMounted) {
             setNearbyJewellers([]);
             setNearbyOrigin(null);
+            setNearbyFallbackApplied(false);
           }
         }
       } catch (error) {
@@ -100,7 +96,7 @@ export default function SellerDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, setAuthUser]);
+  }, [accessToken, ensureFreshLocation, setAuthUser]);
 
   const stats = dashboard?.stats || {};
   const kycStatus = dashboard?.kycStatus || user?.kycStatus || "PENDING";
@@ -240,6 +236,16 @@ export default function SellerDashboardPage() {
         title="Nearest jewellers"
         description={nearbyOriginDescription}
       >
+        {locationState.message ? (
+          <p className="mb-3 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-(--gw-color-green)">
+            {locationState.message}
+          </p>
+        ) : null}
+        {nearbyFallbackApplied ? (
+          <p className="mb-3 rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm font-medium text-(--gw-color-green)">
+            No nearby result found, showing closest available options.
+          </p>
+        ) : null}
         {nearbyJewellers.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {nearbyJewellers.map((jeweller) => (

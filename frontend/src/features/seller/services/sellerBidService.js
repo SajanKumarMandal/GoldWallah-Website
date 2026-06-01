@@ -5,7 +5,7 @@ function authHeaders(accessToken) {
 }
 
 export async function getListingBids(accessToken, listingId) {
-  return apiRequest(`bids/listings/${listingId}`, {
+  return apiRequest(`seller/listings/${listingId}/bids`, {
     headers: authHeaders(accessToken),
   });
 }

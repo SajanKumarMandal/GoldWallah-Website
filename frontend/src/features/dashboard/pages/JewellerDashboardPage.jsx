@@ -16,6 +16,7 @@ import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
 import EmptyState from "@/features/dashboard/components/EmptyState";
 import StatCard from "@/features/dashboard/components/StatCard";
+import { useGeolocation } from "@/features/location/hooks/useGeolocation";
 import {
   getCurrentUser,
   getJewellerDashboard,
@@ -34,6 +35,10 @@ export default function JewellerDashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const { locationState, ensureFreshLocation } = useGeolocation({
+    accessToken,
+    setAuthUser,
+  });
   const firstName = user?.fullName?.split(" ")[0] || "Jeweller";
 
   useEffect(() => {
@@ -55,6 +60,7 @@ export default function JewellerDashboardPage() {
 
         if (currentUserResult?.data) {
           setAuthUser(currentUserResult.data);
+          await ensureFreshLocation(currentUserResult.data);
         }
         setDashboard(dashboardResult?.data || null);
       } catch (error) {
@@ -73,7 +79,7 @@ export default function JewellerDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, setAuthUser]);
+  }, [accessToken, ensureFreshLocation, setAuthUser]);
 
   const stats = dashboard?.stats || {};
   const kycStatus = dashboard?.kycStatus || user?.kycStatus || "PENDING";
@@ -201,6 +207,12 @@ export default function JewellerDashboardPage() {
       {errorMessage ? (
         <p className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper)">
           {errorMessage}
+        </p>
+      ) : null}
+
+      {locationState.message ? (
+        <p className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-(--gw-color-green)">
+          {locationState.message}
         </p>
       ) : null}
 

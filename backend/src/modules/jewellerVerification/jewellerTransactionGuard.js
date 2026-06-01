@@ -6,6 +6,13 @@ export function requireJewellerCanTransact(user) {
     throw error;
   }
 
+  if (user.accountStatus !== "ACTIVE") {
+    const error = new Error("Active account is required before transacting");
+    error.statusCode = 403;
+    error.code = "ACCOUNT_INACTIVE";
+    throw error;
+  }
+
   if (user.kycStatus !== "APPROVED") {
     const error = new Error("Approved KYC is required before transacting");
     error.statusCode = 403;

@@ -24,6 +24,7 @@ function mapUser(row) {
     kycStatus: row.kyc_status,
     businessVerificationStatus: row.business_verification_status,
     commissionLockStatus: row.commission_lock_status,
+    accountStatus: row.account_status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

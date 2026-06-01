@@ -39,6 +39,13 @@ export async function authenticate(request, _response, next) {
       throw createAuthError();
     }
 
+    if (user.accountStatus !== "ACTIVE") {
+      const error = new Error("Account is not active");
+      error.statusCode = 403;
+      error.code = "ACCOUNT_INACTIVE";
+      throw error;
+    }
+
     request.user = user;
     next();
   } catch (error) {

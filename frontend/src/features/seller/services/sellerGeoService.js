@@ -5,7 +5,7 @@ function authHeaders(accessToken) {
 }
 
 export async function getNearbyJewellers(accessToken, query = {}) {
-  return apiRequest("geo-matching/jewellers", {
+  return apiRequest("geo/nearby-jewellers", {
     headers: authHeaders(accessToken),
     query: {
       radiusKm: 30,

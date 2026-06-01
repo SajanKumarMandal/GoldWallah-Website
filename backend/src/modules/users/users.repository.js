@@ -15,6 +15,7 @@ function mapUser(row) {
     kycStatus: row.kyc_status,
     businessVerificationStatus: row.business_verification_status,
     commissionLockStatus: row.commission_lock_status,
+    accountStatus: row.account_status,
     profileCity: row.profile_city,
     profileState: row.profile_state,
     profileLatitude:
@@ -42,6 +43,7 @@ export async function findUserById(id) {
       kyc_status,
       business_verification_status,
       commission_lock_status,
+      account_status,
       profile_city,
       profile_state,
       profile_latitude,
@@ -56,8 +58,12 @@ export async function findUserById(id) {
   return mapUser(result.rows[0]);
 }
 
-export async function updateUserProfileLocation(userId, location) {
-  const result = await query(
+function db(client) {
+  return client || { query };
+}
+
+export async function updateUserProfileLocation(userId, location, client) {
+  const result = await db(client).query(
     `UPDATE users
      SET
        profile_latitude = $2,
@@ -74,6 +80,7 @@ export async function updateUserProfileLocation(userId, location) {
        kyc_status,
        business_verification_status,
        commission_lock_status,
+       account_status,
        profile_city,
        profile_state,
        profile_latitude,
@@ -84,4 +91,22 @@ export async function updateUserProfileLocation(userId, location) {
   );
 
   return mapUser(result.rows[0]);
+}
+
+export async function updateApprovedJewellerShopLocation(jewellerId, location, client) {
+  await db(client).query(
+    `UPDATE jeweller_business_verifications
+     SET
+       latitude = $2,
+       longitude = $3
+     WHERE id = (
+       SELECT id
+       FROM jeweller_business_verifications
+       WHERE jeweller_id = $1
+         AND status = 'APPROVED'
+       ORDER BY reviewed_at DESC NULLS LAST, created_at DESC
+       LIMIT 1
+     )`,
+    [jewellerId, location.latitude, location.longitude],
+  );
 }

@@ -9,7 +9,7 @@ import {
   getMarketplaceListings,
   placePrivateBid,
 } from "@/features/jeweller/services/jewellerMarketplaceService";
-import { requestBrowserLocation } from "@/features/location/utils/browserLocation";
+import { useGeolocation } from "@/features/location/hooks/useGeolocation";
 import { resolveAssetUrl } from "@/features/seller/services/sellerListingService";
 
 const MAX_BID_AMOUNT = 999999999999.99;
@@ -60,13 +60,18 @@ function validateBidAmount(value) {
 }
 
 export default function JewellerMarketplacePage() {
-  const { accessToken } = useAuth();
+  const { accessToken, user, setAuthUser } = useAuth();
   const [listings, setListings] = useState([]);
   const [bidValues, setBidValues] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [fallbackApplied, setFallbackApplied] = useState(false);
+  const { locationState, ensureFreshLocation } = useGeolocation({
+    accessToken,
+    setAuthUser,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -76,22 +81,12 @@ export default function JewellerMarketplacePage() {
       setErrorMessage("");
 
       try {
-        let locationFilters = {};
-
-        try {
-          const browserLocation = await requestBrowserLocation();
-          locationFilters = {
-            latitude: browserLocation.latitude,
-            longitude: browserLocation.longitude,
-          };
-        } catch {
-          locationFilters = {};
-        }
-
-        const result = await getMarketplaceListings(accessToken, locationFilters);
+        await ensureFreshLocation(user);
+        const result = await getMarketplaceListings(accessToken);
 
         if (isMounted) {
           setListings(result?.data || []);
+          setFallbackApplied(Boolean(result?.meta?.fallbackApplied));
         }
       } catch (error) {
         if (isMounted) {
@@ -109,7 +104,7 @@ export default function JewellerMarketplacePage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, ensureFreshLocation, user]);
 
   const listingCount = useMemo(() => listings.length, [listings]);
 
@@ -161,6 +156,18 @@ export default function JewellerMarketplacePage() {
       {statusMessage ? (
         <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm font-medium text-(--gw-color-green)">
           {statusMessage}
+        </p>
+      ) : null}
+
+      {locationState.message ? (
+        <p className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-(--gw-color-green)">
+          {locationState.message}
+        </p>
+      ) : null}
+
+      {fallbackApplied ? (
+        <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm font-medium text-(--gw-color-green)">
+          No nearby result found, showing closest available options.
         </p>
       ) : null}
 

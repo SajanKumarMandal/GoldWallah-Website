@@ -75,9 +75,13 @@ function mapCommission(row) {
 
 export async function findActiveListingForBid(listingId, client) {
   const result = await db(client).query(
-    `SELECT id, seller_id, title, status
-     FROM gold_listings
-     WHERE id = $1`,
+    `SELECT gl.id, gl.seller_id, gl.title, gl.status
+     FROM gold_listings gl
+     JOIN users seller ON seller.id = gl.seller_id
+     WHERE gl.id = $1
+       AND seller.role = 'SELLER'
+       AND seller.kyc_status = 'APPROVED'
+       AND seller.account_status = 'ACTIVE'`,
     [listingId],
   );
 

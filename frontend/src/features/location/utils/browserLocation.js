@@ -20,8 +20,42 @@ export function canUseBrowserLocation() {
   return typeof navigator !== "undefined" && Boolean(navigator.geolocation);
 }
 
+export function isSecureLocationContext() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    window.isSecureContext ||
+    ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+  );
+}
+
+export function isLocationMissingOrStale(user, staleAfterMs = 24 * 60 * 60 * 1000) {
+  if (user?.profileLatitude === null || user?.profileLatitude === undefined) {
+    return true;
+  }
+
+  if (user?.profileLongitude === null || user?.profileLongitude === undefined) {
+    return true;
+  }
+
+  if (!user.profileLocationUpdatedAt) {
+    return true;
+  }
+
+  const updatedAtMs = new Date(user.profileLocationUpdatedAt).getTime();
+
+  return !Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > staleAfterMs;
+}
+
 export function requestBrowserLocation() {
   return new Promise((resolve, reject) => {
+    if (!isSecureLocationContext()) {
+      reject(new Error("Location requires HTTPS or localhost."));
+      return;
+    }
+
     if (!canUseBrowserLocation()) {
       reject(new Error("Browser location is not supported."));
       return;

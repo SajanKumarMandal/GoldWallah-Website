@@ -1,6 +1,8 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import * as geoMatchingController from "../geoMatching/geoMatching.controller.js";
+import * as bidsController from "../bids/bids.controller.js";
 import * as listingsController from "./listings.controller.js";
 
 export const listingsRouter = Router();
@@ -40,10 +42,24 @@ listingsRouter.get(
 );
 
 listingsRouter.get(
+  "/nearby",
+  authenticate,
+  requireRole("JEWELLER"),
+  geoMatchingController.matchedListings,
+);
+
+listingsRouter.get(
   "/marketplace/:listingId",
   authenticate,
   requireRole("JEWELLER"),
   listingsController.marketplaceListingDetail,
+);
+
+listingsRouter.post(
+  "/:listingId/bids",
+  authenticate,
+  requireRole("JEWELLER"),
+  bidsController.createBidForListing,
 );
 
 listingsRouter.get(

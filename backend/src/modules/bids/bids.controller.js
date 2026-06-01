@@ -35,6 +35,26 @@ export async function createBid(request, response, next) {
   }
 }
 
+export async function createBidForListing(request, response, next) {
+  try {
+    const { listingId } = validateParams(uuidParamSchema, request.params);
+    const payload = validateBody(createBidSchema, {
+      ...request.body,
+      listingId,
+    });
+
+    response.status(201).json(
+      await placeBid({
+        user: request.user,
+        payload,
+        requestMeta: requestMeta(request),
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function myBids(request, response, next) {
   try {
     response.status(200).json(await getMyJewellerBids(request.user));

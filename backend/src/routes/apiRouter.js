@@ -61,6 +61,7 @@ apiRouter.use("/bids", bidsRouter);
 apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/geo-matching", geoMatchingRouter);
+apiRouter.use("/geo", geoMatchingRouter);
 apiRouter.use("/admin/dashboard", adminDashboardRouter);
 apiRouter.use("/admin/commissions", adminCommissionsRouter);
 apiRouter.use("/admin", adminRouter);
