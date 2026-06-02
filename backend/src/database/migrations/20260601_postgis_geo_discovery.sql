@@ -2,6 +2,21 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS account_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE';
 
 ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_city VARCHAR(100);
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_state VARCHAR(100);
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_latitude NUMERIC(10, 7);
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_longitude NUMERIC(10, 7);
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_location_updated_at TIMESTAMPTZ;
+
+ALTER TABLE users
   ALTER COLUMN account_status SET DEFAULT 'ACTIVE';
 
 UPDATE users
@@ -29,6 +44,12 @@ CREATE INDEX IF NOT EXISTS idx_users_account_status
 
 CREATE INDEX IF NOT EXISTS idx_users_role_account_status
   ON users(role, account_status);
+
+CREATE INDEX IF NOT EXISTS idx_users_role_profile_city_state
+  ON users (role, profile_state, profile_city);
+
+CREATE INDEX IF NOT EXISTS idx_users_profile_coordinates
+  ON users (profile_latitude, profile_longitude);
 
 CREATE INDEX IF NOT EXISTS idx_users_role_status_profile_location
   ON users(role, account_status, profile_latitude, profile_longitude)
