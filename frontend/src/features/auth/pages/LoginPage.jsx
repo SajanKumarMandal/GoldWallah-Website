@@ -35,7 +35,6 @@ const authMethods = [
 const initialEmailValues = {
   email: "",
   password: "",
-  rememberMe: false,
 };
 
 const initialOtpValues = {
@@ -237,27 +236,6 @@ export default function LoginPage() {
                 error={errors.password}
                 disabled={isSubmitting}
               />
-
-              <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex items-center gap-3 text-(--gw-color-muted)">
-                  <input
-                    type="checkbox"
-                    checked={emailValues.rememberMe}
-                    onChange={(event) =>
-                      updateEmailField("rememberMe", event.target.checked)
-                    }
-                    disabled={isSubmitting}
-                    className="h-4 w-4 rounded border-(--gw-color-border) accent-(--gw-color-green)"
-                  />
-                  Remember me
-                </label>
-                <Link
-                  to="#"
-                  className="font-medium text-(--gw-color-green) transition hover:text-(--gw-color-green-soft)"
-                >
-                  Forgot password?
-                </Link>
-              </div>
 
               <button
                 type="submit"

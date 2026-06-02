@@ -29,6 +29,9 @@ const SellerListingDetailPage = lazy(
   () => import("@/features/seller/pages/SellerListingDetailPage"),
 );
 const DealsPage = lazy(() => import("@/features/deals/pages/DealsPage"));
+const NotificationCenterPage = lazy(
+  () => import("@/features/notifications/NotificationCenterPage"),
+);
 const AdminLoginPage = lazy(
   () => import("@/features/admin/auth/pages/AdminLoginPage"),
 );
@@ -39,8 +42,17 @@ const AdminLayout = lazy(() => import("@/features/admin/layouts/AdminLayout"));
 const AdminDashboardPage = lazy(
   () => import("@/features/admin/dashboard/pages/AdminDashboardPage"),
 );
+const AdminUsersPage = lazy(
+  () => import("@/features/admin/pages/AdminUsersPage"),
+);
 const AdminCommissionsPage = lazy(
   () => import("@/features/admin/commissions/pages/AdminCommissionsPage"),
+);
+const AdminAuditSecurityPage = lazy(
+  () => import("@/features/admin/pages/AdminAuditSecurityPage"),
+);
+const AdminSubAdminsPage = lazy(
+  () => import("@/features/admin/pages/AdminSubAdminsPage"),
 );
 const AdminKycListPage = lazy(
   () => import("@/features/admin/pages/AdminKycListPage"),
@@ -48,14 +60,29 @@ const AdminKycListPage = lazy(
 const AdminKycDetailPage = lazy(
   () => import("@/features/admin/pages/AdminKycDetailPage"),
 );
+const AdminBusinessVerificationListPage = lazy(
+  () => import("@/features/admin/pages/AdminBusinessVerificationListPage"),
+);
+const AdminBusinessVerificationDetailPage = lazy(
+  () => import("@/features/admin/pages/AdminBusinessVerificationDetailPage"),
+);
 const JewellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/JewellerDashboardPage"),
+);
+const JewellerKycPage = lazy(
+  () => import("@/features/jeweller/pages/JewellerKycPage"),
 );
 const JewellerVerificationPage = lazy(
   () => import("@/features/jeweller/pages/JewellerVerificationPage"),
 );
 const JewellerMarketplacePage = lazy(
   () => import("@/features/jeweller/pages/JewellerMarketplacePage"),
+);
+const JewellerBidsPage = lazy(
+  () => import("@/features/jeweller/pages/JewellerBidsPage"),
+);
+const JewellerCommissionsPage = lazy(
+  () => import("@/features/jeweller/pages/JewellerCommissionsPage"),
 );
 
 function RouteLoader() {
@@ -93,13 +120,44 @@ export default function AppRouter() {
                 element={<AdminDashboardPage />}
               />
               <Route
+                path={ROUTES.adminUsers}
+                element={<AdminUsersPage />}
+              />
+              <Route
                 path={ROUTES.adminCommissions}
                 element={<AdminCommissionsPage />}
               />
-              <Route path={ROUTES.adminKyc} element={<AdminKycListPage />} />
+              <Route
+                path={ROUTES.adminAuditSecurity}
+                element={<AdminAuditSecurityPage />}
+              />
+              <Route
+                path={ROUTES.adminSubAdmins}
+                element={<AdminSubAdminsPage />}
+              />
+              <Route
+                path={ROUTES.adminKyc}
+                element={<AdminKycListPage role="seller" />}
+              />
               <Route
                 path={ROUTES.adminKycDetail}
-                element={<AdminKycDetailPage />}
+                element={<AdminKycDetailPage role="seller" />}
+              />
+              <Route
+                path={ROUTES.adminJewellerKyc}
+                element={<AdminKycListPage role="jeweller" />}
+              />
+              <Route
+                path={ROUTES.adminJewellerKycDetail}
+                element={<AdminKycDetailPage role="jeweller" />}
+              />
+              <Route
+                path={ROUTES.adminBusinessVerifications}
+                element={<AdminBusinessVerificationListPage />}
+              />
+              <Route
+                path={ROUTES.adminBusinessVerificationDetail}
+                element={<AdminBusinessVerificationDetailPage />}
               />
             </Route>
           </Route>
@@ -127,6 +185,10 @@ export default function AppRouter() {
                   element={<SellerListingDetailPage />}
                 />
                 <Route path={ROUTES.sellerDeals} element={<DealsPage />} />
+                <Route
+                  path={ROUTES.sellerNotifications}
+                  element={<NotificationCenterPage />}
+                />
               </Route>
             </Route>
 
@@ -134,6 +196,10 @@ export default function AppRouter() {
               element={<RoleRoute allowedRoles={[USER_ROLES.jeweller]} />}
             >
               <Route element={<DashboardLayout />}>
+                <Route
+                  path={ROUTES.jewellerKyc}
+                  element={<JewellerKycPage />}
+                />
                 <Route
                   path={ROUTES.jewellerVerification}
                   element={<JewellerVerificationPage />}
@@ -146,7 +212,19 @@ export default function AppRouter() {
                   path={ROUTES.jewellerMarketplace}
                   element={<JewellerMarketplacePage />}
                 />
+                <Route
+                  path={ROUTES.jewellerBids}
+                  element={<JewellerBidsPage />}
+                />
+                <Route
+                  path={ROUTES.jewellerCommissions}
+                  element={<JewellerCommissionsPage />}
+                />
                 <Route path={ROUTES.jewellerDeals} element={<DealsPage />} />
+                <Route
+                  path={ROUTES.jewellerNotifications}
+                  element={<NotificationCenterPage />}
+                />
               </Route>
             </Route>
           </Route>

@@ -18,9 +18,23 @@ export const commissionIdParamSchema = z.object({
   commissionId: z.string().uuid("Invalid commission id"),
 });
 
-export const markPaidSchema = z.object({
-  razorpayPaymentId: z.string().trim().min(1).max(100).optional(),
-});
+const paymentReferenceSchema = z
+  .string()
+  .trim()
+  .min(4)
+  .max(100)
+  .regex(/^[a-zA-Z0-9._:@/-]+$/, "Invalid payment reference");
+
+export const markPaidSchema = z
+  .object({
+    razorpayPaymentId: paymentReferenceSchema.optional(),
+    paymentReference: paymentReferenceSchema.optional(),
+  })
+  .strict()
+  .refine((data) => data.razorpayPaymentId || data.paymentReference, {
+    message: "Payment id or settlement reference is required",
+    path: ["paymentReference"],
+  });
 
 export const waiveCommissionSchema = z.object({
   reason: z.string().trim().min(10).max(500),

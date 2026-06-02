@@ -124,7 +124,9 @@ export async function getSellerListingBids({ user, listingId, query = {} }) {
 }
 
 export async function getMyJewellerBids(user, query = {}) {
-  requireJewellerCanTransact(user);
+  if (user.role !== "JEWELLER") {
+    throw createError("Forbidden", 403, "FORBIDDEN");
+  }
 
   return {
     success: true,

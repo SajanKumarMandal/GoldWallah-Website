@@ -192,6 +192,7 @@ export async function refresh(request, response, next) {
       }),
     );
   } catch (error) {
+    clearRefreshCookie(request, response);
     next(error);
   }
 }

@@ -79,13 +79,25 @@ function mapJeweller(row) {
   };
 }
 
-function paginationParams({ limit, lastDistance, lastId, maxLimit }) {
+function paginationParams({
+  limit,
+  lastMatchRank,
+  lastDistance,
+  lastDistanceIsNull,
+  lastId,
+  maxLimit,
+}) {
   return {
     safeLimit: Math.min(Math.max(Number(limit) || maxLimit, 1), maxLimit),
+    cursorMatchRank:
+      lastMatchRank === null || lastMatchRank === undefined
+        ? null
+        : Number(lastMatchRank),
     cursorDistance:
       lastDistance === null || lastDistance === undefined
         ? null
         : Number(lastDistance),
+    cursorDistanceIsNull: Boolean(lastDistanceIsNull),
     cursorId: lastId || null,
   };
 }
@@ -93,16 +105,18 @@ function paginationParams({ limit, lastDistance, lastId, maxLimit }) {
 function buildCursor(rows) {
   const lastRow = rows.at(-1);
 
-  if (
-    lastRow?.distance_meters === null ||
-    lastRow?.distance_meters === undefined ||
-    !lastRow?.id
-  ) {
+  if (!lastRow?.id || lastRow?.match_rank === null || lastRow?.match_rank === undefined) {
     return null;
   }
 
   return {
-    lastDistance: Number(lastRow.distance_meters),
+    lastMatchRank: Number(lastRow.match_rank),
+    lastDistance:
+      lastRow.distance_meters === null || lastRow.distance_meters === undefined
+        ? null
+        : Number(lastRow.distance_meters),
+    lastDistanceIsNull:
+      lastRow.distance_meters === null || lastRow.distance_meters === undefined,
     lastId: lastRow.id,
   };
 }
@@ -185,12 +199,22 @@ export async function listMatchedListings({
   location,
   radiusKm,
   limit,
+  lastMatchRank,
   lastDistance,
+  lastDistanceIsNull,
   lastId,
 }) {
-  const { safeLimit, cursorDistance, cursorId } = paginationParams({
+  const {
+    safeLimit,
+    cursorMatchRank,
+    cursorDistance,
+    cursorDistanceIsNull,
+    cursorId,
+  } = paginationParams({
     limit,
+    lastMatchRank,
     lastDistance,
+    lastDistanceIsNull,
     lastId,
     maxLimit: 100,
   });
@@ -258,26 +282,44 @@ export async function listMatchedListings({
          END AS match_rank
        FROM scored
      )
-     SELECT *
-     FROM matched
-     WHERE (
-       $6::double precision IS NULL
-       OR distance_meters > $6::double precision
-       OR (distance_meters = $6::double precision AND id > $7::uuid)
-       OR distance_meters IS NULL
-     )
+      SELECT *
+      FROM matched
+      WHERE (
+        $6::integer IS NULL
+        OR match_rank > $6::integer
+        OR (
+          match_rank = $6::integer
+          AND (
+            (
+              $8::boolean = false
+              AND (
+                distance_meters > $7::double precision
+                OR (distance_meters = $7::double precision AND id > $9::uuid)
+                OR distance_meters IS NULL
+              )
+            )
+            OR (
+              $8::boolean = true
+              AND distance_meters IS NULL
+              AND id > $9::uuid
+            )
+          )
+        )
+      )
      ORDER BY
        match_rank ASC,
        distance_meters ASC NULLS LAST,
        id ASC
-     LIMIT $8`,
+      LIMIT $10`,
     [
       location.latitude,
       location.longitude,
       radiusKm,
       location.city,
       location.state,
+      cursorMatchRank,
       cursorDistance,
+      cursorDistanceIsNull,
       cursorId,
       safeLimit,
     ],
@@ -331,12 +373,22 @@ export async function listNearbyJewellersForSeller({
   location,
   radiusKm,
   limit,
+  lastMatchRank,
   lastDistance,
+  lastDistanceIsNull,
   lastId,
 }) {
-  const { safeLimit, cursorDistance, cursorId } = paginationParams({
+  const {
+    safeLimit,
+    cursorMatchRank,
+    cursorDistance,
+    cursorDistanceIsNull,
+    cursorId,
+  } = paginationParams({
     limit,
+    lastMatchRank,
     lastDistance,
+    lastDistanceIsNull,
     lastId,
     maxLimit: 50,
   });
@@ -417,26 +469,44 @@ export async function listNearbyJewellersForSeller({
          AND u.business_verification_status = 'APPROVED'
          AND u.account_status = 'ACTIVE'
      )
-     SELECT *
-     FROM matched
-     WHERE (
-       $6::double precision IS NULL
-       OR distance_meters > $6::double precision
-       OR (distance_meters = $6::double precision AND id > $7::uuid)
-       OR distance_meters IS NULL
-     )
+      SELECT *
+      FROM matched
+      WHERE (
+        $6::integer IS NULL
+        OR match_rank > $6::integer
+        OR (
+          match_rank = $6::integer
+          AND (
+            (
+              $8::boolean = false
+              AND (
+                distance_meters > $7::double precision
+                OR (distance_meters = $7::double precision AND id > $9::uuid)
+                OR distance_meters IS NULL
+              )
+            )
+            OR (
+              $8::boolean = true
+              AND distance_meters IS NULL
+              AND id > $9::uuid
+            )
+          )
+        )
+      )
      ORDER BY
        match_rank ASC,
        distance_meters ASC NULLS LAST,
        id ASC
-     LIMIT $8`,
+      LIMIT $10`,
     [
       location.latitude,
       location.longitude,
       radiusKm,
       location.city,
       location.state,
+      cursorMatchRank,
       cursorDistance,
+      cursorDistanceIsNull,
       cursorId,
       safeLimit,
     ],

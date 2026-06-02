@@ -33,11 +33,27 @@ function withQueryCoordinates(location, query) {
 }
 
 function assertValidCursor(query) {
-  if (
-    (query.lastDistance === undefined) !== (query.lastId === undefined)
-  ) {
+  const hasCursorField =
+    query.lastMatchRank !== undefined ||
+    query.lastDistance !== undefined ||
+    query.lastDistanceIsNull !== undefined ||
+    query.lastId !== undefined;
+
+  if (!hasCursorField) {
+    return;
+  }
+
+  if (!query.lastId || query.lastMatchRank === undefined) {
     throw createError(
-      "Both lastDistance and lastId are required for cursor pagination.",
+      "lastMatchRank and lastId are required for cursor pagination.",
+      400,
+      "INVALID_CURSOR",
+    );
+  }
+
+  if (!query.lastDistanceIsNull && query.lastDistance === undefined) {
+    throw createError(
+      "lastDistance is required when the cursor distance is not null.",
       400,
       "INVALID_CURSOR",
     );
@@ -64,7 +80,9 @@ export async function getMatchedListings({ user, query }) {
     location,
     radiusKm: query.radiusKm,
     limit: query.limit,
+    lastMatchRank: query.lastMatchRank,
     lastDistance: query.lastDistance,
+    lastDistanceIsNull: query.lastDistanceIsNull,
     lastId: query.lastId,
   });
 
@@ -102,7 +120,9 @@ export async function getNearbyJewellers({ user, query }) {
     location,
     radiusKm: query.radiusKm,
     limit: query.limit,
+    lastMatchRank: query.lastMatchRank,
     lastDistance: query.lastDistance,
+    lastDistanceIsNull: query.lastDistanceIsNull,
     lastId: query.lastId,
   });
 

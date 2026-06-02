@@ -16,7 +16,16 @@ const coordinateQuery = {
 };
 
 const cursorQuery = {
+  lastMatchRank: optionalCoordinate(z.coerce.number().int().min(1).max(4)),
   lastDistance: optionalCoordinate(z.coerce.number().nonnegative()),
+  lastDistanceIsNull: z
+    .preprocess((value) => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+
+      return value === true || value === "true";
+    }, z.boolean().optional()),
   lastId: z.string().uuid("Invalid cursor id").optional(),
 };
 

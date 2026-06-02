@@ -117,7 +117,11 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <PendingVerificationList items={pending} isLoading={isLoading} />
+        <PendingVerificationList
+          admin={admin}
+          items={pending}
+          isLoading={isLoading}
+        />
         <SecurityAlertList items={alerts} isLoading={isLoading} />
       </div>
 

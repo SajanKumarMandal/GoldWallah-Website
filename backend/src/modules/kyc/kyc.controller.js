@@ -1,7 +1,4 @@
-import {
-  ADMIN_AUDIT_ACTIONS,
-  requestAuditMeta,
-} from "../admin/admin.audit.js";
+import { requestAuditMeta } from "../admin/admin.audit.js";
 import { withPrivateMediaUrls } from "../media/privateMedia.service.js";
 import {
   deleteKycFiles,
@@ -20,34 +17,36 @@ import {
   validateQuery,
 } from "./kyc.validation.js";
 import {
-  approveSellerKyc,
-  getSellerKyc,
-  getSellerKycSubmission,
-  getSellerKycSubmissions,
-  rejectSellerKyc,
-  submitSellerKyc,
+  approveKycForRole,
+  getKycForRole,
+  getKycSubmissionForRole,
+  getKycSubmissionsForRole,
+  kycResourceTypeForRole,
+  kycSelfieViewedActionForRole,
+  rejectKycForRole,
+  submitKycForRole,
 } from "./kyc.service.js";
 
 export { uploadSellerKycImages };
 
-function signedSellerKycSubmission(request, submission, actorType, actorId) {
+function signedKycSubmission(request, submission, actorType, actorId, role) {
   return withPrivateMediaUrls(request, submission, [
     {
       field: "selfieImageUrl",
       scope: "kyc",
       actorType,
       actorId,
-      subjectType: "SELLER_KYC",
+      subjectType: kycResourceTypeForRole(role),
       subjectId: submission?.id,
       auditAction:
         actorType === "admin"
-          ? ADMIN_AUDIT_ACTIONS.sellerKycSelfieViewed
+          ? kycSelfieViewedActionForRole(role)
           : null,
     },
   ]);
 }
 
-function withSignedSellerKycSubmission(request, result, actorType, actorId) {
+function withSignedKycSubmission(request, result, actorType, actorId, role) {
   if (!result?.data?.submission) {
     return result;
   }
@@ -56,11 +55,12 @@ function withSignedSellerKycSubmission(request, result, actorType, actorId) {
     ...result,
     data: {
       ...result.data,
-      submission: signedSellerKycSubmission(
+      submission: signedKycSubmission(
         request,
         result.data.submission,
         actorType,
         actorId,
+        role,
       ),
     },
   };
@@ -86,19 +86,20 @@ async function cleanupUploadedFiles(request) {
   }
 }
 
-export async function submitSeller(request, response, next) {
+async function submitForRole(request, response, next, role) {
   try {
     const payload = validateBody(sellerKycSchema, request.body);
     await validateSellerKycImageFiles(request);
     response.status(201).json(
-      withSignedSellerKycSubmission(
+      withSignedKycSubmission(
         request,
-        await submitSellerKyc(request.user, {
+        await submitKycForRole(request.user, {
           ...payload,
           ...getRequiredImageUrls(request),
-        }),
+        }, role),
         "user",
         request.user.id,
+        role,
       ),
     );
   } catch (error) {
@@ -107,14 +108,15 @@ export async function submitSeller(request, response, next) {
   }
 }
 
-export async function sellerMe(request, response, next) {
+async function meForRole(request, response, next, role) {
   try {
     response.status(200).json(
-      withSignedSellerKycSubmission(
+      withSignedKycSubmission(
         request,
-        await getSellerKyc(request.user),
+        await getKycForRole(request.user, role),
         "user",
         request.user.id,
+        role,
       ),
     );
   } catch (error) {
@@ -122,19 +124,20 @@ export async function sellerMe(request, response, next) {
   }
 }
 
-export async function listSellerSubmissions(request, response, next) {
+async function listSubmissionsForRole(request, response, next, role) {
   try {
     const query = validateQuery(adminKycListQuerySchema, request.query);
-    response.status(200).json(await getSellerKycSubmissions(query));
+    response.status(200).json(await getKycSubmissionsForRole(role, query));
   } catch (error) {
     next(error);
   }
 }
 
-export async function sellerSubmissionDetail(request, response, next) {
+async function submissionDetailForRole(request, response, next, role) {
   try {
     const { kycId } = validateParams(uuidParamSchema, request.params);
-    const result = await getSellerKycSubmission(
+    const result = await getKycSubmissionForRole(
+      role,
       kycId,
       request.admin,
       requestAuditMeta(request),
@@ -142,11 +145,12 @@ export async function sellerSubmissionDetail(request, response, next) {
 
     response.status(200).json({
       ...result,
-      data: signedSellerKycSubmission(
+      data: signedKycSubmission(
         request,
         result.data,
         "admin",
         request.admin.id,
+        role,
       ),
     });
   } catch (error) {
@@ -154,18 +158,21 @@ export async function sellerSubmissionDetail(request, response, next) {
   }
 }
 
-export async function approveSellerSubmission(request, response, next) {
+async function approveSubmissionForRole(request, response, next, role) {
   try {
     const { kycId } = validateParams(uuidParamSchema, request.params);
     response.status(200).json(
-      withSignedSellerKycSubmission(
+      withSignedKycSubmission(
         request,
-        await approveSellerKyc({
+        await approveKycForRole({
+          role,
           kycId,
           adminUser: request.admin,
+          requestMeta: requestAuditMeta(request),
         }),
         "admin",
         request.admin.id,
+        role,
       ),
     );
   } catch (error) {
@@ -173,23 +180,74 @@ export async function approveSellerSubmission(request, response, next) {
   }
 }
 
-export async function rejectSellerSubmission(request, response, next) {
+async function rejectSubmissionForRole(request, response, next, role) {
   try {
     const { kycId } = validateParams(uuidParamSchema, request.params);
     const { rejectionReason } = validateBody(rejectKycSchema, request.body);
     response.status(200).json(
-      withSignedSellerKycSubmission(
+      withSignedKycSubmission(
         request,
-        await rejectSellerKyc({
+        await rejectKycForRole({
+          role,
           kycId,
           adminUser: request.admin,
           rejectionReason,
+          requestMeta: requestAuditMeta(request),
         }),
         "admin",
         request.admin.id,
+        role,
       ),
     );
   } catch (error) {
     next(error);
   }
+}
+
+export function submitSeller(request, response, next) {
+  return submitForRole(request, response, next, "SELLER");
+}
+
+export function submitJeweller(request, response, next) {
+  return submitForRole(request, response, next, "JEWELLER");
+}
+
+export function sellerMe(request, response, next) {
+  return meForRole(request, response, next, "SELLER");
+}
+
+export function jewellerMe(request, response, next) {
+  return meForRole(request, response, next, "JEWELLER");
+}
+
+export function listSellerSubmissions(request, response, next) {
+  return listSubmissionsForRole(request, response, next, "SELLER");
+}
+
+export function listJewellerSubmissions(request, response, next) {
+  return listSubmissionsForRole(request, response, next, "JEWELLER");
+}
+
+export function sellerSubmissionDetail(request, response, next) {
+  return submissionDetailForRole(request, response, next, "SELLER");
+}
+
+export function jewellerSubmissionDetail(request, response, next) {
+  return submissionDetailForRole(request, response, next, "JEWELLER");
+}
+
+export function approveSellerSubmission(request, response, next) {
+  return approveSubmissionForRole(request, response, next, "SELLER");
+}
+
+export function approveJewellerSubmission(request, response, next) {
+  return approveSubmissionForRole(request, response, next, "JEWELLER");
+}
+
+export function rejectSellerSubmission(request, response, next) {
+  return rejectSubmissionForRole(request, response, next, "SELLER");
+}
+
+export function rejectJewellerSubmission(request, response, next) {
+  return rejectSubmissionForRole(request, response, next, "JEWELLER");
 }

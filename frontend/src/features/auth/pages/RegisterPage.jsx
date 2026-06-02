@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
@@ -22,13 +22,14 @@ import {
 } from "@/features/auth/services/socialIdentityService";
 import {
   AUTH_METHODS,
-  AUTH_ROLES,
   DEFAULT_REGISTER_ROLE,
+  normalizeAuthRole,
 } from "@/features/auth/utils/authConstants";
 import {
   validateRegisterForm,
   validateRegisterOtpSendForm,
   validateRegisterOtpVerifyForm,
+  validateSocialRegisterForm,
 } from "@/features/auth/utils/authValidation";
 import { getPostAuthRedirectPath } from "@/features/auth/utils/postAuthRedirect";
 
@@ -49,15 +50,19 @@ const initialValues = {
 };
 
 export default function RegisterPage() {
+  const location = useLocation();
+
+  return <RegisterPageContent key={location.search} />;
+}
+
+function RegisterPageContent() {
   const { setAuthSession } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialRole = useMemo(() => {
-    const requestedRole = searchParams.get("role");
+    const requestedRole = normalizeAuthRole(searchParams.get("role"));
 
-    return Object.values(AUTH_ROLES).includes(requestedRole)
-      ? requestedRole
-      : DEFAULT_REGISTER_ROLE;
+    return requestedRole || DEFAULT_REGISTER_ROLE;
   }, [searchParams]);
 
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
@@ -77,9 +82,11 @@ export default function RegisterPage() {
   }
 
   function updateField(field, value) {
+    const nextValue = field === "role" ? normalizeAuthRole(value) : value;
+
     setValues((currentValues) => ({
       ...currentValues,
-      [field]: value,
+      [field]: nextValue,
     }));
     setErrors((currentErrors) => ({
       ...currentErrors,
@@ -170,10 +177,18 @@ export default function RegisterPage() {
   }
 
   async function handleSocialRegister(provider) {
+    const nextErrors = validateSocialRegisterForm(values);
+    setErrors(nextErrors);
+    setStatusMessage("");
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    const role = normalizeAuthRole(values.role);
+
     setIsSubmitting(true);
     setSocialProvider(provider);
-    setStatusMessage("");
-    setErrors({});
 
     try {
       const providerToken =
@@ -184,11 +199,11 @@ export default function RegisterPage() {
         provider === "google"
           ? await registerWithGoogle({
               idToken: providerToken,
-              role: values.role,
+              role,
             })
           : await registerWithFacebook({
               accessToken: providerToken,
-              role: values.role,
+              role,
             });
 
       if (result?.data?.user) {
@@ -283,7 +298,7 @@ export default function RegisterPage() {
                   id="password"
                   label="Password"
                   autoComplete="new-password"
-                  placeholder="Minimum 8 characters"
+                  placeholder="Minimum 10 characters"
                   value={values.password}
                   onChange={(event) => updateField("password", event.target.value)}
                   error={errors.password}

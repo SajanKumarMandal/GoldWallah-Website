@@ -10,6 +10,8 @@ export const ADMIN_AUDIT_ACTIONS = {
   refreshReuseDetected: "ADMIN_REFRESH_TOKEN_REUSE_DETECTED",
   refreshBlockedInactiveAdmin: "ADMIN_REFRESH_BLOCKED_INACTIVE_ADMIN",
   passwordChanged: "ADMIN_PASSWORD_CHANGED",
+  mfaSetupStarted: "ADMIN_MFA_SETUP_STARTED",
+  mfaEnabled: "ADMIN_MFA_ENABLED",
   subAdminCreated: "ADMIN_SUBADMIN_CREATED",
   rolesAssigned: "ADMIN_ROLES_ASSIGNED",
   adminStatusUpdated: "ADMIN_STATUS_UPDATED",
@@ -17,10 +19,18 @@ export const ADMIN_AUDIT_ACTIONS = {
   seedSuperAdminCreated: "ADMIN_SUPER_ADMIN_SEEDED",
   sellerKycIdentityViewed: "ADMIN_SELLER_KYC_IDENTITY_VIEWED",
   sellerKycSelfieViewed: "ADMIN_SELLER_KYC_SELFIE_VIEWED",
+  sellerKycApproved: "ADMIN_SELLER_KYC_APPROVED",
+  sellerKycRejected: "ADMIN_SELLER_KYC_REJECTED",
+  jewellerKycIdentityViewed: "ADMIN_JEWELLER_KYC_IDENTITY_VIEWED",
+  jewellerKycSelfieViewed: "ADMIN_JEWELLER_KYC_SELFIE_VIEWED",
+  jewellerKycApproved: "ADMIN_JEWELLER_KYC_APPROVED",
+  jewellerKycRejected: "ADMIN_JEWELLER_KYC_REJECTED",
   jewellerBusinessIdentityViewed: "ADMIN_JEWELLER_BUSINESS_IDENTITY_VIEWED",
   jewellerBusinessDocumentViewed: "ADMIN_JEWELLER_BUSINESS_DOCUMENT_VIEWED",
   commissionMarkedPaid: "ADMIN_COMMISSION_MARKED_PAID",
   commissionWaived: "ADMIN_COMMISSION_WAIVED",
+  userBlocked: "ADMIN_USER_BLOCKED",
+  userUnblocked: "ADMIN_USER_UNBLOCKED",
 };
 
 export function requestAuditMeta(request) {

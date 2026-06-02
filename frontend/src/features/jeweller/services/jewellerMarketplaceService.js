@@ -26,9 +26,9 @@ export async function placePrivateBid(accessToken, payload) {
   });
 }
 
-export async function getMyPrivateBids(accessToken) {
+export async function getMyPrivateBids(accessToken, query = {}) {
   return apiRequest("bids/my", {
     headers: authHeaders(accessToken),
-    query: { limit: 100 },
+    query: { limit: 100, ...query },
   });
 }

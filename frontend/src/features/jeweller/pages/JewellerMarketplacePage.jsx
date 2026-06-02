@@ -1,10 +1,13 @@
-import { Gavel, MapPin } from "lucide-react";
+import { Gavel, LockKeyhole, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
+import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/context/useAuth";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
 import EmptyState from "@/features/dashboard/components/EmptyState";
+import { getCurrentUser } from "@/features/dashboard/services/dashboardService";
 import {
   getMarketplaceListings,
   placePrivateBid,
@@ -59,6 +62,37 @@ function validateBidAmount(value) {
   return "";
 }
 
+function getMarketplaceGate(user) {
+  if (user?.kycStatus !== "APPROVED") {
+    return {
+      title: "KYC approval required",
+      description: "Complete jeweller KYC before business verification and marketplace access.",
+      to: ROUTES.jewellerKyc,
+      label: "Complete KYC",
+    };
+  }
+
+  if (user?.businessVerificationStatus !== "APPROVED") {
+    return {
+      title: "Business verification required",
+      description: "Complete business verification before marketplace access.",
+      to: ROUTES.jewellerVerification,
+      label: "Complete Verification",
+    };
+  }
+
+  if (user?.commissionLockStatus !== "CLEAR") {
+    return {
+      title: "Commission payment pending",
+      description: "Clear pending commission dues before marketplace access.",
+      to: ROUTES.jewellerCommissions,
+      label: "Manage Commissions",
+    };
+  }
+
+  return null;
+}
+
 export default function JewellerMarketplacePage() {
   const { accessToken, user, setAuthUser } = useAuth();
   const [listings, setListings] = useState([]);
@@ -72,6 +106,7 @@ export default function JewellerMarketplacePage() {
     accessToken,
     setAuthUser,
   });
+  const marketplaceGate = getMarketplaceGate(user);
 
   useEffect(() => {
     let isMounted = true;
@@ -81,7 +116,30 @@ export default function JewellerMarketplacePage() {
       setErrorMessage("");
 
       try {
-        await ensureFreshLocation(user);
+        const currentUserResult = await getCurrentUser(accessToken);
+        const currentUser = currentUserResult?.data || user;
+        const nextGate = getMarketplaceGate(currentUser);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (
+          currentUser &&
+          (currentUser.kycStatus !== user?.kycStatus ||
+            currentUser.businessVerificationStatus !== user?.businessVerificationStatus ||
+            currentUser.commissionLockStatus !== user?.commissionLockStatus)
+        ) {
+          setAuthUser(currentUser);
+        }
+
+        if (nextGate) {
+          setListings([]);
+          setFallbackApplied(false);
+          return;
+        }
+
+        await ensureFreshLocation(currentUser);
         const result = await getMarketplaceListings(accessToken);
 
         if (isMounted) {
@@ -104,7 +162,12 @@ export default function JewellerMarketplacePage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, ensureFreshLocation, user]);
+  }, [
+    accessToken,
+    ensureFreshLocation,
+    setAuthUser,
+    user,
+  ]);
 
   const listingCount = useMemo(() => listings.length, [listings]);
 
@@ -144,7 +207,11 @@ export default function JewellerMarketplacePage() {
       <DashboardHeader
         eyebrow="Jeweller marketplace"
         title="Nearby seller listings"
-        description={`${listingCount} matched listing${listingCount === 1 ? "" : "s"} ranked by location and nearest fallback.`}
+        description={
+          marketplaceGate
+            ? "Marketplace access unlocks after account verification requirements are complete."
+            : `${listingCount} matched listing${listingCount === 1 ? "" : "s"} ranked by location and nearest fallback.`
+        }
       />
 
       {errorMessage ? (
@@ -172,13 +239,29 @@ export default function JewellerMarketplacePage() {
       ) : null}
 
       <DashboardSection title="Listings">
-        {isLoading ? (
+        {marketplaceGate && !isLoading ? (
+          <EmptyState
+            icon={LockKeyhole}
+            title={marketplaceGate.title}
+            description={marketplaceGate.description}
+            action={
+              <Link
+                to={marketplaceGate.to}
+                className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
+              >
+                {marketplaceGate.label}
+              </Link>
+            }
+          />
+        ) : null}
+
+        {!marketplaceGate && isLoading ? (
           <p className="rounded-2xl bg-(--gw-color-cream) px-4 py-3 text-sm text-(--gw-color-muted)">
             Loading listings...
           </p>
         ) : null}
 
-        {!isLoading && listings.length === 0 ? (
+        {!marketplaceGate && !isLoading && listings.length === 0 ? (
           <EmptyState
             icon={Gavel}
             title="No active listings"
@@ -186,7 +269,7 @@ export default function JewellerMarketplacePage() {
           />
         ) : null}
 
-        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+        {!marketplaceGate ? <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           {listings.map((listing) => {
             const imageUrl = resolveAssetUrl(listing.images?.[0]?.imageUrl);
 
@@ -253,7 +336,7 @@ export default function JewellerMarketplacePage() {
               </article>
             );
           })}
-        </div>
+        </div> : null}
       </DashboardSection>
     </div>
   );

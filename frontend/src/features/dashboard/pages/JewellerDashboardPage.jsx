@@ -82,7 +82,7 @@ export default function JewellerDashboardPage() {
   }, [accessToken, ensureFreshLocation, setAuthUser]);
 
   const stats = dashboard?.stats || {};
-  const kycStatus = dashboard?.kycStatus || user?.kycStatus || "PENDING";
+  const kycStatus = dashboard?.kycStatus || user?.kycStatus || "NOT_SUBMITTED";
   const businessVerificationStatus =
     dashboard?.businessVerificationStatus ||
     user?.businessVerificationStatus ||
@@ -94,6 +94,12 @@ export default function JewellerDashboardPage() {
     kycStatus === "APPROVED" &&
     businessVerificationStatus === "APPROVED" &&
     commissionLockStatus === "CLEAR";
+  const primaryAction =
+    canBid
+      ? { to: ROUTES.jewellerMarketplace, label: "Browse listings" }
+      : kycStatus === "APPROVED"
+        ? { to: ROUTES.jewellerVerification, label: "Complete Verification" }
+        : { to: ROUTES.jewellerKyc, label: "Complete KYC" };
   const jewellerStats = [
     {
       title: "KYC status",
@@ -140,15 +146,41 @@ export default function JewellerDashboardPage() {
         description="Review verification, discover nearby seller listings, and manage private bidding activity."
         action={
           <Link
-            to={ROUTES.jewellerMarketplace}
+            to={primaryAction.to}
             className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-gold) px-5 text-sm font-semibold text-(--gw-color-green) transition hover:bg-[#e0ad62]"
           >
-            Browse listings
+            {primaryAction.label}
           </Link>
         }
       />
 
-      {businessVerificationStatus !== "APPROVED" ? (
+      {kycStatus !== "APPROVED" ? (
+        <div className="rounded-3xl border border-(--gw-color-gold)/45 bg-(--gw-color-gold)/10 p-5 text-(--gw-color-green)">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
+                <LockKeyhole className="h-5 w-5 text-(--gw-color-gold)" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="gw-break-text text-lg font-semibold">
+                  Complete KYC before business verification.
+                </h2>
+                <p className="mt-1 text-sm text-(--gw-color-muted)">
+                  Identity approval is required before business verification and bidding access.
+                </p>
+              </div>
+            </div>
+            <Link
+              to={ROUTES.jewellerKyc}
+              className="inline-flex h-11 items-center justify-center rounded-full bg-(--gw-color-green) px-5 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) sm:w-auto"
+            >
+              Complete KYC
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {kycStatus === "APPROVED" && businessVerificationStatus !== "APPROVED" ? (
         <div className="rounded-3xl border border-(--gw-color-gold)/45 bg-(--gw-color-gold)/10 p-5 text-(--gw-color-green)">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 gap-3">
@@ -187,6 +219,12 @@ export default function JewellerDashboardPage() {
               <p className="mt-1 text-sm text-(--gw-color-muted)">
                 Pending commission total: {formatMoney(commissionSummary.pendingCommissionAmount)}.
               </p>
+              <Link
+                to={ROUTES.jewellerCommissions}
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-(--gw-color-copper) px-4 text-sm font-semibold text-white transition hover:bg-(--gw-color-copper)/90"
+              >
+                Manage commissions
+              </Link>
             </div>
           </div>
         </div>
@@ -218,7 +256,7 @@ export default function JewellerDashboardPage() {
 
       <DashboardSection
         title="Listed items"
-        description="Jewellers can browse seller listings before verification approval; bidding remains locked."
+        description="Approved jewellers can browse active seller listings and place private bids."
       >
         <div className="rounded-2xl border border-(--gw-color-border) bg-(--gw-color-cream) p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -229,7 +267,13 @@ export default function JewellerDashboardPage() {
               </p>
             </div>
             <Link
-              to={canBid ? ROUTES.jewellerMarketplace : ROUTES.jewellerVerification}
+              to={
+                canBid
+                  ? ROUTES.jewellerMarketplace
+                  : kycStatus === "APPROVED"
+                    ? ROUTES.jewellerVerification
+                    : ROUTES.jewellerKyc
+              }
               aria-disabled={!canBid}
               className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:w-auto ${
                 canBid
@@ -237,7 +281,11 @@ export default function JewellerDashboardPage() {
                   : "cursor-not-allowed border border-(--gw-color-border) bg-white text-(--gw-color-muted)"
               }`}
             >
-              {canBid ? "Browse listings" : "Complete verification"}
+              {canBid
+                ? "Browse listings"
+                : kycStatus === "APPROVED"
+                  ? "Complete verification"
+                  : "Complete KYC"}
             </Link>
           </div>
         </div>

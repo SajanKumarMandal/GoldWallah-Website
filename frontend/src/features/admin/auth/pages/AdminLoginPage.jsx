@@ -14,7 +14,7 @@ import {
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [values, setValues] = useState({ email: "", password: "" });
+  const [values, setValues] = useState({ email: "", password: "", mfaCode: "" });
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessage] = useState(location.state?.message || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,6 +106,7 @@ export default function AdminLoginPage() {
       const result = await loginAdmin({
         email: values.email.trim(),
         password: values.password,
+        mfaCode: values.mfaCode.trim(),
       });
       const data = result?.data || {};
 
@@ -195,6 +196,24 @@ export default function AdminLoginPage() {
                 autoComplete="current-password"
                 disabled={isSubmitting}
                 onChange={(event) => updateField("password", event.target.value)}
+                className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm outline-none transition focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:opacity-70"
+              />
+            </label>
+
+            <label className="mt-5 block" htmlFor="admin-mfa-code">
+              <span className="text-sm font-semibold">MFA code</span>
+              <input
+                id="admin-mfa-code"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={values.mfaCode}
+                autoComplete="one-time-code"
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  updateField("mfaCode", event.target.value.replace(/\D/g, ""))
+                }
                 className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm outline-none transition focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </label>

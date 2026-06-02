@@ -1,4 +1,5 @@
 import { withTransaction } from "../../config/db.js";
+import { rejectPendingBidsForListing } from "../bids/bids.repository.js";
 import {
   cancelListing,
   createListing,
@@ -12,6 +13,7 @@ import {
   updateListingFields,
 } from "./listings.repository.js";
 import { requireJewellerCanTransact } from "../jewellerVerification/jewellerTransactionGuard.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 
 // Listing service. Approved sellers create/manage gold listings; verified
 // jewellers read active listings and place private bids through the bid module.
@@ -220,10 +222,29 @@ export async function cancelSellerListing({ user, listingId }) {
       });
     }
 
+    const rejectedBids = await rejectPendingBidsForListing(listing.id, client);
+
+    for (const bid of rejectedBids) {
+      await notifyUser(
+        {
+          userId: bid.jewellerId,
+          type: "BID_REJECTED",
+          title: "Listing cancelled",
+          body: "A seller cancelled a listing with one of your pending bids.",
+          entityType: "GOLD_LISTING",
+          entityId: listing.id,
+        },
+        client,
+      );
+    }
+
     return {
       success: true,
       message: "Listing cancelled",
-      data: listing,
+      data: {
+        ...listing,
+        rejectedBidCount: rejectedBids.length,
+      },
     };
   });
 }

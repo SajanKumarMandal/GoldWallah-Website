@@ -52,7 +52,7 @@ export async function createNotification(data, client) {
 }
 
 export async function listUserNotifications({ userId, unreadOnly, limit }, client) {
-  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const params = [userId, safeLimit];
   const unreadFilter = unreadOnly ? "AND read_at IS NULL" : "";
   const result = await db(client).query(

@@ -14,6 +14,9 @@ function mapKycSubmission(row) {
   return {
     id: row.id,
     userId: row.user_id,
+    userRole: row.user_role || row.role || null,
+    userEmail: row.user_email || row.email || null,
+    userPhone: row.user_phone || row.phone || null,
     fullName: row.full_name,
     mobileNumber: row.mobile_number,
     addressAsPerAadhaar: row.address_as_per_aadhaar,
@@ -41,7 +44,7 @@ function mapKycSubmissionWithEncryptedIdentity(row) {
   };
 }
 
-export async function findLatestSellerKyc(userId, client) {
+export async function findLatestKycForUser(userId, client) {
   const result = await db(client).query(
     `SELECT *
      FROM kyc_submissions
@@ -54,7 +57,7 @@ export async function findLatestSellerKyc(userId, client) {
   return mapKycSubmission(result.rows[0]);
 }
 
-export async function findPendingSellerKyc(userId, client) {
+export async function findPendingKycForUser(userId, client) {
   const result = await db(client).query(
     `SELECT *
      FROM kyc_submissions
@@ -68,7 +71,7 @@ export async function findPendingSellerKyc(userId, client) {
   return mapKycSubmission(result.rows[0]);
 }
 
-export async function createSellerKycSubmission(data, client) {
+export async function createKycSubmission(data, client) {
   const result = await db(client).query(
     `INSERT INTO kyc_submissions (
       id,
@@ -123,20 +126,25 @@ export async function updateUserKycStatus(userId, status, client) {
   return result.rows[0] || null;
 }
 
-export async function listSellerKycSubmissions({ status, limit }, client) {
+export async function listKycSubmissions({ role, status, limit }, client) {
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
-  const params = [safeLimit];
-  const statusFilter = status ? "WHERE k.status = $2" : "";
+  const filters = ["u.role = $2"];
+  const params = [safeLimit, role];
 
   if (status) {
+    filters.push(`k.status = $${params.length + 1}`);
     params.push(status);
   }
 
   const result = await db(client).query(
-    `SELECT k.*
+    `SELECT
+       k.*,
+       u.role AS user_role,
+       u.email AS user_email,
+       u.phone AS user_phone
      FROM kyc_submissions k
      JOIN users u ON u.id = k.user_id
-     ${statusFilter}
+     WHERE ${filters.join(" AND ")}
      ORDER BY k.created_at DESC
      LIMIT $1`,
     params,
@@ -145,29 +153,73 @@ export async function listSellerKycSubmissions({ status, limit }, client) {
   return result.rows.map(mapKycSubmission);
 }
 
-export async function findKycSubmissionById(id, client) {
+export async function findKycSubmissionById(id, client, { role } = {}) {
+  const params = [id];
+  const roleFilter = role ? "AND u.role = $2" : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
-    `SELECT *
-     FROM kyc_submissions
-     WHERE id = $1`,
-    [id],
+    `SELECT
+       k.*,
+       u.role AS user_role,
+       u.email AS user_email,
+       u.phone AS user_phone
+     FROM kyc_submissions k
+     JOIN users u ON u.id = k.user_id
+     WHERE k.id = $1
+       ${roleFilter}`,
+    params,
   );
 
   return mapKycSubmission(result.rows[0]);
 }
 
-export async function findKycSubmissionWithEncryptedIdentityById(id, client) {
+export async function findKycSubmissionWithEncryptedIdentityById(
+  id,
+  client,
+  { role } = {},
+) {
+  const params = [id];
+  const roleFilter = role ? "AND u.role = $2" : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
-    `SELECT *
-     FROM kyc_submissions
-     WHERE id = $1`,
-    [id],
+    `SELECT
+       k.*,
+       u.role AS user_role,
+       u.email AS user_email,
+       u.phone AS user_phone
+     FROM kyc_submissions k
+     JOIN users u ON u.id = k.user_id
+     WHERE k.id = $1
+       ${roleFilter}`,
+    params,
   );
 
   return mapKycSubmissionWithEncryptedIdentity(result.rows[0]);
 }
 
-export async function approveKycSubmission({ id, reviewedBy }, client) {
+export async function approveKycSubmission({ id, reviewedBy, role }, client) {
+  const params = [id, reviewedBy];
+  const roleFilter = role
+    ? `AND EXISTS (
+         SELECT 1
+         FROM users u
+         WHERE u.id = kyc_submissions.user_id
+           AND u.role = $3
+       )`
+    : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
     `UPDATE kyc_submissions
      SET status = 'APPROVED',
@@ -177,14 +229,34 @@ export async function approveKycSubmission({ id, reviewedBy }, client) {
          updated_at = now()
      WHERE id = $1
        AND status = 'PENDING'
+       ${roleFilter}
      RETURNING *`,
-    [id, reviewedBy],
+    params,
   );
 
   return mapKycSubmission(result.rows[0]);
 }
 
-export async function rejectKycSubmission({ id, reviewedBy, rejectionReason }, client) {
+export async function rejectKycSubmission({
+  id,
+  reviewedBy,
+  rejectionReason,
+  role,
+}, client) {
+  const params = [id, reviewedBy, rejectionReason];
+  const roleFilter = role
+    ? `AND EXISTS (
+         SELECT 1
+         FROM users u
+         WHERE u.id = kyc_submissions.user_id
+           AND u.role = $4
+       )`
+    : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
     `UPDATE kyc_submissions
      SET status = 'REJECTED',
@@ -194,8 +266,9 @@ export async function rejectKycSubmission({ id, reviewedBy, rejectionReason }, c
          updated_at = now()
      WHERE id = $1
        AND status = 'PENDING'
+       ${roleFilter}
      RETURNING *`,
-    [id, reviewedBy, rejectionReason],
+    params,
   );
 
   return mapKycSubmission(result.rows[0]);

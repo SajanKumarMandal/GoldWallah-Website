@@ -42,6 +42,7 @@ export async function getDashboardSummary() {
   );
   const hasUserStatus = await columnExists("users", "status");
   const hasUserBlockedFlag = await columnExists("users", "is_blocked");
+  const hasAccountStatus = await columnExists("users", "account_status");
   const [
     totalSellers,
     totalJewellers,
@@ -119,7 +120,12 @@ export async function getDashboardSummary() {
       ])
     : hasUserBlockedFlag
       ? await countRows("SELECT COUNT(*) AS count FROM users WHERE is_blocked = true")
-      : 0;
+      : hasAccountStatus
+        ? await countRows(
+            "SELECT COUNT(*) AS count FROM users WHERE account_status = $1",
+            ["SUSPENDED"],
+          )
+        : 0;
 
   return {
     totalSellers,

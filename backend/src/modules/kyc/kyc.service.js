@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto";
-
 import { withTransaction } from "../../config/db.js";
+import { hashIdentityValue } from "../../utils/identityHash.js";
 import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
@@ -8,12 +7,12 @@ import {
 import { notifyUser } from "../notifications/notifications.service.js";
 import {
   approveKycSubmission,
-  createSellerKycSubmission,
+  createKycSubmission,
   findKycSubmissionById,
   findKycSubmissionWithEncryptedIdentityById,
-  findLatestSellerKyc,
-  findPendingSellerKyc,
-  listSellerKycSubmissions,
+  findLatestKycForUser,
+  findPendingKycForUser,
+  listKycSubmissions,
   rejectKycSubmission,
   updateUserKycStatus,
 } from "./kyc.repository.js";
@@ -22,8 +21,43 @@ import {
   encryptSensitiveValue,
 } from "./kyc.encryption.js";
 
-// Seller KYC service. Sensitive identity numbers are encrypted, hashes support
-// duplicate checks, and full identity admin views are audit logged.
+// Role-aware user KYC service. Sensitive identity numbers are encrypted,
+// hashes support duplicate checks, and full identity admin views are audited.
+const KYC_ROLE_CONFIG = {
+  SELLER: {
+    label: "Seller",
+    resourceType: "SELLER_KYC",
+    identityViewedAction: ADMIN_AUDIT_ACTIONS.sellerKycIdentityViewed,
+    approvedAction: ADMIN_AUDIT_ACTIONS.sellerKycApproved,
+    rejectedAction: ADMIN_AUDIT_ACTIONS.sellerKycRejected,
+    approvedTitle: "Seller KYC approved",
+    approvedBody:
+      "Your identity verification is approved. You can now create gold listings.",
+    rejectedTitle: "Seller KYC needs correction",
+    rejectedBody:
+      "Your identity verification was rejected. Review the reason and submit KYC again.",
+    submittedMessage: "Seller KYC submitted for review",
+    approvedMessage: "Seller KYC approved",
+    rejectedMessage: "Seller KYC rejected",
+  },
+  JEWELLER: {
+    label: "Jeweller",
+    resourceType: "JEWELLER_KYC",
+    identityViewedAction: ADMIN_AUDIT_ACTIONS.jewellerKycIdentityViewed,
+    approvedAction: ADMIN_AUDIT_ACTIONS.jewellerKycApproved,
+    rejectedAction: ADMIN_AUDIT_ACTIONS.jewellerKycRejected,
+    approvedTitle: "Jeweller KYC approved",
+    approvedBody:
+      "Your identity verification is approved. Complete business verification to unlock bidding.",
+    rejectedTitle: "Jeweller KYC needs correction",
+    rejectedBody:
+      "Your identity verification was rejected. Review the reason and submit KYC again.",
+    submittedMessage: "Jeweller KYC submitted for review",
+    approvedMessage: "Jeweller KYC approved",
+    rejectedMessage: "Jeweller KYC rejected",
+  },
+};
+
 function createError(message, statusCode, code) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -31,8 +65,50 @@ function createError(message, statusCode, code) {
   return error;
 }
 
-function hashSensitiveValue(value) {
-  return createHash("sha256").update(value).digest("hex");
+function mapKycConstraintError(error) {
+  if (error.code !== "23505") {
+    throw error;
+  }
+
+  if (
+    error.constraint === "unique_pending_kyc_per_user" ||
+    error.constraint === "idx_kyc_submissions_one_pending_per_user"
+  ) {
+    throw createError(
+      "Your KYC is already under review.",
+      409,
+      "KYC_ALREADY_PENDING",
+    );
+  }
+
+  if (
+    error.constraint === "unique_approved_kyc_aadhaar_hash" ||
+    error.constraint === "unique_approved_kyc_pan_hash"
+  ) {
+    throw createError(
+      "This identity is already approved for another account.",
+      409,
+      "KYC_IDENTITY_ALREADY_APPROVED",
+    );
+  }
+
+  throw error;
+}
+
+function roleConfig(role) {
+  const config = KYC_ROLE_CONFIG[role];
+
+  if (!config) {
+    throw createError("Unsupported KYC role", 400, "UNSUPPORTED_KYC_ROLE");
+  }
+
+  return config;
+}
+
+function assertUserRole(user, role) {
+  if (user?.role !== role) {
+    throw createError("Forbidden", 403, "FORBIDDEN");
+  }
 }
 
 function validateSelfieFreshness(selfieCapturedAt) {
@@ -76,9 +152,9 @@ function toSubmissionPayload(userId, payload) {
     fullName: payload.fullName,
     mobileNumber: payload.mobileNumber,
     addressAsPerAadhaar: payload.addressAsPerAadhaar,
-    aadhaarNumberHash: hashSensitiveValue(payload.aadhaarNumber),
+    aadhaarNumberHash: hashIdentityValue(payload.aadhaarNumber),
     aadhaarNumberEncrypted: encryptSensitiveValue(payload.aadhaarNumber),
-    panNumberHash: hashSensitiveValue(payload.panNumber),
+    panNumberHash: hashIdentityValue(payload.panNumber),
     panNumberEncrypted: encryptSensitiveValue(payload.panNumber),
     aadhaarLast4: payload.aadhaarNumber.slice(-4),
     panLast4: payload.panNumber.slice(-4),
@@ -88,19 +164,25 @@ function toSubmissionPayload(userId, payload) {
 }
 
 async function recordFullIdentityView({ adminUserId, kycId, requestMeta }) {
+  const config = roleConfig(requestMeta.role);
+
   await writeAdminAuditLog({
     actorAdminId: adminUserId,
-    action: ADMIN_AUDIT_ACTIONS.sellerKycIdentityViewed,
-    resourceType: "SELLER_KYC",
+    action: config.identityViewedAction,
+    resourceType: config.resourceType,
     resourceId: kycId,
     severity: "WARNING",
     requestMeta,
   });
 }
 
-export async function submitSellerKyc(user, payload) {
-  return withTransaction(async (client) => {
-    const latestSubmission = await findLatestSellerKyc(user.id, client);
+export async function submitKycForRole(user, payload, role) {
+  assertUserRole(user, role);
+  const config = roleConfig(role);
+
+  try {
+    return await withTransaction(async (client) => {
+    const latestSubmission = await findLatestKycForUser(user.id, client);
 
     if (latestSubmission?.status === "PENDING") {
       throw createError(
@@ -119,7 +201,7 @@ export async function submitSellerKyc(user, payload) {
     }
 
     const data = toSubmissionPayload(user.id, payload);
-    const pendingSubmission = await findPendingSellerKyc(user.id, client);
+    const pendingSubmission = await findPendingKycForUser(user.id, client);
 
     if (pendingSubmission) {
       throw createError(
@@ -129,23 +211,27 @@ export async function submitSellerKyc(user, payload) {
       );
     }
 
-    const submission = await createSellerKycSubmission(data, client);
+    const submission = await createKycSubmission(data, client);
 
     await updateUserKycStatus(user.id, "PENDING", client);
 
     return {
       success: true,
-      message: "Seller KYC submitted for review",
+      message: config.submittedMessage,
       data: {
         kycStatus: "PENDING",
         submission,
       },
     };
-  });
+    });
+  } catch (error) {
+    mapKycConstraintError(error);
+  }
 }
 
-export async function getSellerKyc(user) {
-  const submission = await findLatestSellerKyc(user.id);
+export async function getKycForRole(user, role) {
+  assertUserRole(user, role);
+  const submission = await findLatestKycForUser(user.id);
 
   return {
     success: true,
@@ -156,15 +242,26 @@ export async function getSellerKyc(user) {
   };
 }
 
-export async function getSellerKycSubmissions(filters) {
+export async function getKycSubmissionsForRole(role, filters) {
+  roleConfig(role);
+
   return {
     success: true,
-    data: await listSellerKycSubmissions(filters),
+    data: await listKycSubmissions({ ...filters, role }),
   };
 }
 
-export async function getSellerKycSubmission(kycId, adminUser, requestMeta) {
-  const submission = await findKycSubmissionWithEncryptedIdentityById(kycId);
+export async function getKycSubmissionForRole(
+  role,
+  kycId,
+  adminUser,
+  requestMeta,
+) {
+  const submission = await findKycSubmissionWithEncryptedIdentityById(
+    kycId,
+    undefined,
+    { role },
+  );
 
   if (!submission) {
     throw createError("KYC submission not found", 404, "KYC_NOT_FOUND");
@@ -173,7 +270,7 @@ export async function getSellerKycSubmission(kycId, adminUser, requestMeta) {
   await recordFullIdentityView({
     adminUserId: adminUser.id,
     kycId,
-    requestMeta,
+    requestMeta: { ...requestMeta, role },
   });
 
   return {
@@ -199,16 +296,21 @@ export async function getSellerKycSubmission(kycId, adminUser, requestMeta) {
   };
 }
 
-export async function approveSellerKyc({ kycId, adminUser }) {
-  return withTransaction(async (client) => {
-    const existingSubmission = await findKycSubmissionById(kycId, client);
+export async function approveKycForRole({ role, kycId, adminUser, requestMeta }) {
+  const config = roleConfig(role);
+
+  try {
+    return await withTransaction(async (client) => {
+    const existingSubmission = await findKycSubmissionById(kycId, client, {
+      role,
+    });
 
     if (!existingSubmission) {
       throw createError("KYC submission not found", 404, "KYC_NOT_FOUND");
     }
 
     const submission = await approveKycSubmission(
-      { id: kycId, reviewedBy: adminUser.id },
+      { id: kycId, reviewedBy: adminUser.id, role },
       client,
     );
 
@@ -225,28 +327,53 @@ export async function approveSellerKyc({ kycId, adminUser }) {
       {
         userId: submission.userId,
         type: "KYC_APPROVED",
-        title: "Seller KYC approved",
-        body: "Your identity verification is approved. You can now create gold listings.",
-        entityType: "SELLER_KYC",
+        title: config.approvedTitle,
+        body: config.approvedBody,
+        entityType: config.resourceType,
         entityId: submission.id,
+      },
+      client,
+    );
+    await writeAdminAuditLog(
+      {
+        actorAdminId: adminUser.id,
+        action: config.approvedAction,
+        resourceType: config.resourceType,
+        resourceId: submission.id,
+        oldValue: { status: existingSubmission.status },
+        newValue: { status: submission.status, userId: submission.userId },
+        requestMeta,
       },
       client,
     );
 
     return {
       success: true,
-      message: "Seller KYC approved",
+      message: config.approvedMessage,
       data: {
         kycStatus: "APPROVED",
         submission,
       },
     };
-  });
+    });
+  } catch (error) {
+    mapKycConstraintError(error);
+  }
 }
 
-export async function rejectSellerKyc({ kycId, adminUser, rejectionReason }) {
+export async function rejectKycForRole({
+  role,
+  kycId,
+  adminUser,
+  rejectionReason,
+  requestMeta,
+}) {
+  const config = roleConfig(role);
+
   return withTransaction(async (client) => {
-    const existingSubmission = await findKycSubmissionById(kycId, client);
+    const existingSubmission = await findKycSubmissionById(kycId, client, {
+      role,
+    });
 
     if (!existingSubmission) {
       throw createError("KYC submission not found", 404, "KYC_NOT_FOUND");
@@ -257,6 +384,7 @@ export async function rejectSellerKyc({ kycId, adminUser, rejectionReason }) {
         id: kycId,
         reviewedBy: adminUser.id,
         rejectionReason,
+        role,
       },
       client,
     );
@@ -274,17 +402,35 @@ export async function rejectSellerKyc({ kycId, adminUser, rejectionReason }) {
       {
         userId: submission.userId,
         type: "KYC_REJECTED",
-        title: "Seller KYC needs correction",
-        body: "Your identity verification was rejected. Review the reason and submit KYC again.",
-        entityType: "SELLER_KYC",
+        title: config.rejectedTitle,
+        body: config.rejectedBody,
+        entityType: config.resourceType,
         entityId: submission.id,
+      },
+      client,
+    );
+    await writeAdminAuditLog(
+      {
+        actorAdminId: adminUser.id,
+        action: config.rejectedAction,
+        resourceType: config.resourceType,
+        resourceId: submission.id,
+        oldValue: { status: existingSubmission.status },
+        newValue: {
+          status: submission.status,
+          userId: submission.userId,
+          rejectionReason,
+        },
+        reason: rejectionReason,
+        severity: "WARNING",
+        requestMeta,
       },
       client,
     );
 
     return {
       success: true,
-      message: "Seller KYC rejected",
+      message: config.rejectedMessage,
       data: {
         kycStatus: "REJECTED",
         submission,
@@ -292,3 +438,38 @@ export async function rejectSellerKyc({ kycId, adminUser, rejectionReason }) {
     };
   });
 }
+
+export function kycSelfieViewedActionForRole(role) {
+  if (role === "JEWELLER") {
+    return ADMIN_AUDIT_ACTIONS.jewellerKycSelfieViewed;
+  }
+
+  return ADMIN_AUDIT_ACTIONS.sellerKycSelfieViewed;
+}
+
+export function kycResourceTypeForRole(role) {
+  return roleConfig(role).resourceType;
+}
+
+export const submitSellerKyc = (user, payload) =>
+  submitKycForRole(user, payload, "SELLER");
+export const getSellerKyc = (user) => getKycForRole(user, "SELLER");
+export const getSellerKycSubmissions = (filters) =>
+  getKycSubmissionsForRole("SELLER", filters);
+export const getSellerKycSubmission = (kycId, adminUser, requestMeta) =>
+  getKycSubmissionForRole("SELLER", kycId, adminUser, requestMeta);
+export const approveSellerKyc = ({ kycId, adminUser, requestMeta }) =>
+  approveKycForRole({ role: "SELLER", kycId, adminUser, requestMeta });
+export const rejectSellerKyc = ({
+  kycId,
+  adminUser,
+  rejectionReason,
+  requestMeta,
+}) =>
+  rejectKycForRole({
+    role: "SELLER",
+    kycId,
+    adminUser,
+    rejectionReason,
+    requestMeta,
+  });

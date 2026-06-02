@@ -7,7 +7,9 @@
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `KYC_ENCRYPTION_KEY`
+- `KYC_IDENTITY_HASH_SECRET`
 - `ADMIN_JWT_ACCESS_SECRET`
+- `ADMIN_SEED_MFA_SECRET` when seeding the first production admin
 - `PRIVATE_MEDIA_SIGNING_SECRET`
 - `FRONTEND_ORIGIN`
 - `FRONTEND_URL`
@@ -32,7 +34,9 @@
 - Confirm `/uploads/kyc/...` and `/uploads/jeweller-verifications/...` are not served.
 - Confirm private document previews use `/api/v1/media/private/...` signed URLs.
 - Confirm admin KYC/business detail views create admin audit log rows.
+- Confirm approved Aadhaar/PAN/GST/license identities cannot be approved twice.
 - Confirm user refresh tokens are set only as HttpOnly cookies.
+- Confirm every production admin account has MFA enabled before launch.
 - Confirm user and admin refresh/logout endpoints clear cookies and rotate sessions from cookies only.
 - Confirm Postgres TLS uses certificate verification.
 - Confirm mock OTP and placeholder OAuth flows are disabled in production.

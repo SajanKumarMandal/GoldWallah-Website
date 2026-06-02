@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BarChart3,
+  Building2,
   FileCheck2,
   ReceiptIndianRupee,
   LogOut,
@@ -10,38 +11,56 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
+import { ROUTES } from "@/constants/routes";
+
 const navItems = [
   {
-    to: "/admin/dashboard",
+    to: ROUTES.adminDashboard,
     label: "Dashboard",
     icon: BarChart3,
     permission: "admin.dashboard.view",
   },
   {
-    to: "/admin/kyc",
+    to: ROUTES.adminKyc,
     label: "Seller KYC",
     icon: FileCheck2,
     permission: "admin.kyc.seller.view",
   },
   {
-    to: "/admin/commissions",
+    to: ROUTES.adminJewellerKyc,
+    label: "Jeweller KYC",
+    icon: FileCheck2,
+    permission: "admin.kyc.jeweller.view",
+  },
+  {
+    to: ROUTES.adminBusinessVerifications,
+    label: "Business Verification",
+    icon: Building2,
+    permission: "admin.business.view",
+  },
+  {
+    to: ROUTES.adminUsers,
+    label: "Users",
+    icon: UsersRound,
+    permission: "admin.users.view",
+  },
+  {
+    to: ROUTES.adminCommissions,
     label: "Commissions",
     icon: ReceiptIndianRupee,
     permission: "admin.commissions.view",
   },
   {
-    to: "/admin/sub-admins",
+    to: ROUTES.adminSubAdmins,
     label: "Sub-admins",
     icon: UsersRound,
     permission: "admin.subadmins.view",
-    disabled: true,
   },
   {
-    to: "/admin/audit",
-    label: "Audit logs",
+    to: ROUTES.adminAuditSecurity,
+    label: "Audit & security",
     icon: AlertTriangle,
     permission: "admin.audit.view",
-    disabled: true,
   },
 ];
 

@@ -302,6 +302,26 @@ export async function rejectBid(bidId, client) {
   return mapBid(result.rows[0]);
 }
 
+export async function rejectPendingBidsForListing(listingId, client) {
+  const result = await db(client).query(
+    `UPDATE private_bids b
+     SET status = 'REJECTED',
+         decided_at = COALESCE(decided_at, now())
+     FROM gold_listings l
+     WHERE b.listing_id = l.id
+       AND b.listing_id = $1
+       AND b.status = 'PENDING'
+     RETURNING
+       b.*,
+       l.seller_id,
+       l.title AS listing_title,
+       l.status AS listing_status`,
+    [listingId],
+  );
+
+  return result.rows.map(mapBid);
+}
+
 export async function createBidAuditLog(data, client) {
   await db(client).query(
     `INSERT INTO audit_logs (

@@ -7,6 +7,7 @@ import { auditLogsRouter } from "../modules/auditLogs/auditLogs.routes.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { bidsRouter } from "../modules/bids/bids.routes.js";
 import { businessVerificationRouter } from "../modules/businessVerification/businessVerification.routes.js";
+import { commissionsRouter } from "../modules/commissions/commissions.routes.js";
 import {
   jewellerDashboardRouter,
   sellerDashboardRouter,
@@ -38,6 +39,7 @@ apiRouter.get("/status", (_request, response) => {
       "business-verification",
       "listings",
       "bids",
+      "commissions",
       "deals",
       "notifications",
       "geo-matching",
@@ -58,6 +60,7 @@ apiRouter.use("/kyc", kycRouter);
 apiRouter.use("/business-verification", businessVerificationRouter);
 apiRouter.use("/listings", listingsRouter);
 apiRouter.use("/bids", bidsRouter);
+apiRouter.use("/commissions", commissionsRouter);
 apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/geo-matching", geoMatchingRouter);

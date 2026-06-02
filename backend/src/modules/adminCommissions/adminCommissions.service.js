@@ -56,6 +56,7 @@ export async function markAdminCommissionPaid({
       {
         id: commissionId,
         razorpayPaymentId: payload.razorpayPaymentId,
+        paymentReference: payload.paymentReference,
       },
       client,
     );
@@ -81,6 +82,19 @@ export async function markAdminCommissionPaid({
       },
       client,
     );
+    if (commission.sellerId && commission.dealId) {
+      await notifyUser(
+        {
+          userId: commission.sellerId,
+          type: "DEAL_READY_TO_SETTLE",
+          title: "Deal ready to settle",
+          body: "The jeweller commission has cleared. You can now complete the deal.",
+          entityType: "DEAL",
+          entityId: commission.dealId,
+        },
+        client,
+      );
+    }
     await writeAdminAuditLog(
       {
         actorAdminId: admin.id,
@@ -91,7 +105,8 @@ export async function markAdminCommissionPaid({
         newValue: {
           status: commission.status,
           paidAt: commission.paidAt,
-          razorpayPaymentId: payload.razorpayPaymentId || null,
+          razorpayPaymentId: commission.razorpayPaymentId || null,
+          paymentReference: commission.paymentReference || null,
         },
         severity: "INFO",
         requestMeta,
@@ -104,6 +119,16 @@ export async function markAdminCommissionPaid({
       message: "Commission marked paid",
       data: commission,
     };
+  }).catch((error) => {
+    if (error.code === "23505") {
+      throw createError(
+        "Payment reference is already linked to another commission",
+        409,
+        "COMMISSION_PAYMENT_REFERENCE_EXISTS",
+      );
+    }
+
+    throw error;
   });
 }
 
@@ -150,6 +175,19 @@ export async function waiveAdminCommission({
       },
       client,
     );
+    if (commission.sellerId && commission.dealId) {
+      await notifyUser(
+        {
+          userId: commission.sellerId,
+          type: "DEAL_READY_TO_SETTLE",
+          title: "Deal ready to settle",
+          body: "The platform commission has been waived. You can now complete the deal.",
+          entityType: "DEAL",
+          entityId: commission.dealId,
+        },
+        client,
+      );
+    }
     await writeAdminAuditLog(
       {
         actorAdminId: admin.id,

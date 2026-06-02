@@ -88,9 +88,12 @@ export default function JewellerVerificationPage() {
 
   const verification = verificationPayload?.verification || null;
   const status = resolveStatus(verificationPayload);
+  const kycStatus = user?.kycStatus || "NOT_SUBMITTED";
+  const hasApprovedKyc = kycStatus === "APPROVED";
   const canSubmit =
-    status === JEWELLER_VERIFICATION_STATUS.notSubmitted ||
-    status === JEWELLER_VERIFICATION_STATUS.rejected;
+    hasApprovedKyc &&
+    (status === JEWELLER_VERIFICATION_STATUS.notSubmitted ||
+      status === JEWELLER_VERIFICATION_STATUS.rejected);
 
   async function handleSubmit(formData) {
     if (!accessToken) {
@@ -157,6 +160,20 @@ export default function JewellerVerificationPage() {
         <p className="rounded-2xl bg-(--gw-color-gold)/12 px-4 py-3 text-sm font-medium text-(--gw-color-green)">
           {statusMessage}
         </p>
+      ) : null}
+
+      {!hasApprovedKyc ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-(--gw-color-gold)/40 bg-(--gw-color-gold)/10 px-4 py-3 text-sm font-medium text-(--gw-color-green) sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Approved jeweller KYC is required before business verification.
+          </span>
+          <Link
+            to={ROUTES.jewellerKyc}
+            className="inline-flex h-10 items-center justify-center rounded-full bg-(--gw-color-green) px-4 text-sm font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
+          >
+            Complete KYC
+          </Link>
+        </div>
       ) : null}
 
       {status === JEWELLER_VERIFICATION_STATUS.rejected ? (

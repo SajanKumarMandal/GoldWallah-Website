@@ -4,10 +4,14 @@ function authHeaders(accessToken) {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
-export async function loginAdmin({ email, password }) {
+export async function loginAdmin({ email, password, mfaCode }) {
   return apiRequest("admin/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+      ...(mfaCode ? { mfaCode } : {}),
+    }),
   });
 }
 
@@ -34,6 +38,22 @@ export async function logoutAdmin(accessToken) {
 
 export async function changeAdminPassword(accessToken, payload) {
   return apiRequest("admin/auth/change-password", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function beginAdminMfaSetup(accessToken, payload) {
+  return apiRequest("admin/auth/mfa/setup", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function confirmAdminMfaSetup(accessToken, payload) {
+  return apiRequest("admin/auth/mfa/confirm", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(payload),

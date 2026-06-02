@@ -39,14 +39,17 @@ const envSchema = z.object({
   TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(""),
   TWILIO_FROM_PHONE: z.string().optional().default(""),
   KYC_ENCRYPTION_KEY: z.string().optional().default(""),
+  KYC_IDENTITY_HASH_SECRET: z.string().optional().default(""),
   PRIVATE_MEDIA_SIGNING_SECRET: z.string().optional().default(""),
   PG_SSL_CA: z.string().optional().default(""),
   PG_SSL_CA_FILE: z.string().optional().default(""),
   ADMIN_JWT_ACCESS_SECRET: z.string().optional().default(""),
   ADMIN_ACCESS_TOKEN_TTL: z.string().min(1).default("15m"),
   ADMIN_REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  ADMIN_MFA_REQUIRED: z.enum(["true", "false"]).default("false"),
   ADMIN_SEED_EMAIL: z.string().optional().default(""),
   ADMIN_SEED_PASSWORD: z.string().optional().default(""),
+  ADMIN_SEED_MFA_SECRET: z.string().optional().default(""),
   ADMIN_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   ADMIN_LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
   UPLOAD_STORAGE_PROVIDER: z.enum(["local", "cloudinary"]).default("local"),
@@ -68,6 +71,14 @@ if (
   !parsedEnv.data.KYC_ENCRYPTION_KEY
 ) {
   console.error("Missing required environment variable: KYC_ENCRYPTION_KEY");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  !parsedEnv.data.KYC_IDENTITY_HASH_SECRET
+) {
+  console.error("Missing required environment variable: KYC_IDENTITY_HASH_SECRET");
   process.exit(1);
 }
 
@@ -100,6 +111,15 @@ if (
   !parsedEnv.data.PRIVATE_MEDIA_SIGNING_SECRET
 ) {
   console.error("Missing required environment variable: PRIVATE_MEDIA_SIGNING_SECRET");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  !parsedEnv.data.PG_SSL_CA &&
+  !parsedEnv.data.PG_SSL_CA_FILE
+) {
+  console.error("PG_SSL_CA or PG_SSL_CA_FILE is required in production");
   process.exit(1);
 }
 
@@ -178,6 +198,7 @@ export const env = {
   twilioVerifyServiceSid: parsedEnv.data.TWILIO_VERIFY_SERVICE_SID,
   twilioFromPhone: parsedEnv.data.TWILIO_FROM_PHONE,
   kycEncryptionKey: parsedEnv.data.KYC_ENCRYPTION_KEY,
+  kycIdentityHashSecret: parsedEnv.data.KYC_IDENTITY_HASH_SECRET,
   privateMediaSigningSecret:
     parsedEnv.data.PRIVATE_MEDIA_SIGNING_SECRET ||
     parsedEnv.data.JWT_ACCESS_SECRET,
@@ -185,8 +206,12 @@ export const env = {
   adminJwtAccessSecret: parsedEnv.data.ADMIN_JWT_ACCESS_SECRET,
   adminAccessTokenTtl: parsedEnv.data.ADMIN_ACCESS_TOKEN_TTL,
   adminRefreshTokenTtlDays: parsedEnv.data.ADMIN_REFRESH_TOKEN_TTL_DAYS,
+  adminMfaRequired:
+    parsedEnv.data.NODE_ENV === "production" ||
+    parsedEnv.data.ADMIN_MFA_REQUIRED === "true",
   adminSeedEmail: parsedEnv.data.ADMIN_SEED_EMAIL,
   adminSeedPassword: parsedEnv.data.ADMIN_SEED_PASSWORD,
+  adminSeedMfaSecret: parsedEnv.data.ADMIN_SEED_MFA_SECRET,
   adminLoginMaxAttempts: parsedEnv.data.ADMIN_LOGIN_MAX_ATTEMPTS,
   adminLoginLockMinutes: parsedEnv.data.ADMIN_LOGIN_LOCK_MINUTES,
   uploadStorageProvider: parsedEnv.data.UPLOAD_STORAGE_PROVIDER,

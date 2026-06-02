@@ -69,6 +69,73 @@ function mapSession(row) {
   };
 }
 
+function mapPlatformUser(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    phone: row.phone,
+    role: row.role,
+    authProvider: row.auth_provider,
+    isEmailVerified: row.is_email_verified,
+    isPhoneVerified: row.is_phone_verified,
+    kycStatus: row.kyc_status,
+    businessVerificationStatus: row.business_verification_status,
+    commissionLockStatus: row.commission_lock_status,
+    accountStatus: row.account_status,
+    profileCity: row.profile_city,
+    profileState: row.profile_state,
+    listingCount: Number(row.listing_count || 0),
+    bidCount: Number(row.bid_count || 0),
+    dealCount: Number(row.deal_count || 0),
+    pendingCommissionAmount: Number(row.pending_commission_amount || 0),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function addPlatformUserFilters(filters, clauses, params) {
+  if (filters.role) {
+    params.push(filters.role);
+    clauses.push(`u.role = $${params.length}`);
+  } else {
+    clauses.push("u.role IN ('SELLER', 'JEWELLER')");
+  }
+
+  if (filters.accountStatus) {
+    params.push(filters.accountStatus);
+    clauses.push(`u.account_status = $${params.length}`);
+  }
+
+  if (filters.kycStatus) {
+    params.push(filters.kycStatus);
+    clauses.push(`u.kyc_status = $${params.length}`);
+  }
+
+  if (filters.businessVerificationStatus) {
+    params.push(filters.businessVerificationStatus);
+    clauses.push(`u.business_verification_status = $${params.length}`);
+  }
+
+  if (filters.search) {
+    params.push(`%${filters.search}%`);
+    clauses.push(
+      `(u.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR u.phone ILIKE $${params.length})`,
+    );
+  }
+
+  if (filters.cursor?.createdAt && filters.cursor?.id) {
+    params.push(filters.cursor.createdAt, filters.cursor.id);
+    clauses.push(
+      `(u.created_at, u.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`,
+    );
+  }
+}
+
 export async function countAdminUsers(client) {
   const result = await db(client).query("SELECT COUNT(*)::int AS count FROM admin_users");
   return result.rows[0]?.count || 0;
@@ -99,11 +166,13 @@ export async function createAdminUser(data, client) {
       password_hash,
       status,
       is_super_admin,
+      mfa_enabled,
+      mfa_secret_encrypted,
       must_change_password,
       password_changed_at,
       created_by
     )
-    VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8, $9, $10)
     RETURNING *`,
     [
       randomUUID(),
@@ -111,6 +180,8 @@ export async function createAdminUser(data, client) {
       data.email,
       data.passwordHash,
       Boolean(data.isSuperAdmin),
+      Boolean(data.mfaEnabled),
+      data.mfaSecretEncrypted ?? null,
       Boolean(data.mustChangePassword),
       data.passwordChangedAt ?? null,
       data.createdBy ?? null,
@@ -328,6 +399,151 @@ export async function updateAdminStatus({ id, status }, client) {
   return mapAdminUser(result.rows[0]);
 }
 
+export async function listPlatformUsers(filters = {}, client) {
+  const safeLimit = Math.min(Math.max(Number(filters.limit) || 50, 1), 100);
+  const clauses = [];
+  const params = [];
+
+  addPlatformUserFilters(filters, clauses, params);
+
+  params.push(safeLimit + 1);
+  const result = await db(client).query(
+    `WITH listing_counts AS (
+       SELECT seller_id AS user_id, COUNT(*)::int AS listing_count
+       FROM gold_listings
+       GROUP BY seller_id
+     ),
+     bid_counts AS (
+       SELECT jeweller_id AS user_id, COUNT(*)::int AS bid_count
+       FROM private_bids
+       GROUP BY jeweller_id
+     ),
+     deal_counts AS (
+       SELECT user_id, COUNT(*)::int AS deal_count
+       FROM (
+         SELECT seller_id AS user_id FROM deals
+         UNION ALL
+         SELECT jeweller_id AS user_id FROM deals
+       ) deal_users
+       GROUP BY user_id
+     ),
+     commission_totals AS (
+       SELECT
+         jeweller_id AS user_id,
+         COALESCE(SUM(commission_amount), 0) AS pending_commission_amount
+       FROM platform_commissions
+       WHERE status IN ('PENDING', 'PAYMENT_INITIATED', 'FAILED', 'DISPUTED')
+       GROUP BY jeweller_id
+     )
+     SELECT
+       u.id,
+       u.full_name,
+       u.email,
+       u.phone,
+       u.role,
+       u.auth_provider,
+       u.is_email_verified,
+       u.is_phone_verified,
+       u.kyc_status,
+       u.business_verification_status,
+       u.commission_lock_status,
+       u.account_status,
+       u.profile_city,
+       u.profile_state,
+       u.created_at,
+       u.updated_at,
+       COALESCE(lc.listing_count, 0) AS listing_count,
+       COALESCE(bc.bid_count, 0) AS bid_count,
+       COALESCE(dc.deal_count, 0) AS deal_count,
+       COALESCE(ct.pending_commission_amount, 0) AS pending_commission_amount
+     FROM users u
+     LEFT JOIN listing_counts lc ON lc.user_id = u.id
+     LEFT JOIN bid_counts bc ON bc.user_id = u.id
+     LEFT JOIN deal_counts dc ON dc.user_id = u.id
+     LEFT JOIN commission_totals ct ON ct.user_id = u.id
+     WHERE ${clauses.join(" AND ")}
+     ORDER BY u.created_at DESC, u.id DESC
+     LIMIT $${params.length}`,
+    params,
+  );
+  const rows = result.rows.slice(0, safeLimit);
+
+  return {
+    users: rows.map(mapPlatformUser),
+    hasMore: result.rows.length > safeLimit,
+    nextCursor: result.rows.length > safeLimit ? rows[rows.length - 1] : null,
+  };
+}
+
+export async function findPlatformUserById(userId, client) {
+  const result = await db(client).query(
+    `SELECT
+       id,
+       full_name,
+       email,
+       phone,
+       role,
+       auth_provider,
+       is_email_verified,
+       is_phone_verified,
+       kyc_status,
+       business_verification_status,
+       commission_lock_status,
+       account_status,
+       profile_city,
+       profile_state,
+       0 AS listing_count,
+       0 AS bid_count,
+       0 AS deal_count,
+       0 AS pending_commission_amount,
+       created_at,
+       updated_at
+     FROM users
+     WHERE id = $1
+       AND role IN ('SELLER', 'JEWELLER')`,
+    [userId],
+  );
+
+  return mapPlatformUser(result.rows[0]);
+}
+
+export async function updatePlatformUserAccountStatus(
+  { userId, accountStatus },
+  client,
+) {
+  const result = await db(client).query(
+    `UPDATE users
+     SET account_status = $2,
+         updated_at = now()
+     WHERE id = $1
+       AND role IN ('SELLER', 'JEWELLER')
+     RETURNING
+       id,
+       full_name,
+       email,
+       phone,
+       role,
+       auth_provider,
+       is_email_verified,
+       is_phone_verified,
+       kyc_status,
+       business_verification_status,
+       commission_lock_status,
+       account_status,
+       profile_city,
+       profile_state,
+       0 AS listing_count,
+       0 AS bid_count,
+       0 AS deal_count,
+       0 AS pending_commission_amount,
+       created_at,
+       updated_at`,
+    [userId, accountStatus],
+  );
+
+  return mapPlatformUser(result.rows[0]);
+}
+
 export async function updateAdminPassword(
   { id, passwordHash, mustChangePassword = false },
   client,
@@ -343,6 +559,23 @@ export async function updateAdminPassword(
      WHERE id = $1
      RETURNING *`,
     [id, passwordHash, Boolean(mustChangePassword)],
+  );
+
+  return mapAdminUser(result.rows[0]);
+}
+
+export async function updateAdminMfaSecret(
+  { id, mfaSecretEncrypted, mfaEnabled },
+  client,
+) {
+  const result = await db(client).query(
+    `UPDATE admin_users
+     SET mfa_secret_encrypted = $2,
+         mfa_enabled = $3,
+         updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [id, mfaSecretEncrypted ?? null, Boolean(mfaEnabled)],
   );
 
   return mapAdminUser(result.rows[0]);

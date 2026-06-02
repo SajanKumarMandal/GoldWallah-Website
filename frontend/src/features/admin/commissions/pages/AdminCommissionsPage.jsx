@@ -30,6 +30,7 @@ export default function AdminCommissionsPage() {
   const [commissions, setCommissions] = useState([]);
   const [statusFilter, setStatusFilter] = useState("PENDING");
   const [waiverReasons, setWaiverReasons] = useState({});
+  const [paymentReferences, setPaymentReferences] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -93,12 +94,25 @@ export default function AdminCommissionsPage() {
     };
   }, [accessToken, navigate, statusFilter]);
 
-  async function handleMarkPaid(commissionId) {
+  async function handleMarkPaid(commission) {
+    const enteredReference = String(paymentReferences[commission.id] || "").trim();
+    const paymentReference = enteredReference || commission.paymentReference || "";
+    const referencePattern = /^[a-zA-Z0-9._:@/-]+$/;
+
+    if (paymentReference.length < 4 || !referencePattern.test(paymentReference)) {
+      setErrorMessage("Payment reference must be at least 4 valid characters.");
+      return;
+    }
+
+    const commissionId = commission.id;
     setBusyId(commissionId);
     setErrorMessage("");
 
     try {
-      await markAdminCommissionPaid(accessToken, commissionId);
+      await markAdminCommissionPaid(accessToken, commissionId, {
+        paymentReference,
+      });
+      setPaymentReferences((current) => ({ ...current, [commissionId]: "" }));
       await loadCommissions();
     } catch (error) {
       setErrorMessage(error.message || "Unable to mark commission paid.");
@@ -218,6 +232,19 @@ export default function AdminCommissionsPage() {
                         <p className="mt-1 text-xs text-(--gw-color-muted)">
                           Gross {formatMoney(commission.grossDealAmount)}
                         </p>
+                        {commission.paymentReference ? (
+                          <p className="gw-break-text mt-2 text-xs font-semibold text-(--gw-color-green)">
+                            Ref: {commission.paymentReference}
+                          </p>
+                        ) : null}
+                        {commission.lastPaymentAttemptAt ? (
+                          <p className="mt-1 text-xs text-(--gw-color-muted)">
+                            Submitted {new Intl.DateTimeFormat("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }).format(new Date(commission.lastPaymentAttemptAt))}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-5 py-4 align-top">
                         <p className="font-semibold text-(--gw-color-green)">
@@ -235,9 +262,25 @@ export default function AdminCommissionsPage() {
                       <td className="min-w-72 px-5 py-4 align-top">
                         {canSettle(commission) ? (
                           <div className="space-y-3">
+                            <input
+                              type="text"
+                              value={paymentReferences[commission.id] || ""}
+                              onChange={(event) =>
+                                setPaymentReferences((current) => ({
+                                  ...current,
+                                  [commission.id]: event.target.value,
+                                }))
+                              }
+                              placeholder={
+                                commission.paymentReference
+                                  ? "Uses submitted reference if blank"
+                                  : "Settlement reference"
+                              }
+                              className="h-10 w-full rounded-2xl border border-(--gw-color-border) px-3 text-sm outline-none focus:border-(--gw-color-gold)"
+                            />
                             <button
                               type="button"
-                              onClick={() => handleMarkPaid(commission.id)}
+                              onClick={() => handleMarkPaid(commission)}
                               disabled={busyId === commission.id}
                               className="inline-flex h-10 items-center justify-center rounded-full bg-(--gw-color-green) px-4 text-sm font-semibold text-white transition hover:bg-(--gw-color-green)/90 disabled:cursor-not-allowed disabled:opacity-60"
                             >

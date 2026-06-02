@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/context/useAuth";
+import { getMyJewellerKyc } from "@/features/jeweller/services/jewellerKycService";
 import { KYC_STATUS } from "@/features/seller/constants/kycStatus";
 import { getMySellerKyc } from "@/features/seller/services/sellerKycService";
 
@@ -9,7 +10,7 @@ function resolveStatus(payload) {
   return payload?.submission?.status || payload?.kycStatus || "";
 }
 
-export function useSellerKycStatusSync({ intervalMs = 5_000 } = {}) {
+export function useKycStatusSync({ intervalMs = 5_000 } = {}) {
   const { accessToken, user, setAuthUser } = useAuth();
   const userRef = useRef(user);
 
@@ -20,7 +21,7 @@ export function useSellerKycStatusSync({ intervalMs = 5_000 } = {}) {
   useEffect(() => {
     const shouldSync =
       accessToken &&
-      user?.role === USER_ROLES.seller &&
+      [USER_ROLES.seller, USER_ROLES.jeweller].includes(user?.role) &&
       user?.kycStatus === KYC_STATUS.pending;
 
     if (!shouldSync) {
@@ -37,7 +38,11 @@ export function useSellerKycStatusSync({ intervalMs = 5_000 } = {}) {
       }
 
       try {
-        const result = await getMySellerKyc(accessToken);
+        const getMyKyc =
+          userRef.current?.role === USER_ROLES.jeweller
+            ? getMyJewellerKyc
+            : getMySellerKyc;
+        const result = await getMyKyc(accessToken);
         const nextStatus = resolveStatus(result?.data);
         const currentUser = userRef.current;
 
@@ -50,8 +55,7 @@ export function useSellerKycStatusSync({ intervalMs = 5_000 } = {}) {
           setAuthUser({ ...currentUser, kycStatus: nextStatus });
         }
       } catch {
-        // Keep the existing session state. Protected API routes still enforce
-        // the latest KYC status server-side if this background sync misses.
+        // Protected API routes still enforce the latest KYC state server-side.
       } finally {
         if (isMounted) {
           timerId = window.setTimeout(syncKycStatus, intervalMs);

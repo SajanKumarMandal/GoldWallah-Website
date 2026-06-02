@@ -12,9 +12,9 @@ import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom
 import { ROUTES } from "@/constants/routes";
 import { clearAdminSession } from "@/features/admin/auth/utils/adminTokenStorage";
 import {
-  approveSellerKyc,
-  getSellerKycSubmission,
-  rejectSellerKyc,
+  approveKyc,
+  getKycSubmission,
+  rejectKyc,
 } from "@/features/admin/services/adminKycService";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
@@ -40,10 +40,37 @@ function normalizeSubmission(result) {
   return result?.data?.submission || result?.data || null;
 }
 
-export default function AdminKycDetailPage() {
+const roleCopy = {
+  seller: {
+    subject: "Seller",
+    backRoute: ROUTES.adminKyc,
+    defaultTitle: "Seller KYC detail",
+    approvedMessage:
+      "Seller KYC approved. The seller account is now unlocked for listing creation.",
+    rejectedMessage: "Seller KYC rejected. The seller can now correct and resubmit KYC.",
+    decisionDescription: "Approvals and rejections update the seller account immediately.",
+    selfieAlt: "Seller",
+    rejectionPlaceholder: "Explain what the seller must correct",
+  },
+  jeweller: {
+    subject: "Jeweller",
+    backRoute: ROUTES.adminJewellerKyc,
+    defaultTitle: "Jeweller KYC detail",
+    approvedMessage:
+      "Jeweller KYC approved. Business verification can now complete bidding access.",
+    rejectedMessage:
+      "Jeweller KYC rejected. The jeweller can now correct and resubmit KYC.",
+    decisionDescription: "Approvals and rejections update the jeweller account immediately.",
+    selfieAlt: "Jeweller",
+    rejectionPlaceholder: "Explain what the jeweller must correct",
+  },
+};
+
+export default function AdminKycDetailPage({ role = "seller" }) {
   const { accessToken } = useOutletContext();
   const { kycId } = useParams();
   const navigate = useNavigate();
+  const copy = roleCopy[role] || roleCopy.seller;
   const [submission, setSubmission] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
@@ -72,7 +99,7 @@ export default function AdminKycDetailPage() {
     setErrorMessage("");
 
     try {
-      const result = await getSellerKycSubmission({ accessToken, kycId });
+      const result = await getKycSubmission({ accessToken, kycId, role });
       setSubmission(normalizeSubmission(result));
       setSelfieLoadFailed(false);
     } catch (error) {
@@ -82,7 +109,7 @@ export default function AdminKycDetailPage() {
         return;
       }
 
-      setErrorMessage(error.message || "Unable to load KYC submission.");
+      setErrorMessage(error.message || `Unable to load ${copy.subject.toLowerCase()} KYC submission.`);
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +123,7 @@ export default function AdminKycDetailPage() {
       setErrorMessage("");
 
       try {
-        const result = await getSellerKycSubmission({ accessToken, kycId });
+        const result = await getKycSubmission({ accessToken, kycId, role });
 
         if (isMounted) {
           setSubmission(normalizeSubmission(result));
@@ -110,7 +137,9 @@ export default function AdminKycDetailPage() {
         }
 
         if (isMounted) {
-          setErrorMessage(error.message || "Unable to load KYC submission.");
+          setErrorMessage(
+            error.message || `Unable to load ${copy.subject.toLowerCase()} KYC submission.`,
+          );
         }
       } finally {
         if (isMounted) {
@@ -124,7 +153,7 @@ export default function AdminKycDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, kycId, navigate]);
+  }, [accessToken, copy.subject, kycId, navigate, role]);
 
   async function handleApprove() {
     setIsApproving(true);
@@ -132,12 +161,10 @@ export default function AdminKycDetailPage() {
     setStatusMessage("");
 
     try {
-      const result = await approveSellerKyc({ accessToken, kycId });
+      const result = await approveKyc({ accessToken, kycId, role });
       setSubmission(normalizeSubmission(result));
       setSelfieLoadFailed(false);
-      setStatusMessage(
-        "Seller KYC approved. The seller account is now unlocked for listing creation.",
-      );
+      setStatusMessage(copy.approvedMessage);
     } catch (error) {
       if (error.status === 401) {
         clearAdminSession();
@@ -166,15 +193,16 @@ export default function AdminKycDetailPage() {
     setStatusMessage("");
 
     try {
-      const result = await rejectSellerKyc({
+      const result = await rejectKyc({
         accessToken,
         kycId,
+        role,
         rejectionReason: reason,
       });
       setSubmission(normalizeSubmission(result));
       setSelfieLoadFailed(false);
       setRejectionReason("");
-      setStatusMessage("Seller KYC rejected. The seller can now correct and resubmit KYC.");
+      setStatusMessage(copy.rejectedMessage);
     } catch (error) {
       if (error.status === 401) {
         clearAdminSession();
@@ -193,11 +221,11 @@ export default function AdminKycDetailPage() {
     <div className="space-y-6">
       <DashboardHeader
         eyebrow="Admin KYC review"
-        title={submission?.fullName || "Seller KYC detail"}
+        title={submission?.fullName || copy.defaultTitle}
         description="Full identity values are shown only in this audited admin review screen."
         action={
           <Link
-            to={ROUTES.adminKyc}
+            to={copy.backRoute}
             className="inline-flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold text-white transition hover:bg-white/15"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -234,7 +262,7 @@ export default function AdminKycDetailPage() {
             <div className="grid gap-4 lg:grid-cols-3">
               <InfoCard
                 icon={IdCard}
-                label="Seller"
+                label={copy.subject}
                 value={submission.fullName || "Not available"}
                 detail={submission.mobileNumber || "Mobile unavailable"}
               />
@@ -292,7 +320,7 @@ export default function AdminKycDetailPage() {
                   {selfieUrl && !selfieLoadFailed ? (
                     <img
                       src={selfieUrl}
-                      alt={`${submission.fullName || "Seller"} selfie`}
+                      alt={`${submission.fullName || copy.selfieAlt} selfie`}
                       className="h-full w-full object-cover"
                       loading="lazy"
                       decoding="async"
@@ -322,7 +350,7 @@ export default function AdminKycDetailPage() {
 
           <DashboardSection
             title="Decision"
-            description="Approvals and rejections update the seller account immediately."
+            description={copy.decisionDescription}
           >
             {canReview ? (
               <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
@@ -345,7 +373,7 @@ export default function AdminKycDetailPage() {
                       maxLength={1000}
                       rows={3}
                       className="mt-2 w-full resize-none rounded-2xl border border-(--gw-color-border) bg-white px-4 py-3 text-sm outline-none focus:border-(--gw-color-gold)"
-                      placeholder="Explain what the seller must correct"
+                      placeholder={copy.rejectionPlaceholder}
                     />
                   </label>
                   <button

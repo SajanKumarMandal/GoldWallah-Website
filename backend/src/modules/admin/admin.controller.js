@@ -1,13 +1,19 @@
 import { env } from "../../config/env.js";
 import { requestAuditMeta } from "./admin.audit.js";
 import {
+  beginAdminMfaSetup,
+  blockPlatformUser,
+  confirmAdminMfaSetup,
   createSubAdmin,
   changeAdminPassword,
+  getAdminRoles,
   getCurrentAdmin,
+  getPlatformUsers,
   getSubAdmins,
   loginAdmin,
   logoutAdmin,
   refreshAdminSession,
+  unblockPlatformUser,
   updateSubAdminStatus,
 } from "./admin.service.js";
 import {
@@ -15,11 +21,17 @@ import {
   adminLoginSchema,
   adminLogoutSchema,
   adminRefreshSchema,
+  beginMfaSetupSchema,
   changePasswordSchema,
+  confirmMfaSetupSchema,
   createSubAdminSchema,
+  platformUserIdParamSchema,
+  platformUserQuerySchema,
   updateAdminStatusSchema,
+  userAccountActionSchema,
   validateBody,
   validateParams,
+  validateQuery,
 } from "./admin.validation.js";
 
 function sendSuccess(response, result, statusCode = 200) {
@@ -258,9 +270,97 @@ export async function changePassword(request, response, next) {
   }
 }
 
+export async function beginMfaSetup(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(beginMfaSetupSchema, request.body);
+    sendSuccess(
+      response,
+      await beginAdminMfaSetup({
+        admin: request.admin,
+        payload,
+        requestMeta: requestAuditMeta(request),
+      }),
+      201,
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmMfaSetup(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(confirmMfaSetupSchema, request.body);
+    sendSuccess(
+      response,
+      await confirmAdminMfaSetup({
+        admin: request.admin,
+        payload,
+        requestMeta: requestAuditMeta(request),
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function listSubAdmins(_request, response, next) {
   try {
     sendSuccess(response, await getSubAdmins());
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listRoles(_request, response, next) {
+  try {
+    sendSuccess(response, await getAdminRoles());
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listPlatformUsersHandler(request, response, next) {
+  try {
+    const filters = validateQuery(platformUserQuerySchema, request.query);
+    sendSuccess(response, await getPlatformUsers(filters));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function blockPlatformUserHandler(request, response, next) {
+  try {
+    const { userId } = validateParams(platformUserIdParamSchema, request.params);
+    const payload = validateBody(userAccountActionSchema, request.body);
+    sendSuccess(
+      response,
+      await blockPlatformUser({
+        actorAdmin: request.admin,
+        userId,
+        payload,
+        requestMeta: requestAuditMeta(request),
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function unblockPlatformUserHandler(request, response, next) {
+  try {
+    const { userId } = validateParams(platformUserIdParamSchema, request.params);
+    const payload = validateBody(userAccountActionSchema, request.body);
+    sendSuccess(
+      response,
+      await unblockPlatformUser({
+        actorAdmin: request.admin,
+        userId,
+        payload,
+        requestMeta: requestAuditMeta(request),
+      }),
+    );
   } catch (error) {
     next(error);
   }

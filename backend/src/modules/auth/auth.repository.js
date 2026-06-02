@@ -74,9 +74,10 @@ export async function createUser(data, client) {
       auth_provider,
       is_email_verified,
       is_phone_verified,
+      kyc_status,
       business_verification_status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *`,
     [
       randomUUID(),
@@ -88,7 +89,8 @@ export async function createUser(data, client) {
       data.authProvider,
       Boolean(data.isEmailVerified),
       Boolean(data.isPhoneVerified),
-      data.role === "JEWELLER" ? "PENDING" : "PENDING",
+      "NOT_SUBMITTED",
+      "NOT_SUBMITTED",
     ],
   );
 

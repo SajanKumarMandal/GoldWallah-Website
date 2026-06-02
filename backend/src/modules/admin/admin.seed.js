@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { withTransaction } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
+import { encryptSensitiveValue } from "../kyc/kyc.encryption.js";
 import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
@@ -55,6 +56,10 @@ async function seedPermissionsAndRoles(client) {
 
 export async function seedAdminFoundation() {
   await withTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      "goldwallah_admin_foundation_seed",
+    ]);
+
     const rolesByName = await seedPermissionsAndRoles(client);
     const adminCount = await countAdminUsers(client);
 
@@ -71,10 +76,20 @@ export async function seedAdminFoundation() {
     }
 
     const email = env.adminSeedEmail.trim().toLowerCase();
+    const mfaSecret = env.adminSeedMfaSecret
+      .trim()
+      .toUpperCase()
+      .replace(/\s/g, "");
 
     if (await findAdminByEmail(email, client)) {
       logger.info("Initial super admin already exists");
       return;
+    }
+
+    if (env.adminMfaRequired && !mfaSecret) {
+      throw new Error(
+        "ADMIN_SEED_MFA_SECRET is required when seeding the first admin with MFA enforcement enabled",
+      );
     }
 
     const superAdmin = await createAdminUser(
@@ -86,6 +101,8 @@ export async function seedAdminFoundation() {
           env.bcryptSaltRounds,
         ),
         isSuperAdmin: true,
+        mfaEnabled: Boolean(mfaSecret),
+        mfaSecretEncrypted: mfaSecret ? encryptSensitiveValue(mfaSecret) : null,
         passwordChangedAt: null,
       },
       client,

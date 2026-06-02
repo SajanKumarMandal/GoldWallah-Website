@@ -9,6 +9,7 @@ import {
   Menu,
   PackageOpen,
   PlusCircle,
+  ReceiptIndianRupee,
   Search,
   ShieldCheck,
   UserCircle,
@@ -29,7 +30,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/features/notifications/notificationService";
-import { useSellerKycStatusSync } from "@/features/seller/hooks/useSellerKycStatusSync";
+import { useKycStatusSync } from "@/features/kyc/hooks/useKycStatusSync";
 
 const navByRole = {
   [USER_ROLES.seller]: [
@@ -38,12 +39,17 @@ const navByRole = {
     { to: ROUTES.sellerListings, label: "My Listings", icon: PackageOpen },
     { to: ROUTES.sellerNewListing, label: "Create Listing", icon: PlusCircle },
     { to: ROUTES.sellerDeals, label: "Deals", icon: Gavel },
+    { to: ROUTES.sellerNotifications, label: "Notifications", icon: Bell },
   ],
   [USER_ROLES.jeweller]: [
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },
+    { to: ROUTES.jewellerKyc, label: "KYC", icon: ShieldCheck },
     { to: ROUTES.jewellerMarketplace, label: "Marketplace", icon: Search },
+    { to: ROUTES.jewellerBids, label: "My Bids", icon: Gavel },
+    { to: ROUTES.jewellerCommissions, label: "Commissions", icon: ReceiptIndianRupee },
     { to: ROUTES.jewellerDeals, label: "Deals", icon: Gavel },
-    { to: ROUTES.jewellerVerification, label: "Verification", icon: Building2 },
+    { to: ROUTES.jewellerVerification, label: "Business Verification", icon: Building2 },
+    { to: ROUTES.jewellerNotifications, label: "Notifications", icon: Bell },
   ],
   [USER_ROLES.admin]: [
     { to: ROUTES.adminKyc, label: "Seller KYC", icon: ShieldCheck },
@@ -62,7 +68,7 @@ export default function DashboardLayout() {
   const { user, accessToken, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  useSellerKycStatusSync();
+  useKycStatusSync();
 
   const navigation = useMemo(() => navByRole[user?.role] || [], [user?.role]);
   const dashboardHomePath = useMemo(() => getDashboardHomePath(user), [user]);
@@ -71,8 +77,12 @@ export default function DashboardLayout() {
       ? "Admin"
       : user?.role === USER_ROLES.jeweller
         ? "Jeweller"
-        : "Seller";
+      : "Seller";
   const userName = user?.fullName || roleLabel;
+  const notificationCenterPath =
+    user?.role === USER_ROLES.jeweller
+      ? ROUTES.jewellerNotifications
+      : ROUTES.sellerNotifications;
 
   async function loadNotifications() {
     if (!accessToken) {
@@ -272,14 +282,23 @@ export default function DashboardLayout() {
                     <p className="text-sm font-semibold text-(--gw-color-green)">
                       Notifications
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      disabled={unreadCount === 0}
-                      className="text-xs font-semibold text-(--gw-color-muted) transition hover:text-(--gw-color-green) disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      Mark read
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to={notificationCenterPath}
+                        onClick={() => setIsNotificationsOpen(false)}
+                        className="text-xs font-semibold text-(--gw-color-green) transition hover:text-(--gw-color-gold)"
+                      >
+                        View all
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        disabled={unreadCount === 0}
+                        className="text-xs font-semibold text-(--gw-color-muted) transition hover:text-(--gw-color-green) disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        Mark read
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-2 space-y-2">
                     {notificationError ? (

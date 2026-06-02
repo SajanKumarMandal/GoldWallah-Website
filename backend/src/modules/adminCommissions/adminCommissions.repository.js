@@ -26,6 +26,11 @@ function mapCommission(row) {
     commissionRate: toNumber(row.commission_rate),
     commissionAmount: toNumber(row.commission_amount),
     status: row.status,
+    paymentReference: row.payment_reference,
+    paymentNote: row.payment_note,
+    paymentAttemptCount: Number(row.payment_attempt_count || 0),
+    lastPaymentAttemptAt: row.last_payment_attempt_at,
+    razorpayPaymentId: row.razorpay_payment_id,
     paidAt: row.paid_at,
     dueAt: row.due_at,
     waivedBy: row.waived_by,
@@ -84,16 +89,20 @@ export async function findCommissionById(id, client) {
   return mapCommission(result.rows[0]);
 }
 
-export async function markCommissionPaid({ id, razorpayPaymentId }, client) {
+export async function markCommissionPaid(
+  { id, razorpayPaymentId, paymentReference },
+  client,
+) {
   const result = await db(client).query(
     `UPDATE platform_commissions
      SET status = 'PAID',
          paid_at = COALESCE(paid_at, now()),
-         razorpay_payment_id = COALESCE($2, razorpay_payment_id)
+         razorpay_payment_id = COALESCE($2, razorpay_payment_id),
+         payment_reference = COALESCE($3, payment_reference)
      WHERE id = $1
        AND status IN ('PENDING', 'PAYMENT_INITIATED', 'FAILED', 'DISPUTED')
      RETURNING *`,
-    [id, razorpayPaymentId ?? null],
+    [id, razorpayPaymentId ?? null, paymentReference ?? null],
   );
 
   return result.rows[0] ? findCommissionById(id, client) : null;

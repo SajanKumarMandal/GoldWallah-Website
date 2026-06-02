@@ -52,12 +52,46 @@ adminRouter.post(
   requireAdminAuth,
   adminController.changePassword,
 );
+adminRouter.post(
+  "/auth/mfa/setup",
+  requireAdminAuth,
+  adminController.beginMfaSetup,
+);
+adminRouter.post(
+  "/auth/mfa/confirm",
+  requireAdminAuth,
+  adminController.confirmMfaSetup,
+);
 
 adminRouter.get(
   "/sub-admins",
   requireAdminAuth,
   requireAdminPermission("admin.subadmins.view"),
   adminController.listSubAdmins,
+);
+adminRouter.get(
+  "/roles",
+  requireAdminAuth,
+  requireAdminPermission("admin.subadmins.view"),
+  adminController.listRoles,
+);
+adminRouter.get(
+  "/users",
+  requireAdminAuth,
+  requireAdminPermission("admin.users.view"),
+  adminController.listPlatformUsersHandler,
+);
+adminRouter.patch(
+  "/users/:userId/block",
+  requireAdminAuth,
+  requireAdminPermission("admin.users.block"),
+  adminController.blockPlatformUserHandler,
+);
+adminRouter.patch(
+  "/users/:userId/unblock",
+  requireAdminAuth,
+  requireAdminPermission("admin.users.unblock"),
+  adminController.unblockPlatformUserHandler,
 );
 adminRouter.post(
   "/sub-admins",

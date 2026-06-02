@@ -13,8 +13,9 @@ kycRouter.get("/", (_request, response) => {
     status: "ready",
     capabilities: [
       "seller KYC submission",
-      "seller KYC status",
-      "admin seller KYC review",
+      "jeweller KYC submission",
+      "role-scoped KYC status",
+      "admin seller and jeweller KYC review",
     ],
   });
 });
@@ -32,6 +33,21 @@ kycRouter.get(
   authenticate,
   requireRole("SELLER"),
   kycController.sellerMe,
+);
+
+kycRouter.post(
+  "/jeweller",
+  authenticate,
+  requireRole("JEWELLER"),
+  kycController.uploadSellerKycImages,
+  kycController.submitJeweller,
+);
+
+kycRouter.get(
+  "/jeweller/me",
+  authenticate,
+  requireRole("JEWELLER"),
+  kycController.jewellerMe,
 );
 
 kycRouter.get(
@@ -60,4 +76,32 @@ kycRouter.patch(
   requireAdminAuth,
   requireAdminPermission("admin.kyc.seller.reject"),
   kycController.rejectSellerSubmission,
+);
+
+kycRouter.get(
+  "/admin/jeweller",
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.jeweller.view"),
+  kycController.listJewellerSubmissions,
+);
+
+kycRouter.get(
+  "/admin/jeweller/:kycId",
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.jeweller.view"),
+  kycController.jewellerSubmissionDetail,
+);
+
+kycRouter.patch(
+  "/admin/jeweller/:kycId/approve",
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.jeweller.approve"),
+  kycController.approveJewellerSubmission,
+);
+
+kycRouter.patch(
+  "/admin/jeweller/:kycId/reject",
+  requireAdminAuth,
+  requireAdminPermission("admin.kyc.jeweller.reject"),
+  kycController.rejectJewellerSubmission,
 );

@@ -8,7 +8,7 @@ export const notificationQuerySchema = z.object({
 
     return value === true || value === "true";
   }, z.boolean()),
-  limit: z.coerce.number().int().positive().max(50).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const notificationParamSchema = z.object({

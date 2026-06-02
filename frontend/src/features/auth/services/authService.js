@@ -1,10 +1,10 @@
 import { apiRequest } from "@/services/httpClient";
-import { ROLE_API_VALUES } from "@/features/auth/utils/authConstants";
+import { toApiRole } from "@/features/auth/utils/authConstants";
 
 function withApiRole(payload) {
   return {
     ...payload,
-    role: ROLE_API_VALUES[payload.role] || payload.role,
+    role: toApiRole(payload.role),
   };
 }
 

@@ -5,9 +5,25 @@ import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
 import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
 import DashboardSection from "@/features/dashboard/components/DashboardSection";
-import { listSellerKycSubmissions } from "@/features/admin/services/adminKycService";
+import { listKycSubmissions } from "@/features/admin/services/adminKycService";
 
 const statusTabs = ["PENDING", "APPROVED", "REJECTED"];
+const roleCopy = {
+  seller: {
+    title: "Seller KYC submissions",
+    description:
+      "Review seller identity submissions and open detail view only when full identity verification is required.",
+    subject: "Seller",
+    detailRoute: ROUTES.adminKycDetail,
+  },
+  jeweller: {
+    title: "Jeweller KYC submissions",
+    description:
+      "Review jeweller identity submissions before business verification and bidding access can complete.",
+    subject: "Jeweller",
+    detailRoute: ROUTES.adminJewellerKycDetail,
+  },
+};
 
 function formatDate(value) {
   if (!value) {
@@ -20,9 +36,10 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-export default function AdminKycListPage() {
+export default function AdminKycListPage({ role = "seller" }) {
   const { accessToken } = useOutletContext();
   const location = useLocation();
+  const copy = roleCopy[role] || roleCopy.seller;
   const [activeStatus, setActiveStatus] = useState("PENDING");
   const [submissions, setSubmissions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,9 +53,10 @@ export default function AdminKycListPage() {
       setErrorMessage("");
 
       try {
-        const result = await listSellerKycSubmissions({
+        const result = await listKycSubmissions({
           accessToken,
           status: activeStatus,
+          role,
         });
 
         if (isMounted) {
@@ -46,7 +64,9 @@ export default function AdminKycListPage() {
         }
       } catch (error) {
         if (isMounted) {
-          setErrorMessage(error.message || "Unable to load seller KYC submissions.");
+          setErrorMessage(
+            error.message || `Unable to load ${copy.subject.toLowerCase()} KYC submissions.`,
+          );
         }
       } finally {
         if (isMounted) {
@@ -60,14 +80,14 @@ export default function AdminKycListPage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, activeStatus, location.state?.refreshedAt]);
+  }, [accessToken, activeStatus, copy.subject, location.state?.refreshedAt, role]);
 
   return (
     <div className="space-y-6">
       <DashboardHeader
         eyebrow="Admin review"
-        title="Seller KYC submissions"
-        description="Review seller identity submissions and open detail view only when full identity verification is required."
+        title={copy.title}
+        description={copy.description}
       />
 
       <DashboardSection title="KYC queue" description="List view shows only safe identity details.">
@@ -112,7 +132,7 @@ export default function AdminKycListPage() {
               <table className="min-w-[54rem] divide-y divide-(--gw-color-border) text-left text-sm">
                 <thead className="bg-(--gw-color-cream)">
                   <tr className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
-                    <th className="px-4 py-3">Seller</th>
+                    <th className="px-4 py-3">{copy.subject}</th>
                     <th className="px-4 py-3">Mobile</th>
                     <th className="px-4 py-3">Aadhaar</th>
                     <th className="px-4 py-3">PAN</th>
@@ -144,7 +164,7 @@ export default function AdminKycListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Link
-                          to={ROUTES.adminKycDetail.replace(":kycId", submission.id)}
+                          to={copy.detailRoute.replace(":kycId", submission.id)}
                           className="inline-flex h-9 items-center gap-2 rounded-full bg-(--gw-color-green) px-3 text-xs font-semibold text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft)"
                         >
                           <Eye className="h-4 w-4" aria-hidden="true" />

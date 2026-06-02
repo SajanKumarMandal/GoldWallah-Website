@@ -1,10 +1,11 @@
+import { isValidAuthRole } from "@/features/auth/utils/authConstants";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INDIAN_PHONE_PATTERN = /^(\+91[\s-]?)?[6-9]\d{9}$/;
 const OTP_PATTERN = /^(\d{4}|\d{6})$/;
 const FULL_NAME_PATTERN = /^[\p{L}\p{M}.' -]+$/u;
 const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_LENGTH = 128;
-const VALID_AUTH_ROLES = new Set(["seller", "jeweller", "SELLER", "JEWELLER"]);
 
 function validatePassword(password) {
   if (!password) {
@@ -49,7 +50,7 @@ function validateFullName(fullName) {
 }
 
 function validateRole(role) {
-  return VALID_AUTH_ROLES.has(role) ? "" : "Choose a valid account role.";
+  return isValidAuthRole(role) ? "" : "Choose a valid account role.";
 }
 
 export function validateIndianPhone(phone) {
@@ -187,6 +188,10 @@ export function validateSocialRegisterForm(values) {
 
   if (roleError) {
     errors.role = roleError;
+  }
+
+  if (!values.acceptTerms) {
+    errors.acceptTerms = "Accept the terms to continue.";
   }
 
   return errors;

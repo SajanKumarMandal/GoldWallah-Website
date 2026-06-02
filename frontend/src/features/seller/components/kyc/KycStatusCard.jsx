@@ -30,9 +30,27 @@ const statusContent = {
   },
 };
 
-export default function KycStatusCard({ status }) {
+export default function KycStatusCard({
+  status,
+  roleLabel = "Seller",
+  pendingDescription,
+  approvedTitle,
+  approvedDescription,
+}) {
   const content = statusContent[status] || statusContent[KYC_STATUS.notSubmitted];
   const StatusIcon = content.icon;
+  const title =
+    status === KYC_STATUS.notSubmitted
+      ? `Complete ${roleLabel.toLowerCase()} KYC`
+      : status === KYC_STATUS.approved && approvedTitle
+        ? approvedTitle
+      : content.title;
+  const description =
+    status === KYC_STATUS.pending
+      ? pendingDescription || content.description
+      : status === KYC_STATUS.approved
+        ? approvedDescription || content.description
+        : content.description;
 
   return (
     <div className={`rounded-3xl border p-5 shadow-sm ${content.tone}`}>
@@ -44,8 +62,8 @@ export default function KycStatusCard({ status }) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             KYC status
           </p>
-          <h2 className="mt-2 text-2xl font-semibold">{content.title}</h2>
-          <p className="mt-2 text-sm leading-6 opacity-80">{content.description}</p>
+          <h2 className="mt-2 text-2xl font-semibold">{title}</h2>
+          <p className="mt-2 text-sm leading-6 opacity-80">{description}</p>
         </div>
       </div>
     </div>

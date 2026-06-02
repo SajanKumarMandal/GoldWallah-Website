@@ -18,7 +18,12 @@ const initialValues = {
   selfieCapturedAt: "",
 };
 
-export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }) {
+export default function SellerKycForm({
+  initialDetails,
+  isSubmitting,
+  contextLabel = "Seller",
+  onSubmit,
+}) {
   const [values, setValues] = useState({
     ...initialValues,
     fullName: initialDetails?.fullName || "",
@@ -79,7 +84,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
     if (Object.keys(nextErrors).length > 0) {
       setFormMessage("Please fix the highlighted KYC details before submitting.");
       if (import.meta.env.DEV) {
-        console.debug("Seller KYC validation failed", {
+        console.debug(`${contextLabel} KYC validation failed`, {
           fields: Object.keys(nextErrors),
         });
       }
@@ -90,7 +95,7 @@ export default function SellerKycForm({ initialDetails, isSubmitting, onSubmit }
       setFormMessage("");
       await onSubmit(buildSellerKycFormData(values));
     } catch (error) {
-      setFormMessage(error.message || "Unable to submit seller KYC.");
+      setFormMessage(error.message || `Unable to submit ${contextLabel.toLowerCase()} KYC.`);
       return;
     }
 

@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto";
-
 import { withTransaction } from "../../config/db.js";
+import { hashIdentityValue } from "../../utils/identityHash.js";
 import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
@@ -68,8 +67,14 @@ function assertJeweller(user) {
   }
 }
 
-function hashSensitiveValue(value) {
-  return createHash("sha256").update(value).digest("hex");
+function assertApprovedKyc(user) {
+  if (user.kycStatus !== "APPROVED") {
+    throw createError(
+      "Approved jeweller KYC is required before business verification.",
+      403,
+      "JEWELLER_KYC_APPROVAL_REQUIRED",
+    );
+  }
 }
 
 function toSensitiveIdentity(value) {
@@ -83,7 +88,7 @@ function toSensitiveIdentity(value) {
 
   return {
     encrypted: encryptSensitiveValue(value),
-    hash: hashSensitiveValue(value),
+    hash: hashIdentityValue(value),
     last4: value.slice(-4),
   };
 }
@@ -153,6 +158,7 @@ export async function submitJewellerBusinessVerification({
   requestMeta,
 }) {
   assertJeweller(user);
+  assertApprovedKyc(user);
 
   try {
     return await withTransaction(async (client) => {

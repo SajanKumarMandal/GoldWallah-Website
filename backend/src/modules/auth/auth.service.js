@@ -25,7 +25,7 @@ import {
   saveRefreshToken,
   sanitizeUser,
 } from "./auth.repository.js";
-import { normalizePhone } from "./auth.validation.js";
+import { AUTH_ROLES, normalizePhone } from "./auth.validation.js";
 
 // User authentication service: owns registration/login, OTP verification,
 // access-token creation, and refresh-token rotation/reuse handling.
@@ -43,7 +43,13 @@ function createError(message, statusCode, code) {
 }
 
 function toRole(role) {
-  return role.toUpperCase();
+  const normalizedRole = typeof role === "string" ? role.trim().toUpperCase() : "";
+
+  if (!Object.values(AUTH_ROLES).includes(normalizedRole)) {
+    throw createError("Invalid account role", 400, "INVALID_ROLE");
+  }
+
+  return normalizedRole;
 }
 
 function hashToken(token) {
@@ -71,6 +77,10 @@ function isRecentlyRevoked(refreshTokenRecord) {
 }
 
 async function createAuthResponse(user, message, client) {
+  if (user?.accountStatus !== "ACTIVE") {
+    throw createError("Account is not active", 403, "ACCOUNT_INACTIVE");
+  }
+
   // The controller stores refreshToken in an HttpOnly cookie so frontend
   // JavaScript cannot read it. accessToken remains short-lived.
   const safeUser = sanitizeUser(user);
@@ -317,6 +327,11 @@ export async function refreshUserSession({ refreshToken }) {
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
 
+    if (user.accountStatus !== "ACTIVE") {
+      await revokeAllActiveRefreshTokens(user.id, client);
+      throw createError("Account is not active", 403, "ACCOUNT_INACTIVE");
+    }
+
     await revokeRefreshToken(refreshTokenHash, client);
     return createAuthResponse(user, "Session refreshed", client);
   });
@@ -457,6 +472,8 @@ async function loginWithOAuthProfile(profile) {
 }
 
 async function registerWithOAuthProfile(profile, role) {
+  const requestedRole = toRole(role);
+
   return withTransaction(async (client) => {
     const linkedUser = await findOAuthAccount(
       profile.provider,
@@ -465,26 +482,40 @@ async function registerWithOAuthProfile(profile, role) {
     );
 
     if (linkedUser) {
+      if (linkedUser.role !== requestedRole) {
+        throw createError(
+          "This social account is already registered with a different role. Sign in to the existing account or use a different verified social identity.",
+          409,
+          "OAUTH_ROLE_CONFLICT",
+        );
+      }
+
       return createAuthResponse(linkedUser, "Login successful", client);
     }
 
-    let user = await findUserByEmail(profile.email, client);
+    const existingEmailUser = await findUserByEmail(profile.email, client);
 
-    if (!user) {
-      user = await createUser(
-        {
-          fullName: profile.fullName,
-          email: profile.email,
-          phone: null,
-          passwordHash: null,
-          role: toRole(role),
-          authProvider: profile.provider,
-          isEmailVerified: profile.isEmailVerified,
-          isPhoneVerified: false,
-        },
-        client,
+    if (existingEmailUser) {
+      throw createError(
+        "An account already exists for this email. Sign in instead to continue with this social account.",
+        409,
+        "ACCOUNT_EXISTS",
       );
     }
+
+    const user = await createUser(
+      {
+        fullName: profile.fullName,
+        email: profile.email,
+        phone: null,
+        passwordHash: null,
+        role: requestedRole,
+        authProvider: profile.provider,
+        isEmailVerified: profile.isEmailVerified,
+        isPhoneVerified: false,
+      },
+      client,
+    );
 
     await linkOAuthAccount(
       {
