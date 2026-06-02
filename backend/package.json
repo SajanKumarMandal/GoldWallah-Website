@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "lint": "eslint .",
     "check": "node --check src/server.js",
+    "test": "node --test",
     "db:migrate": "node src/database/runMigrations.js"
   },
   "dependencies": {
