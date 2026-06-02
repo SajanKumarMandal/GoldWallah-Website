@@ -1,10 +1,18 @@
-import fs from "node:fs";
-import fsp from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import multer from "multer";
+
+import {
+  CLOUDINARY_UPLOAD_FOLDERS,
+  UPLOAD_ACCESS_MODES,
+  createUploadStorage,
+  deleteStoredFiles,
+  getStoredUploadUrl,
+  readUploadHeader,
+  uploadFileToStorage,
+} from "../../storage/uploadStorageProvider.js";
 
 const currentFile = fileURLToPath(import.meta.url);
 const backendRoot = path.resolve(path.dirname(currentFile), "../../..");
@@ -16,8 +24,6 @@ const allowedMimeTypes = new Map([
   ["image/webp", [".webp"]],
 ]);
 
-fs.mkdirSync(kycUploadsDir, { recursive: true });
-
 function createUploadError(message, code = "INVALID_UPLOAD") {
   const error = new Error(message);
   error.statusCode = 400;
@@ -25,11 +31,31 @@ function createUploadError(message, code = "INVALID_UPLOAD") {
   return error;
 }
 
+function extensionForFile(file) {
+  return path.extname(file.originalname || "").toLowerCase();
+}
+
 function isAllowedImage(file) {
-  const extension = path.extname(file.originalname || "").toLowerCase();
   const allowedExtensions = allowedMimeTypes.get(file.mimetype);
 
-  return Boolean(allowedExtensions?.includes(extension));
+  return Boolean(allowedExtensions?.includes(extensionForFile(file)));
+}
+
+function getSafeExtension(file) {
+  const extension = extensionForFile(file);
+  const allowedExtensions = allowedMimeTypes.get(file.mimetype);
+
+  return allowedExtensions?.includes(extension)
+    ? extension
+    : allowedExtensions?.[0] || ".jpg";
+}
+
+function buildKycFilename(userId, file) {
+  return `kyc-selfie-${userId}-${Date.now()}-${randomUUID()}${getSafeExtension(file)}`;
+}
+
+function publicIdFromFilename(filename) {
+  return path.basename(filename, path.extname(filename));
 }
 
 function isJpeg(buffer) {
@@ -59,43 +85,26 @@ function isWebp(buffer) {
 }
 
 async function hasValidMagicBytes(file) {
-  const handle = await fsp.open(file.path, "r");
+  const header = await readUploadHeader(file);
 
-  try {
-    const buffer = Buffer.alloc(12);
-    const { bytesRead } = await handle.read(buffer, 0, 12, 0);
-    const header = buffer.subarray(0, bytesRead);
-
-    if (file.mimetype === "image/jpeg") {
-      return isJpeg(header);
-    }
-
-    if (file.mimetype === "image/png") {
-      return isPng(header);
-    }
-
-    if (file.mimetype === "image/webp") {
-      return isWebp(header);
-    }
-
-    return false;
-  } finally {
-    await handle.close();
+  if (file.mimetype === "image/jpeg") {
+    return isJpeg(header);
   }
+
+  if (file.mimetype === "image/png") {
+    return isPng(header);
+  }
+
+  if (file.mimetype === "image/webp") {
+    return isWebp(header);
+  }
+
+  return false;
 }
 
-const storage = multer.diskStorage({
-  destination: (_request, _file, callback) => {
-    callback(null, kycUploadsDir);
-  },
-  filename: (_request, file, callback) => {
-    const extension = path.extname(file.originalname || "").toLowerCase();
-    const safeExtension = allowedMimeTypes.get(file.mimetype)?.[0] || ".jpg";
-    callback(
-      null,
-      `kyc-selfie-${_request.user.id}-${Date.now()}-${randomUUID()}${extension || safeExtension}`,
-    );
-  },
+const storage = createUploadStorage({
+  directory: kycUploadsDir,
+  getFilename: (request, file) => buildKycFilename(request.user.id, file),
 });
 
 const upload = multer({
@@ -134,12 +143,27 @@ export function uploadSellerKycImages(request, response, next) {
 }
 
 export function getKycFileUrl(request, file) {
-  const filename = path.basename(file.filename);
-  return `/private-media/kyc/${filename}`;
+  return getStoredUploadUrl(request, file, {
+    localUrlPath: (_currentRequest, filename) => `/private-media/kyc/${filename}`,
+  });
 }
 
 export function getUploadedSellerKycFiles(request) {
   return request.files?.selfieImage || [];
+}
+
+async function storeSellerKycFile(file, user) {
+  if (!user?.id) {
+    throw createUploadError("Authenticated user is required for uploads", "UPLOAD_USER_REQUIRED");
+  }
+
+  const filename = file.filename || buildKycFilename(user.id, file);
+
+  await uploadFileToStorage(file, {
+    folder: CLOUDINARY_UPLOAD_FOLDERS.kyc,
+    publicId: publicIdFromFilename(filename),
+    accessMode: UPLOAD_ACCESS_MODES.authenticated,
+  });
 }
 
 export async function validateSellerKycImageFiles(request) {
@@ -152,30 +176,14 @@ export async function validateSellerKycImageFiles(request) {
   if (!isAllowedImage(file) || !(await hasValidMagicBytes(file))) {
     throw createUploadError("Only valid JPEG, PNG, and WebP images are allowed");
   }
+
+  await storeSellerKycFile(file, request.user);
 }
 
 export async function deleteKycFiles(filesOrUrls) {
-  const uploadsRoot = path.resolve(kycUploadsDir);
-
-  await Promise.all(
-    filesOrUrls.map(async (fileOrUrl) => {
-      const fileNameSource =
-        typeof fileOrUrl === "string"
-          ? fileOrUrl
-          : fileOrUrl.filename || fileOrUrl.imageUrl;
-      const filename = path.basename(fileNameSource || "");
-
-      if (!filename) {
-        return;
-      }
-
-      const resolvedPath = path.resolve(path.join(kycUploadsDir, filename));
-
-      if (!resolvedPath.startsWith(`${uploadsRoot}${path.sep}`)) {
-        return;
-      }
-
-      await fsp.rm(resolvedPath, { force: true });
-    }),
-  );
+  await deleteStoredFiles(filesOrUrls, {
+    directory: kycUploadsDir,
+    folder: CLOUDINARY_UPLOAD_FOLDERS.kyc,
+    accessMode: UPLOAD_ACCESS_MODES.authenticated,
+  });
 }

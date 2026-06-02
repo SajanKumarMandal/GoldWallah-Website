@@ -1,10 +1,18 @@
-import fs from "node:fs";
-import fsp from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import multer from "multer";
+
+import {
+  CLOUDINARY_UPLOAD_FOLDERS,
+  UPLOAD_ACCESS_MODES,
+  createUploadStorage,
+  deleteStoredFiles,
+  getStoredUploadUrl,
+  readUploadHeader,
+  uploadFileToStorage,
+} from "../../storage/uploadStorageProvider.js";
 
 const currentFile = fileURLToPath(import.meta.url);
 const backendRoot = path.resolve(path.dirname(currentFile), "../../..");
@@ -19,8 +27,6 @@ const allowedMimeTypes = new Map([
   ["image/png", [".png"]],
   ["image/webp", [".webp"]],
 ]);
-
-fs.mkdirSync(jewellerVerificationUploadsDir, { recursive: true });
 
 function createUploadError(message, code = "INVALID_UPLOAD") {
   const error = new Error(message);
@@ -40,16 +46,18 @@ function getSafeExtension(file) {
   return allowedMimeTypes.get(file.mimetype)?.[0] || ".jpg";
 }
 
-const storage = multer.diskStorage({
-  destination: (_request, _file, callback) => {
-    callback(null, jewellerVerificationUploadsDir);
-  },
-  filename: (request, file, callback) => {
-    callback(
-      null,
-      `jeweller-verification-${request.user.id}-${Date.now()}-${randomUUID()}${getSafeExtension(file)}`,
-    );
-  },
+function buildJewellerVerificationFilename(userId, file) {
+  return `jeweller-verification-${userId}-${Date.now()}-${randomUUID()}${getSafeExtension(file)}`;
+}
+
+function publicIdFromFilename(filename) {
+  return path.basename(filename, path.extname(filename));
+}
+
+const storage = createUploadStorage({
+  directory: jewellerVerificationUploadsDir,
+  getFilename: (request, file) =>
+    buildJewellerVerificationFilename(request.user.id, file),
 });
 
 const upload = multer({
@@ -117,29 +125,21 @@ function isWebp(buffer) {
 }
 
 async function hasValidMagicBytes(file) {
-  const handle = await fsp.open(file.path, "r");
+  const header = await readUploadHeader(file);
 
-  try {
-    const buffer = Buffer.alloc(12);
-    const { bytesRead } = await handle.read(buffer, 0, 12, 0);
-    const header = buffer.subarray(0, bytesRead);
-
-    if (file.mimetype === "image/jpeg") {
-      return isJpeg(header);
-    }
-
-    if (file.mimetype === "image/png") {
-      return isPng(header);
-    }
-
-    if (file.mimetype === "image/webp") {
-      return isWebp(header);
-    }
-
-    return false;
-  } finally {
-    await handle.close();
+  if (file.mimetype === "image/jpeg") {
+    return isJpeg(header);
   }
+
+  if (file.mimetype === "image/png") {
+    return isPng(header);
+  }
+
+  if (file.mimetype === "image/webp") {
+    return isWebp(header);
+  }
+
+  return false;
 }
 
 export function getUploadedVerificationFiles(request) {
@@ -148,6 +148,27 @@ export function getUploadedVerificationFiles(request) {
     ...(request.files?.gstCertificateImage || []),
     ...(request.files?.shopLicenseImage || []),
   ];
+}
+
+async function storeJewellerVerificationFiles(files, user) {
+  if (files.length === 0) {
+    return;
+  }
+
+  if (!user?.id) {
+    throw createUploadError("Authenticated user is required for uploads", "UPLOAD_USER_REQUIRED");
+  }
+
+  for (const file of files) {
+    const filename =
+      file.filename || buildJewellerVerificationFilename(user.id, file);
+
+    await uploadFileToStorage(file, {
+      folder: CLOUDINARY_UPLOAD_FOLDERS.jewellerVerifications,
+      publicId: publicIdFromFilename(filename),
+      accessMode: UPLOAD_ACCESS_MODES.authenticated,
+    });
+  }
 }
 
 export async function validateJewellerVerificationFiles(request) {
@@ -162,6 +183,8 @@ export async function validateJewellerVerificationFiles(request) {
       throw createUploadError("Only valid JPEG, PNG, and WebP images are allowed");
     }
   }
+
+  await storeJewellerVerificationFiles(files, request.user);
 }
 
 export function getJewellerVerificationFileUrl(request, file) {
@@ -169,34 +192,16 @@ export function getJewellerVerificationFileUrl(request, file) {
     return null;
   }
 
-  const filename = path.basename(file.filename);
-  return `/private-media/jeweller-verifications/${filename}`;
+  return getStoredUploadUrl(request, file, {
+    localUrlPath: (_currentRequest, filename) =>
+      `/private-media/jeweller-verifications/${filename}`,
+  });
 }
 
 export async function deleteJewellerVerificationFiles(filesOrUrls) {
-  const uploadsRoot = path.resolve(jewellerVerificationUploadsDir);
-
-  await Promise.all(
-    filesOrUrls.map(async (fileOrUrl) => {
-      const fileNameSource =
-        typeof fileOrUrl === "string"
-          ? fileOrUrl
-          : fileOrUrl.filename || fileOrUrl.imageUrl;
-      const filename = path.basename(fileNameSource || "");
-
-      if (!filename) {
-        return;
-      }
-
-      const resolvedPath = path.resolve(
-        path.join(jewellerVerificationUploadsDir, filename),
-      );
-
-      if (!resolvedPath.startsWith(`${uploadsRoot}${path.sep}`)) {
-        return;
-      }
-
-      await fsp.rm(resolvedPath, { force: true });
-    }),
-  );
+  await deleteStoredFiles(filesOrUrls, {
+    directory: jewellerVerificationUploadsDir,
+    folder: CLOUDINARY_UPLOAD_FOLDERS.jewellerVerifications,
+    accessMode: UPLOAD_ACCESS_MODES.authenticated,
+  });
 }

@@ -47,7 +47,10 @@ export async function createListing(request, response, next) {
     const payload = validateBody(createListingSchema, request.body);
     const files = getUploadedListingImageFiles(request);
 
-    await validateListingImageFiles(files, { required: true });
+    await validateListingImageFiles(files, {
+      required: true,
+      user: request.user,
+    });
 
     const result = await createSellerListing({
       user: request.user,
@@ -129,7 +132,10 @@ export async function updateListing(request, response, next) {
     const files = getUploadedListingImageFiles(request);
     const shouldReplaceImages = files.length > 0;
 
-    await validateListingImageFiles(files, { required: false });
+    await validateListingImageFiles(files, {
+      required: false,
+      user: request.user,
+    });
 
     const result = await updateSellerListing({
       user: request.user,

@@ -3,6 +3,11 @@ import path from "node:path";
 import jwt from "jsonwebtoken";
 
 import { env } from "../../config/env.js";
+import {
+  CLOUDINARY_UPLOAD_FOLDERS,
+  UPLOAD_ACCESS_MODES,
+  resolvePrivateStoredMedia,
+} from "../../storage/uploadStorageProvider.js";
 import { writeAdminAuditLog } from "../admin/admin.audit.js";
 import { jewellerVerificationUploadsDir } from "../jewellerVerification/jewellerVerification.upload.js";
 import { kycUploadsDir } from "../kyc/kyc.upload.js";
@@ -12,15 +17,20 @@ import { kycUploadsDir } from "../kyc/kyc.upload.js";
 const PRIVATE_MEDIA_SCOPES = {
   kyc: {
     directory: kycUploadsDir,
+    folder: CLOUDINARY_UPLOAD_FOLDERS.kyc,
+    accessMode: UPLOAD_ACCESS_MODES.authenticated,
     resourceType: "KYC_DOCUMENT",
   },
   "jeweller-verifications": {
     directory: jewellerVerificationUploadsDir,
+    folder: CLOUDINARY_UPLOAD_FOLDERS.jewellerVerifications,
+    accessMode: UPLOAD_ACCESS_MODES.authenticated,
     resourceType: "JEWELLER_BUSINESS_DOCUMENT",
   },
 };
 
 const privateMediaTtl = "5m";
+const privateMediaTtlSeconds = 5 * 60;
 
 function createError(message, statusCode, code) {
   const error = new Error(message);
@@ -170,15 +180,11 @@ export async function resolvePrivateMediaRequest({
     });
   }
 
-  const resolvedRoot = path.resolve(config.directory);
-  const resolvedPath = path.resolve(path.join(config.directory, path.basename(filename)));
-
-  if (!resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
-    throw createError("Private media not found", 404, "PRIVATE_MEDIA_NOT_FOUND");
-  }
-
-  return {
-    filename: path.basename(resolvedPath),
-    root: resolvedRoot,
-  };
+  return resolvePrivateStoredMedia({
+    directory: config.directory,
+    filename,
+    folder: config.folder,
+    accessMode: config.accessMode,
+    expiresInSeconds: privateMediaTtlSeconds,
+  });
 }

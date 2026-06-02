@@ -8,6 +8,7 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { securityMiddleware } from "./middleware/security.js";
 import { apiRouter } from "./routes/apiRouter.js";
 import { listingUploadsDir } from "./modules/listings/listings.upload.js";
+import { isLocalUploadStorage } from "./storage/uploadStorageProvider.js";
 
 // Builds the Express app with security middleware, JSON parsing, public listing
 // media, API routes, and final error handling. KYC/business documents are not
@@ -32,17 +33,19 @@ export function createApp() {
     });
   });
 
-  app.use(
-    // Listing images are allowed to be public. Identity/business documents are
-    // intentionally served only by authenticated media endpoints.
-    "/uploads/listings",
-    express.static(listingUploadsDir, {
-      dotfiles: "deny",
-      fallthrough: false,
-      index: false,
-      redirect: false,
-    }),
-  );
+  if (isLocalUploadStorage) {
+    app.use(
+      // Listing images are allowed to be public. Identity/business documents are
+      // intentionally served only by authenticated media endpoints.
+      "/uploads/listings",
+      express.static(listingUploadsDir, {
+        dotfiles: "deny",
+        fallthrough: false,
+        index: false,
+        redirect: false,
+      }),
+    );
+  }
 
   app.use(`/api/${env.apiVersion}`, apiRouter);
   app.use(notFoundHandler);

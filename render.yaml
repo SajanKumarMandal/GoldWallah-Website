@@ -31,7 +31,13 @@ services:
         sync: false
       - key: OTP_PROVIDER
         sync: false
-      - key: LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK
+      - key: UPLOAD_STORAGE_PROVIDER
+        value: cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
         sync: false
 
   - type: web

@@ -49,7 +49,10 @@ const envSchema = z.object({
   ADMIN_SEED_PASSWORD: z.string().optional().default(""),
   ADMIN_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   ADMIN_LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
-  LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK: z.string().optional().default(""),
+  UPLOAD_STORAGE_PROVIDER: z.enum(["local", "cloudinary"]).default("local"),
+  CLOUDINARY_CLOUD_NAME: z.string().trim().optional().default(""),
+  CLOUDINARY_API_KEY: z.string().trim().optional().default(""),
+  CLOUDINARY_API_SECRET: z.string().trim().optional().default(""),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -111,11 +114,24 @@ if (
 
 if (
   parsedEnv.data.NODE_ENV === "production" &&
-  parsedEnv.data.LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK !==
-    "shared-persistent-storage-mounted"
+  parsedEnv.data.UPLOAD_STORAGE_PROVIDER !== "cloudinary"
 ) {
   console.error(
-    "Local upload storage is not allowed in production unless it is backed by shared persistent storage. Set LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK=shared-persistent-storage-mounted only after provisioning shared storage or object storage.",
+    "UPLOAD_STORAGE_PROVIDER=cloudinary is required in production",
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.UPLOAD_STORAGE_PROVIDER === "cloudinary" &&
+  (
+    !parsedEnv.data.CLOUDINARY_CLOUD_NAME ||
+    !parsedEnv.data.CLOUDINARY_API_KEY ||
+    !parsedEnv.data.CLOUDINARY_API_SECRET
+  )
+) {
+  console.error(
+    "Cloudinary storage requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET",
   );
   process.exit(1);
 }
@@ -173,7 +189,9 @@ export const env = {
   adminSeedPassword: parsedEnv.data.ADMIN_SEED_PASSWORD,
   adminLoginMaxAttempts: parsedEnv.data.ADMIN_LOGIN_MAX_ATTEMPTS,
   adminLoginLockMinutes: parsedEnv.data.ADMIN_LOGIN_LOCK_MINUTES,
-  localUploadStorageProductionAck:
-    parsedEnv.data.LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK,
+  uploadStorageProvider: parsedEnv.data.UPLOAD_STORAGE_PROVIDER,
+  cloudinaryCloudName: parsedEnv.data.CLOUDINARY_CLOUD_NAME,
+  cloudinaryApiKey: parsedEnv.data.CLOUDINARY_API_KEY,
+  cloudinaryApiSecret: parsedEnv.data.CLOUDINARY_API_SECRET,
   isProduction: parsedEnv.data.NODE_ENV === "production",
 };
