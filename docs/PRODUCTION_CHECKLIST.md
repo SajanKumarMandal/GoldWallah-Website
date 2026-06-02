@@ -11,9 +11,11 @@
 - `PRIVATE_MEDIA_SIGNING_SECRET`
 - `FRONTEND_ORIGIN`
 - `FRONTEND_URL`
+- `AUTH_COOKIE_DOMAIN` when frontend and backend are served from sibling subdomains
 - `PG_SSL_CA_FILE` or `PG_SSL_CA` from the PostgreSQL provider
 - `OTP_PROVIDER` must be `msg91` or `twilio` in production
 - Shared persistent storage or object storage for public listing media mounted behind `/uploads/listings`
+- `LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK=shared-persistent-storage-mounted` only after `/backend/uploads` is backed by shared persistent storage or replaced by object storage
 
 ## Deploy Steps
 
@@ -22,6 +24,7 @@
 3. Build the frontend with `npm run build`.
 4. Start the backend with `npm start`.
 5. Serve the frontend build behind HTTPS.
+6. Verify `VITE_API_BASE_URL` points at the HTTPS backend `/api/v1` URL.
 
 ## Security Verification
 
@@ -30,9 +33,11 @@
 - Confirm private document previews use `/api/v1/media/private/...` signed URLs.
 - Confirm admin KYC/business detail views create admin audit log rows.
 - Confirm user refresh tokens are set only as HttpOnly cookies.
+- Confirm user and admin refresh/logout endpoints clear cookies and rotate sessions from cookies only.
 - Confirm Postgres TLS uses certificate verification.
 - Confirm mock OTP and placeholder OAuth flows are disabled in production.
 - Confirm listing uploads are not stored on ephemeral per-instance disk in multi-server production.
+- Confirm backend startup fails in production without the local upload storage acknowledgement.
 - Confirm Meta app publishing requirements are complete before public Facebook Login: app icon, privacy policy URL, user data deletion URL, and category.
 - Confirm Google OAuth production origins include the final frontend domain.
 

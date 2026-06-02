@@ -7,9 +7,11 @@ import {
 } from "./bids.service.js";
 import {
   createBidSchema,
+  listBidsQuerySchema,
   uuidParamSchema,
   validateBody,
   validateParams,
+  validateQuery,
 } from "./bids.validation.js";
 
 function requestMeta(request) {
@@ -57,7 +59,8 @@ export async function createBidForListing(request, response, next) {
 
 export async function myBids(request, response, next) {
   try {
-    response.status(200).json(await getMyJewellerBids(request.user));
+    const query = validateQuery(listBidsQuerySchema, request.query);
+    response.status(200).json(await getMyJewellerBids(request.user, query));
   } catch (error) {
     next(error);
   }
@@ -66,10 +69,12 @@ export async function myBids(request, response, next) {
 export async function listingBids(request, response, next) {
   try {
     const { listingId } = validateParams(uuidParamSchema, request.params);
+    const query = validateQuery(listBidsQuerySchema, request.query);
     response.status(200).json(
       await getSellerListingBids({
         user: request.user,
         listingId,
+        query,
       }),
     );
   } catch (error) {

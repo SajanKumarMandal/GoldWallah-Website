@@ -123,9 +123,10 @@ export async function updateUserKycStatus(userId, status, client) {
   return result.rows[0] || null;
 }
 
-export async function listSellerKycSubmissions({ status }, client) {
-  const params = [];
-  const statusFilter = status ? "WHERE k.status = $1" : "";
+export async function listSellerKycSubmissions({ status, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const params = [safeLimit];
+  const statusFilter = status ? "WHERE k.status = $2" : "";
 
   if (status) {
     params.push(status);
@@ -136,7 +137,8 @@ export async function listSellerKycSubmissions({ status }, client) {
      FROM kyc_submissions k
      JOIN users u ON u.id = k.user_id
      ${statusFilter}
-     ORDER BY k.created_at DESC`,
+     ORDER BY k.created_at DESC
+     LIMIT $1`,
     params,
   );
 

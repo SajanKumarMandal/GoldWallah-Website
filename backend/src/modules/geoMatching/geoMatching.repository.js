@@ -1,7 +1,23 @@
 import { query } from "../../config/db.js";
 
-// Geo matching data access. Primary matching stays inside PostGIS so radius
-// filters, distance ordering, and GIST indexes work under load.
+const EARTH_RADIUS_METERS = 6371000;
+
+// Keep distance scoring in PostgreSQL so pagination and ranking stay stable
+// across horizontally scaled API instances, without requiring PostGIS locally.
+function haversineDistanceSql(latitudeColumn, longitudeColumn) {
+  return `${EARTH_RADIUS_METERS}::double precision * 2 * asin(
+    least(
+      1::double precision,
+      sqrt(
+        power(sin(radians(((${latitudeColumn})::double precision - origin.latitude) / 2)), 2)
+        + cos(radians(origin.latitude))
+        * cos(radians((${latitudeColumn})::double precision))
+        * power(sin(radians(((${longitudeColumn})::double precision - origin.longitude) / 2)), 2)
+      )
+    )
+  )`;
+}
+
 function toNumber(value) {
   return value === null || value === undefined ? null : Number(value);
 }
@@ -178,58 +194,29 @@ export async function listMatchedListings({
     lastId,
     maxLimit: 100,
   });
+  const listingDistanceSql = haversineDistanceSql("gl.latitude", "gl.longitude");
 
   const result = await query(
     `WITH origin AS (
        SELECT
-         CASE
-           WHEN $1::numeric IS NULL OR $2::numeric IS NULL THEN NULL::geography
-           ELSE ST_SetSRID(
-             ST_MakePoint($2::double precision, $1::double precision),
-             4326
-           )::geography
-         END AS geog,
+         $1::double precision AS latitude,
+         $2::double precision AS longitude,
          NULLIF($4::text, '') AS city,
          NULLIF($5::text, '') AS state
      ),
-     matched AS (
+     scored AS (
        SELECT
          gl.*,
          CASE
-           WHEN origin.geog IS NOT NULL AND gl.listing_location IS NOT NULL
-           THEN ST_Distance(gl.listing_location, origin.geog)
+           WHEN origin.latitude IS NOT NULL
+            AND origin.longitude IS NOT NULL
+            AND gl.latitude IS NOT NULL
+            AND gl.longitude IS NOT NULL
+           THEN ${listingDistanceSql}
            ELSE NULL
          END AS distance_meters,
-         CASE
-           WHEN origin.geog IS NOT NULL
-            AND gl.listing_location IS NOT NULL
-            AND ST_DWithin(gl.listing_location, origin.geog, $3::numeric * 1000)
-           THEN 'RADIUS'
-           WHEN origin.city IS NOT NULL
-            AND origin.state IS NOT NULL
-            AND lower(gl.city) = lower(origin.city)
-            AND lower(gl.state) = lower(origin.state)
-           THEN 'CITY'
-           WHEN origin.state IS NOT NULL
-            AND lower(gl.state) = lower(origin.state)
-           THEN 'REGION'
-           ELSE 'NEAREST_FALLBACK'
-         END AS match_mode,
-         CASE
-           WHEN origin.geog IS NOT NULL
-            AND gl.listing_location IS NOT NULL
-            AND ST_DWithin(gl.listing_location, origin.geog, $3::numeric * 1000)
-           THEN 1
-           WHEN origin.city IS NOT NULL
-            AND origin.state IS NOT NULL
-            AND lower(gl.city) = lower(origin.city)
-            AND lower(gl.state) = lower(origin.state)
-           THEN 2
-           WHEN origin.state IS NOT NULL
-            AND lower(gl.state) = lower(origin.state)
-           THEN 3
-           ELSE 4
-         END AS match_rank
+         origin.city AS origin_city,
+         origin.state AS origin_state
        FROM gold_listings gl
        JOIN users seller ON seller.id = gl.seller_id
        CROSS JOIN origin
@@ -237,13 +224,46 @@ export async function listMatchedListings({
          AND seller.role = 'SELLER'
          AND seller.kyc_status = 'APPROVED'
          AND seller.account_status = 'ACTIVE'
+     ),
+     matched AS (
+       SELECT
+         scored.*,
+         CASE
+           WHEN distance_meters IS NOT NULL
+            AND distance_meters <= $3::double precision * 1000
+           THEN 'RADIUS'
+           WHEN origin_city IS NOT NULL
+            AND origin_state IS NOT NULL
+            AND lower(city) = lower(origin_city)
+            AND lower(state) = lower(origin_state)
+           THEN 'CITY'
+           WHEN origin_state IS NOT NULL
+            AND lower(state) = lower(origin_state)
+           THEN 'REGION'
+           ELSE 'NEAREST_FALLBACK'
+         END AS match_mode,
+         CASE
+           WHEN distance_meters IS NOT NULL
+            AND distance_meters <= $3::double precision * 1000
+           THEN 1
+           WHEN origin_city IS NOT NULL
+            AND origin_state IS NOT NULL
+            AND lower(city) = lower(origin_city)
+            AND lower(state) = lower(origin_state)
+           THEN 2
+           WHEN origin_state IS NOT NULL
+            AND lower(state) = lower(origin_state)
+           THEN 3
+           ELSE 4
+         END AS match_rank
+       FROM scored
      )
      SELECT *
      FROM matched
      WHERE (
-       $6::numeric IS NULL
-       OR distance_meters > $6::numeric
-       OR (distance_meters = $6::numeric AND id > $7::uuid)
+       $6::double precision IS NULL
+       OR distance_meters > $6::double precision
+       OR (distance_meters = $6::double precision AND id > $7::uuid)
        OR distance_meters IS NULL
      )
      ORDER BY
@@ -320,16 +340,13 @@ export async function listNearbyJewellersForSeller({
     lastId,
     maxLimit: 50,
   });
+  const jewellerDistanceSql = haversineDistanceSql("jbv.latitude", "jbv.longitude");
+
   const result = await query(
     `WITH origin AS (
        SELECT
-         CASE
-           WHEN $1::numeric IS NULL OR $2::numeric IS NULL THEN NULL::geography
-           ELSE ST_SetSRID(
-             ST_MakePoint($2::double precision, $1::double precision),
-             4326
-           )::geography
-         END AS geog,
+         $1::double precision AS latitude,
+         $2::double precision AS longitude,
          NULLIF($4::text, '') AS city,
          NULLIF($5::text, '') AS state
      ),
@@ -349,14 +366,19 @@ export async function listNearbyJewellersForSeller({
          jbv.business_type,
          jbv.years_in_business,
          CASE
-           WHEN origin.geog IS NOT NULL AND jbv.shop_location IS NOT NULL
-           THEN ST_Distance(jbv.shop_location, origin.geog)
+           WHEN origin.latitude IS NOT NULL
+            AND origin.longitude IS NOT NULL
+            AND jbv.latitude IS NOT NULL
+            AND jbv.longitude IS NOT NULL
+           THEN ${jewellerDistanceSql}
            ELSE NULL
          END AS distance_meters,
          CASE
-           WHEN origin.geog IS NOT NULL
-            AND jbv.shop_location IS NOT NULL
-            AND ST_DWithin(jbv.shop_location, origin.geog, $3::numeric * 1000)
+           WHEN origin.latitude IS NOT NULL
+            AND origin.longitude IS NOT NULL
+            AND jbv.latitude IS NOT NULL
+            AND jbv.longitude IS NOT NULL
+            AND ${jewellerDistanceSql} <= $3::double precision * 1000
            THEN 'RADIUS'
            WHEN origin.city IS NOT NULL
             AND origin.state IS NOT NULL
@@ -369,9 +391,11 @@ export async function listNearbyJewellersForSeller({
            ELSE 'NEAREST_FALLBACK'
          END AS match_mode,
          CASE
-           WHEN origin.geog IS NOT NULL
-            AND jbv.shop_location IS NOT NULL
-            AND ST_DWithin(jbv.shop_location, origin.geog, $3::numeric * 1000)
+           WHEN origin.latitude IS NOT NULL
+            AND origin.longitude IS NOT NULL
+            AND jbv.latitude IS NOT NULL
+            AND jbv.longitude IS NOT NULL
+            AND ${jewellerDistanceSql} <= $3::double precision * 1000
            THEN 1
            WHEN origin.city IS NOT NULL
             AND origin.state IS NOT NULL
@@ -396,9 +420,9 @@ export async function listNearbyJewellersForSeller({
      SELECT *
      FROM matched
      WHERE (
-       $6::numeric IS NULL
-       OR distance_meters > $6::numeric
-       OR (distance_meters = $6::numeric AND id > $7::uuid)
+       $6::double precision IS NULL
+       OR distance_meters > $6::double precision
+       OR (distance_meters = $6::double precision AND id > $7::uuid)
        OR distance_meters IS NULL
      )
      ORDER BY

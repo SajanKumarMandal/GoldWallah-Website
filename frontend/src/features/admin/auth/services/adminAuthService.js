@@ -11,17 +11,24 @@ export async function loginAdmin({ email, password }) {
   });
 }
 
+export async function refreshAdminSession() {
+  return apiRequest("admin/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function getAdminMe(accessToken) {
   return apiRequest("admin/auth/me", {
     headers: authHeaders(accessToken),
   });
 }
 
-export async function logoutAdmin(accessToken, refreshToken) {
+export async function logoutAdmin(accessToken) {
   return apiRequest("admin/auth/logout", {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({}),
   });
 }
 

@@ -7,14 +7,14 @@ import AdminSidebar from "@/features/admin/layouts/AdminSidebar";
 import AdminTopbar from "@/features/admin/layouts/AdminTopbar";
 
 export default function AdminLayout() {
-  const { admin, accessToken, refreshToken } = useOutletContext();
+  const { admin, accessToken } = useOutletContext();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const navigate = useNavigate();
 
   async function handleLogout() {
     try {
-      if (accessToken && refreshToken) {
-        await logoutAdmin(accessToken, refreshToken);
+      if (accessToken) {
+        await logoutAdmin(accessToken);
       }
     } catch {
       // Logout must clear local admin state even if the session is already invalid.

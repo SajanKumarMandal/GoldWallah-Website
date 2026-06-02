@@ -1,8 +1,11 @@
 import { ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import { loginAdmin } from "@/features/admin/auth/services/adminAuthService";
+import {
+  loginAdmin,
+  refreshAdminSession,
+} from "@/features/admin/auth/services/adminAuthService";
 import {
   readAdminSession,
   writeAdminSession,
@@ -15,7 +18,52 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessage] = useState(location.state?.message || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRestoringSession, setIsRestoringSession] = useState(!readAdminSession());
   const existingSession = readAdminSession();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreCookieSession() {
+      if (existingSession?.accessToken) {
+        setIsRestoringSession(false);
+        return;
+      }
+
+      try {
+        const result = await refreshAdminSession();
+        const data = result?.data || {};
+
+        if (!data.admin || !data.accessToken) {
+          throw new Error("Admin session refresh failed");
+        }
+
+        writeAdminSession({
+          admin: data.admin,
+          accessToken: data.accessToken,
+        });
+
+        if (isMounted) {
+          navigate(
+            data.admin?.mustChangePassword
+              ? "/admin/change-password"
+              : location.state?.from?.pathname || "/admin/dashboard",
+            { replace: true },
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setIsRestoringSession(false);
+        }
+      }
+    }
+
+    restoreCookieSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [existingSession?.accessToken, location.state?.from?.pathname, navigate]);
 
   if (existingSession?.accessToken) {
     return (
@@ -27,6 +75,14 @@ export default function AdminLoginPage() {
         }
         replace
       />
+    );
+  }
+
+  if (isRestoringSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-(--gw-color-green) text-(--gw-color-cream)">
+        Verifying admin session...
+      </div>
     );
   }
 
@@ -56,7 +112,6 @@ export default function AdminLoginPage() {
       writeAdminSession({
         admin: data.admin,
         accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
       });
 
       navigate(

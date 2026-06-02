@@ -44,6 +44,19 @@ const otpLimiter = rateLimit({
   },
 });
 
+const sessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      message: "Too many session requests. Please try again later.",
+      code: "SESSION_RATE_LIMITED",
+    },
+  },
+});
+
 authRouter.get("/", (_request, response) => {
   response.status(200).json({
     module: "auth",
@@ -61,8 +74,8 @@ authRouter.get("/", (_request, response) => {
 
 authRouter.post("/register", registerLimiter, authController.register);
 authRouter.post("/login", loginLimiter, authController.login);
-authRouter.post("/refresh", authController.refresh);
-authRouter.post("/logout", authController.logout);
+authRouter.post("/refresh", sessionLimiter, authController.refresh);
+authRouter.post("/logout", sessionLimiter, authController.logout);
 authRouter.post("/otp/login/send", otpLimiter, authController.sendLoginOtp);
 authRouter.post("/otp/login/verify", otpLimiter, authController.verifyLoginOtp);
 authRouter.post("/otp/register/send", otpLimiter, authController.sendRegisterOtp);

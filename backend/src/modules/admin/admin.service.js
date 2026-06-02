@@ -56,6 +56,17 @@ function refreshTokenExpiry() {
   ).toISOString();
 }
 
+function isRecentlyRevoked(session) {
+  if (!session?.revokedAt) {
+    return false;
+  }
+
+  const revokedAtMs = new Date(session.revokedAt).getTime();
+  const rotationGraceMs = 30 * 1000;
+
+  return Number.isFinite(revokedAtMs) && Date.now() - revokedAtMs <= rotationGraceMs;
+}
+
 function createAccessToken(admin) {
   if (!env.adminJwtAccessSecret && env.nodeEnv !== "test") {
     throw createError(
@@ -71,7 +82,12 @@ function createAccessToken(admin) {
       type: "admin",
     },
     env.adminJwtAccessSecret || "test-admin-secret",
-    { expiresIn: env.adminAccessTokenTtl },
+    {
+      expiresIn: env.adminAccessTokenTtl,
+      issuer: "goldwallah-api",
+      audience: "goldwallah-admin",
+      algorithm: "HS256",
+    },
   );
 }
 
@@ -274,6 +290,20 @@ export async function refreshAdminSession({ refreshToken, requestMeta }) {
     }
 
     if (existingSession.revokedAt) {
+      if (isRecentlyRevoked(existingSession)) {
+        await auditRefreshFailure(
+          {
+            action: ADMIN_AUDIT_ACTIONS.refreshInvalid,
+            session: existingSession,
+            reason: "recently_rotated_refresh_token_reused",
+            severity: "WARNING",
+            requestMeta,
+          },
+          client,
+        );
+        throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+      }
+
       await revokeAllActiveAdminSessions(existingSession.adminUserId, client);
       await auditRefreshFailure(
         {
@@ -356,13 +386,15 @@ export async function logoutAdmin({ admin, refreshToken, requestMeta }) {
   const refreshTokenHash = hashRefreshToken(refreshToken);
 
   await withTransaction(async (client) => {
+    const session = await findAdminSessionByTokenHash(refreshTokenHash, client);
+
     await revokeAdminSessionByTokenHash(refreshTokenHash, client);
     await writeAdminAuditLog(
       {
-        actorAdminId: admin.id,
+        actorAdminId: admin?.id || session?.adminUserId || null,
         action: ADMIN_AUDIT_ACTIONS.logout,
         resourceType: "ADMIN_SESSION",
-        resourceId: admin.id,
+        resourceId: session?.id || admin?.id || null,
         requestMeta,
       },
       client,

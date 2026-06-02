@@ -15,49 +15,25 @@ const initialAuthState = {
   isSessionLoading: true,
 };
 
-function readStoredAuthState() {
+function clearLegacyStoredAuthState() {
   try {
-    const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
-
-    if (!storedSession) {
-      return {
-        ...initialAuthState,
-        isSessionLoading: true,
-      };
-    }
-
-    const parsedSession = JSON.parse(storedSession);
-
-    if (!parsedSession?.user) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return {
-        ...initialAuthState,
-        isSessionLoading: true,
-      };
-    }
-
-    return {
-      user: parsedSession.user,
-      accessToken: null,
-      isAuthenticated: false,
-      isSessionLoading: true,
-    };
-  } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return {
-      ...initialAuthState,
-      isSessionLoading: true,
-    };
+  } catch {
+    // Ignore storage cleanup failures; HttpOnly cookie refresh owns sessions.
   }
 }
 
-function persistAuthState({ user }) {
-  if (!user) {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return;
-  }
+function readStoredAuthState() {
+  clearLegacyStoredAuthState();
 
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user }));
+  return {
+    ...initialAuthState,
+    isSessionLoading: true,
+  };
+}
+
+function persistAuthState() {
+  clearLegacyStoredAuthState();
 }
 
 function refreshBootSession() {
@@ -88,7 +64,7 @@ export default function AuthProvider({ children }) {
 
   const clearAuthUser = useCallback(() => {
     sessionVersionRef.current += 1;
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    clearLegacyStoredAuthState();
     setAuthState({
       ...initialAuthState,
       isSessionLoading: false,

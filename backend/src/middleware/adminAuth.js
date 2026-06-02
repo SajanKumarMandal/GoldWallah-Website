@@ -34,6 +34,11 @@ export async function requireAdminAuth(request, _response, next) {
       payload = jwt.verify(
         token,
         env.adminJwtAccessSecret || "test-admin-secret",
+        {
+          issuer: "goldwallah-api",
+          audience: "goldwallah-admin",
+          algorithms: ["HS256"],
+        },
       );
     } catch {
       throw createAuthError();

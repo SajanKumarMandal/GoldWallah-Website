@@ -49,6 +49,7 @@ const envSchema = z.object({
   ADMIN_SEED_PASSWORD: z.string().optional().default(""),
   ADMIN_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   ADMIN_LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
+  LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK: z.string().optional().default(""),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -108,6 +109,17 @@ if (
   process.exit(1);
 }
 
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK !==
+    "shared-persistent-storage-mounted"
+) {
+  console.error(
+    "Local upload storage is not allowed in production unless it is backed by shared persistent storage. Set LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK=shared-persistent-storage-mounted only after provisioning shared storage or object storage.",
+  );
+  process.exit(1);
+}
+
 function readPgSslCa() {
   // Production PostgreSQL SSL can receive the provider CA directly or from a file.
   if (parsedEnv.data.PG_SSL_CA) {
@@ -161,5 +173,7 @@ export const env = {
   adminSeedPassword: parsedEnv.data.ADMIN_SEED_PASSWORD,
   adminLoginMaxAttempts: parsedEnv.data.ADMIN_LOGIN_MAX_ATTEMPTS,
   adminLoginLockMinutes: parsedEnv.data.ADMIN_LOGIN_LOCK_MINUTES,
+  localUploadStorageProductionAck:
+    parsedEnv.data.LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK,
   isProduction: parsedEnv.data.NODE_ENV === "production",
 };

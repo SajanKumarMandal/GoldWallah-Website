@@ -1,10 +1,48 @@
 services:
   - type: web
+    name: goldwallah-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: ADMIN_JWT_ACCESS_SECRET
+        sync: false
+      - key: KYC_ENCRYPTION_KEY
+        sync: false
+      - key: PRIVATE_MEDIA_SIGNING_SECRET
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_PUBLIC_URL
+        sync: false
+      - key: PG_SSL_CA
+        sync: false
+      - key: OTP_PROVIDER
+        sync: false
+      - key: LOCAL_UPLOAD_STORAGE_PRODUCTION_ACK
+        sync: false
+
+  - type: web
     name: goldwallah-frontend
     runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
     routes:
       - type: rewrite
         source: /*

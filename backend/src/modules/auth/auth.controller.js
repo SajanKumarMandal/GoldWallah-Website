@@ -57,6 +57,20 @@ function refreshCookieOptions(request) {
   return options;
 }
 
+function createRequestOriginError() {
+  const error = new Error("Invalid request origin");
+  error.statusCode = 403;
+  error.code = "UNTRUSTED_ORIGIN";
+  return error;
+}
+
+function createInvalidRefreshTokenError() {
+  const error = new Error("Invalid refresh token");
+  error.statusCode = 401;
+  error.code = "INVALID_REFRESH_TOKEN";
+  return error;
+}
+
 function assertTrustedBrowserOrigin(request) {
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
@@ -64,10 +78,7 @@ function assertTrustedBrowserOrigin(request) {
 
   if (!origin) {
     if (["cross-site", "same-site"].includes(secFetchSite)) {
-      const error = new Error("Invalid request origin");
-      error.statusCode = 403;
-      error.code = "UNTRUSTED_ORIGIN";
-      throw error;
+      throw createRequestOriginError();
     }
 
     return;
@@ -80,17 +91,11 @@ function assertTrustedBrowserOrigin(request) {
     normalizedOrigin = new URL(origin).origin;
     normalizedFrontendOrigin = new URL(env.frontendOrigin).origin;
   } catch {
-    const error = new Error("Invalid request origin");
-    error.statusCode = 403;
-    error.code = "UNTRUSTED_ORIGIN";
-    throw error;
+    throw createRequestOriginError();
   }
 
   if (normalizedOrigin !== normalizedFrontendOrigin) {
-    const error = new Error("Invalid request origin");
-    error.statusCode = 403;
-    error.code = "UNTRUSTED_ORIGIN";
-    throw error;
+    throw createRequestOriginError();
   }
 
   if (request.method !== "GET" && !csrfHeader) {
@@ -138,7 +143,10 @@ function sendAuthSuccess(request, response, result, statusCode = 200) {
 }
 
 function clearRefreshCookie(request, response) {
-  response.clearCookie(refreshCookieName, refreshCookieOptions(request));
+  const clearOptions = { ...refreshCookieOptions(request) };
+  delete clearOptions.maxAge;
+
+  response.clearCookie(refreshCookieName, clearOptions);
 }
 
 export async function register(request, response, next) {
@@ -169,10 +177,13 @@ export async function login(request, response, next) {
 export async function refresh(request, response, next) {
   try {
     assertTrustedBrowserOrigin(request);
-    const payload = validateBody(refreshSchema, {
-      refreshToken:
-        request.body?.refreshToken || readCookie(request, refreshCookieName),
-    });
+    const refreshToken = readCookie(request, refreshCookieName);
+
+    if (!refreshToken) {
+      throw createInvalidRefreshTokenError();
+    }
+
+    const payload = validateBody(refreshSchema, { refreshToken });
     sendAuthSuccess(
       request,
       response,
@@ -188,11 +199,18 @@ export async function refresh(request, response, next) {
 export async function logout(request, response, next) {
   try {
     assertTrustedBrowserOrigin(request);
-    const payload = validateBody(logoutSchema, {
-      refreshToken:
-        request.body?.refreshToken || readCookie(request, refreshCookieName),
-    });
+    const refreshToken = readCookie(request, refreshCookieName);
     clearRefreshCookie(request, response);
+
+    if (!refreshToken) {
+      sendSuccess(response, {
+        success: true,
+        message: "Logged out successfully",
+      });
+      return;
+    }
+
+    const payload = validateBody(logoutSchema, { refreshToken });
     sendSuccess(
       response,
       await authService.logoutUser({

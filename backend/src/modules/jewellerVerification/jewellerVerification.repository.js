@@ -118,9 +118,10 @@ export async function updateUserBusinessVerificationStatus(userId, status, clien
   return result.rows[0] || null;
 }
 
-export async function listJewellerVerifications({ status }, client) {
-  const params = [];
-  const statusFilter = status ? "WHERE status = $1" : "";
+export async function listJewellerVerifications({ status, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const params = [safeLimit];
+  const statusFilter = status ? "WHERE status = $2" : "";
 
   if (status) {
     params.push(status);
@@ -130,7 +131,8 @@ export async function listJewellerVerifications({ status }, client) {
     `SELECT *
      FROM jeweller_business_verifications
      ${statusFilter}
-     ORDER BY created_at DESC`,
+     ORDER BY created_at DESC
+     LIMIT $1`,
     params,
   );
 
@@ -203,6 +205,7 @@ export async function rejectJewellerVerification(
 export async function createAuditLog(
   {
     actorUserId,
+    actorAdminId,
     action,
     entityType,
     entityId,
@@ -216,6 +219,7 @@ export async function createAuditLog(
     `INSERT INTO audit_logs (
       id,
       actor_user_id,
+      actor_admin_id,
       action,
       entity_type,
       entity_id,
@@ -223,11 +227,12 @@ export async function createAuditLog(
       ip_address,
       user_agent
     )
-    VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
     RETURNING *`,
     [
       randomUUID(),
       actorUserId ?? null,
+      actorAdminId ?? null,
       action,
       entityType,
       entityId ?? null,

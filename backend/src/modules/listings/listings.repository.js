@@ -144,9 +144,10 @@ export async function insertListingImages(listingId, imageUrls, client) {
   return result.rows.map(mapListingImage);
 }
 
-export async function listSellerListings({ sellerId, status }, client) {
-  const params = [sellerId];
-  const statusFilter = status ? "AND status = $2" : "";
+export async function listSellerListings({ sellerId, status, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const params = [sellerId, safeLimit];
+  const statusFilter = status ? "AND status = $3" : "";
 
   if (status) {
     params.push(status);
@@ -157,7 +158,8 @@ export async function listSellerListings({ sellerId, status }, client) {
      FROM gold_listings
      WHERE seller_id = $1
        ${statusFilter}
-     ORDER BY created_at DESC`,
+     ORDER BY created_at DESC
+     LIMIT $2`,
     params,
   );
   const imagesByListingId = await findImagesByListingIds(
@@ -168,7 +170,8 @@ export async function listSellerListings({ sellerId, status }, client) {
   return result.rows.map((row) => mapListing(row, imagesByListingId.get(row.id) || []));
 }
 
-export async function listActiveMarketplaceListings({ city, state }, client) {
+export async function listActiveMarketplaceListings({ city, state, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
   const params = [];
   const filters = ["status = 'ACTIVE'"];
 
@@ -182,11 +185,14 @@ export async function listActiveMarketplaceListings({ city, state }, client) {
     filters.push(`lower(state) = lower($${params.length})`);
   }
 
+  params.push(safeLimit);
+
   const result = await db(client).query(
     `SELECT *
      FROM gold_listings
      WHERE ${filters.join(" AND ")}
-     ORDER BY created_at DESC`,
+     ORDER BY created_at DESC
+     LIMIT $${params.length}`,
     params,
   );
   const imagesByListingId = await findImagesByListingIds(

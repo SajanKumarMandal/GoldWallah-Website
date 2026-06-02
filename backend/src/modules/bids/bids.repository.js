@@ -122,7 +122,8 @@ export async function createBid(data, client) {
   return mapBid(result.rows[0]);
 }
 
-export async function listBidsForSellerListing({ listingId, sellerId }, client) {
+export async function listBidsForSellerListing({ listingId, sellerId, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
   const result = await db(client).query(
     `SELECT
        b.*,
@@ -134,14 +135,16 @@ export async function listBidsForSellerListing({ listingId, sellerId }, client) 
      JOIN users u ON u.id = b.jeweller_id
      WHERE b.listing_id = $1
        AND l.seller_id = $2
-     ORDER BY b.created_at DESC`,
-    [listingId, sellerId],
+     ORDER BY b.created_at DESC
+     LIMIT $3`,
+    [listingId, sellerId, safeLimit],
   );
 
   return result.rows.map(mapBid);
 }
 
-export async function listBidsForJeweller(jewellerId, client) {
+export async function listBidsForJeweller({ jewellerId, limit }, client) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
   const result = await db(client).query(
     `SELECT
        b.*,
@@ -151,8 +154,9 @@ export async function listBidsForJeweller(jewellerId, client) {
      FROM private_bids b
      JOIN gold_listings l ON l.id = b.listing_id
      WHERE b.jeweller_id = $1
-     ORDER BY b.created_at DESC`,
-    [jewellerId],
+     ORDER BY b.created_at DESC
+     LIMIT $2`,
+    [jewellerId, safeLimit],
   );
 
   return result.rows.map(mapBid);

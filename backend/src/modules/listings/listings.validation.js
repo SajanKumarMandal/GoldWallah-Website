@@ -4,6 +4,7 @@ const GOLD_TYPES = ["JEWELLERY", "COIN", "BAR", "SCRAP", "OTHER"];
 const PURITIES = ["24K", "22K", "18K", "14K", "UNKNOWN"];
 const CONDITIONS = ["NEW", "USED", "DAMAGED", "OLD", "UNKNOWN"];
 const LISTING_STATUSES = ["ACTIVE", "BID_ACCEPTED", "SOLD", "CANCELLED"];
+const limitQuery = z.coerce.number().int().positive().max(100).optional();
 
 function optionalNumber(schema) {
   return z.preprocess((value) => {
@@ -91,11 +92,13 @@ export const updateListingSchema = z
 
 export const listingStatusQuerySchema = z.object({
   status: z.enum(LISTING_STATUSES).optional(),
+  limit: limitQuery,
 });
 
 export const marketplaceListingQuerySchema = z.object({
   city: optionalTrimmedString(100),
   state: optionalTrimmedString(100),
+  limit: limitQuery,
 });
 
 export const uuidParamSchema = z.object({

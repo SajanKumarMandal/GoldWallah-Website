@@ -110,7 +110,7 @@ export async function placeBid({ user, payload, requestMeta }) {
   });
 }
 
-export async function getSellerListingBids({ user, listingId }) {
+export async function getSellerListingBids({ user, listingId, query = {} }) {
   assertSeller(user);
 
   return {
@@ -118,16 +118,20 @@ export async function getSellerListingBids({ user, listingId }) {
     data: await listBidsForSellerListing({
       listingId,
       sellerId: user.id,
+      limit: query.limit,
     }),
   };
 }
 
-export async function getMyJewellerBids(user) {
+export async function getMyJewellerBids(user, query = {}) {
   requireJewellerCanTransact(user);
 
   return {
     success: true,
-    data: await listBidsForJeweller(user.id),
+    data: await listBidsForJeweller({
+      jewellerId: user.id,
+      limit: query.limit,
+    }),
   };
 }
 

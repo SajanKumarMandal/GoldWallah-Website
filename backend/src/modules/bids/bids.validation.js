@@ -16,6 +16,10 @@ export const uuidParamSchema = z.object({
   listingId: z.string().uuid("Invalid listing id").optional(),
 });
 
+export const listBidsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
 export function validateBody(schema, body) {
   const result = schema.safeParse(body);
 
@@ -35,6 +39,20 @@ export function validateParams(schema, params) {
 
   if (!result.success) {
     const error = new Error("Invalid route parameters");
+    error.statusCode = 400;
+    error.code = "VALIDATION_ERROR";
+    error.details = result.error.flatten().fieldErrors;
+    throw error;
+  }
+
+  return result.data;
+}
+
+export function validateQuery(schema, query) {
+  const result = schema.safeParse(query);
+
+  if (!result.success) {
+    const error = new Error("Invalid query parameters");
     error.statusCode = 400;
     error.code = "VALIDATION_ERROR";
     error.details = result.error.flatten().fieldErrors;

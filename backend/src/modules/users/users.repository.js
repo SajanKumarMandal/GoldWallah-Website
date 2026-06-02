@@ -92,21 +92,3 @@ export async function updateUserProfileLocation(userId, location, client) {
 
   return mapUser(result.rows[0]);
 }
-
-export async function updateApprovedJewellerShopLocation(jewellerId, location, client) {
-  await db(client).query(
-    `UPDATE jeweller_business_verifications
-     SET
-       latitude = $2,
-       longitude = $3
-     WHERE id = (
-       SELECT id
-       FROM jeweller_business_verifications
-       WHERE jeweller_id = $1
-         AND status = 'APPROVED'
-       ORDER BY reviewed_at DESC NULLS LAST, created_at DESC
-       LIMIT 1
-     )`,
-    [jewellerId, location.latitude, location.longitude],
-  );
-}

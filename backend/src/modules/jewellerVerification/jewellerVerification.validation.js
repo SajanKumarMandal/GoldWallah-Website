@@ -74,6 +74,7 @@ export const submitJewellerVerificationSchema = z
 
 export const adminListQuerySchema = z.object({
   status: z.enum(VERIFICATION_STATUSES).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const approveVerificationSchema = z.object({

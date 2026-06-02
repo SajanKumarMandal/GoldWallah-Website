@@ -33,6 +33,7 @@ const OTP_PURPOSES = {
   login: "LOGIN",
   register: "REGISTER",
 };
+const REFRESH_REUSE_GRACE_MS = 30 * 1000;
 
 function createError(message, statusCode, code) {
   const error = new Error(message);
@@ -57,6 +58,16 @@ function getTokenExpiry(token) {
   }
 
   return new Date(decoded.exp * 1000).toISOString();
+}
+
+function isRecentlyRevoked(refreshTokenRecord) {
+  if (!refreshTokenRecord?.revokedAt) {
+    return false;
+  }
+
+  const revokedAtMs = new Date(refreshTokenRecord.revokedAt).getTime();
+
+  return Number.isFinite(revokedAtMs) && Date.now() - revokedAtMs <= REFRESH_REUSE_GRACE_MS;
 }
 
 async function createAuthResponse(user, message, client) {
@@ -279,6 +290,10 @@ export async function refreshUserSession({ refreshToken }) {
     }
 
     if (existingRefreshToken.revokedAt) {
+      if (isRecentlyRevoked(existingRefreshToken)) {
+        throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
+      }
+
       await revokeAllActiveRefreshTokens(existingRefreshToken.userId, client);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }

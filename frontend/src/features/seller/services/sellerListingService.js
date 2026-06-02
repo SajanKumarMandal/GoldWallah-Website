@@ -25,7 +25,7 @@ export function resolveAssetUrl(path) {
 export async function getMyListings(accessToken, filters = {}) {
   return apiRequest("listings/my", {
     headers: authHeaders(accessToken),
-    query: filters,
+    query: { limit: 100, ...filters },
   });
 }
 

@@ -9,6 +9,7 @@ export async function getMarketplaceListings(accessToken, filters = {}) {
     headers: authHeaders(accessToken),
     query: {
       radiusKm: 50,
+      limit: 50,
       ...filters,
     },
   });
@@ -28,5 +29,6 @@ export async function placePrivateBid(accessToken, payload) {
 export async function getMyPrivateBids(accessToken) {
   return apiRequest("bids/my", {
     headers: authHeaders(accessToken),
+    query: { limit: 100 },
   });
 }

@@ -124,9 +124,12 @@ async function writeAudit(
   { actorUserId, action, verificationId, jewellerId, status, adminUserId, requestMeta },
   client,
 ) {
+  const isAdminActor = Boolean(adminUserId);
+
   await createAuditLog(
     {
-      actorUserId,
+      actorUserId: isAdminActor ? null : actorUserId,
+      actorAdminId: adminUserId || null,
       action,
       entityType: ENTITY_TYPE,
       entityId: verificationId,

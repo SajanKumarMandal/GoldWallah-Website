@@ -36,6 +36,7 @@ export const sellerKycSchema = z.object({
 
 export const adminKycListQuerySchema = z.object({
   status: z.enum(KYC_STATUSES).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const rejectKycSchema = z.object({

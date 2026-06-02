@@ -7,7 +7,7 @@ function authHeaders(accessToken) {
 export async function getSellerKycSubmissions(accessToken, filters = {}) {
   return apiRequest("kyc/admin/seller", {
     headers: authHeaders(accessToken),
-    query: filters,
+    query: { limit: 100, ...filters },
   });
 }
 

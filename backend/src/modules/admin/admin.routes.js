@@ -19,6 +19,20 @@ const adminLoginLimiter = rateLimit({
   },
 });
 
+const adminSessionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many admin session requests. Please try again later.",
+    error: {
+      message: "Too many admin session requests. Please try again later.",
+      code: "ADMIN_SESSION_RATE_LIMITED",
+    },
+  },
+});
+
 export const adminRouter = Router();
 
 adminRouter.get("/", (_request, response) => {
@@ -30,12 +44,8 @@ adminRouter.get("/", (_request, response) => {
 });
 
 adminRouter.post("/auth/login", adminLoginLimiter, adminController.login);
-adminRouter.post("/auth/refresh", adminController.refresh);
-adminRouter.post(
-  "/auth/logout",
-  requireAdminAuth,
-  adminController.logout,
-);
+adminRouter.post("/auth/refresh", adminSessionLimiter, adminController.refresh);
+adminRouter.post("/auth/logout", adminSessionLimiter, adminController.logout);
 adminRouter.get("/auth/me", requireAdminAuth, adminController.me);
 adminRouter.post(
   "/auth/change-password",

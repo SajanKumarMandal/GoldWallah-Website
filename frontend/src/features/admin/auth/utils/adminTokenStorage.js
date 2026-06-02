@@ -1,49 +1,52 @@
-const ADMIN_SESSION_KEY = "goldwallah.admin.session";
+const LEGACY_ADMIN_SESSION_KEY = "goldwallah.admin.session";
 
-export function readAdminSession() {
+let adminSession = {
+  admin: null,
+  accessToken: "",
+};
+
+function clearLegacyPersistentSession() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
-    const storedSession = window.localStorage.getItem(ADMIN_SESSION_KEY);
-
-    if (!storedSession) {
-      return null;
-    }
-
-    const parsedSession = JSON.parse(storedSession);
-
-    if (!parsedSession?.accessToken) {
-      clearAdminSession();
-      return null;
-    }
-
-    return {
-      admin: parsedSession.admin || null,
-      accessToken: parsedSession.accessToken,
-      refreshToken: parsedSession.refreshToken || null,
-    };
+    window.localStorage.removeItem(LEGACY_ADMIN_SESSION_KEY);
   } catch {
-    clearAdminSession();
-    return null;
+    // Ignore storage access failures; admin tokens are no longer read from storage.
   }
 }
 
-export function writeAdminSession({ admin, accessToken, refreshToken }) {
+clearLegacyPersistentSession();
+
+export function readAdminSession() {
+  if (!adminSession.accessToken) {
+    return null;
+  }
+
+  return {
+    admin: adminSession.admin,
+    accessToken: adminSession.accessToken,
+  };
+}
+
+export function writeAdminSession({ admin, accessToken }) {
   if (!accessToken) {
     clearAdminSession();
     return;
   }
 
-  window.localStorage.setItem(
-    ADMIN_SESSION_KEY,
-    JSON.stringify({
-      admin: admin || null,
-      accessToken,
-      refreshToken: refreshToken || null,
-    }),
-  );
+  adminSession = {
+    admin: admin || null,
+    accessToken,
+  };
 }
 
 export function clearAdminSession() {
-  window.localStorage.removeItem(ADMIN_SESSION_KEY);
+  adminSession = {
+    admin: null,
+    accessToken: "",
+  };
 }
 
 export function getAdminAccessToken() {
@@ -51,5 +54,5 @@ export function getAdminAccessToken() {
 }
 
 export function getAdminRefreshToken() {
-  return readAdminSession()?.refreshToken || "";
+  return "";
 }
