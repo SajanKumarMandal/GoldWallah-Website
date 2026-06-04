@@ -16,7 +16,7 @@ import {
   submitSellerKyc,
 } from "@/features/seller/services/sellerKycService";
 
-const KYC_POLL_INTERVAL_MS = 9000;
+const KYC_POLL_INTERVAL_MS = 15_000;
 
 const kycConfig = {
   seller: {
@@ -176,27 +176,62 @@ export default function UserKycPage({ audience }) {
     }
 
     let isMounted = true;
-    const intervalId = window.setInterval(async () => {
-      const nextPayload = await refreshKyc({
-        showLoading: false,
-        showErrors: false,
-      });
+    let isPolling = false;
+    let timerId;
 
-      if (!isMounted || !nextPayload) {
+    async function pollKycStatus() {
+      if (isPolling) {
         return;
       }
 
-      const nextStatus = resolveStatus(nextPayload);
-      if (nextStatus === KYC_STATUS.approved) {
-        setStatusMessage(config.approvedPollText);
-      } else if (nextStatus === KYC_STATUS.rejected) {
-        setStatusMessage(config.rejectedPollText);
+      if (document.visibilityState === "hidden") {
+        timerId = window.setTimeout(pollKycStatus, KYC_POLL_INTERVAL_MS);
+        return;
       }
-    }, KYC_POLL_INTERVAL_MS);
+
+      isPolling = true;
+
+      try {
+        const nextPayload = await refreshKyc({
+          showLoading: false,
+          showErrors: false,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (nextPayload) {
+          const nextStatus = resolveStatus(nextPayload);
+          if (nextStatus === KYC_STATUS.approved) {
+            setStatusMessage(config.approvedPollText);
+          } else if (nextStatus === KYC_STATUS.rejected) {
+            setStatusMessage(config.rejectedPollText);
+          }
+        }
+      } finally {
+        isPolling = false;
+
+        if (isMounted) {
+          timerId = window.setTimeout(pollKycStatus, KYC_POLL_INTERVAL_MS);
+        }
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        window.clearTimeout(timerId);
+        pollKycStatus();
+      }
+    }
+
+    timerId = window.setTimeout(pollKycStatus, KYC_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
-      window.clearInterval(intervalId);
+      window.clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [config, refreshKyc, status]);
 
@@ -226,13 +261,9 @@ export default function UserKycPage({ audience }) {
       }
 
       const result = await config.submitKyc(formData, accessToken);
-      setKycPayload(result?.data || null);
+      applyKycPayload(result?.data || null);
       setStatusMessage(config.submittedText);
       setShowSubmittedDetails(false);
-
-      if (result?.data?.kycStatus && userRef.current) {
-        setAuthUser({ ...userRef.current, kycStatus: result.data.kycStatus });
-      }
     } catch (error) {
       const message =
         error.status === 401

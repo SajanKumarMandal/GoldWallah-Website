@@ -10,7 +10,7 @@ function resolveStatus(payload) {
   return payload?.submission?.status || payload?.kycStatus || "";
 }
 
-export function useKycStatusSync({ intervalMs = 5_000 } = {}) {
+export function useKycStatusSync({ enabled = true, intervalMs = 30_000 } = {}) {
   const { accessToken, user, setAuthUser } = useAuth();
   const userRef = useRef(user);
 
@@ -20,6 +20,7 @@ export function useKycStatusSync({ intervalMs = 5_000 } = {}) {
 
   useEffect(() => {
     const shouldSync =
+      enabled &&
       accessToken &&
       [USER_ROLES.seller, USER_ROLES.jeweller].includes(user?.role) &&
       user?.kycStatus === KYC_STATUS.pending;
@@ -70,7 +71,7 @@ export function useKycStatusSync({ intervalMs = 5_000 } = {}) {
       }
     }
 
-    timerId = window.setTimeout(syncKycStatus, 2_000);
+    timerId = window.setTimeout(syncKycStatus, intervalMs);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
@@ -78,5 +79,5 @@ export function useKycStatusSync({ intervalMs = 5_000 } = {}) {
       window.clearTimeout(timerId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [accessToken, intervalMs, setAuthUser, user?.kycStatus, user?.role]);
+  }, [accessToken, enabled, intervalMs, setAuthUser, user?.kycStatus, user?.role]);
 }

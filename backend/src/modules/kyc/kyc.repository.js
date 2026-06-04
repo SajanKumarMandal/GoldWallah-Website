@@ -44,28 +44,54 @@ function mapKycSubmissionWithEncryptedIdentity(row) {
   };
 }
 
-export async function findLatestKycForUser(userId, client) {
+export async function findLatestKycForUser(userId, client, { role } = {}) {
+  const params = [userId];
+  const roleFilter = role ? "AND u.role = $2" : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
-    `SELECT *
-     FROM kyc_submissions
-     WHERE user_id = $1
-     ORDER BY created_at DESC
+    `SELECT
+       k.*,
+       u.role AS user_role,
+       u.email AS user_email,
+       u.phone AS user_phone
+     FROM kyc_submissions k
+     JOIN users u ON u.id = k.user_id
+     WHERE k.user_id = $1
+       ${roleFilter}
+     ORDER BY k.created_at DESC
      LIMIT 1`,
-    [userId],
+    params,
   );
 
   return mapKycSubmission(result.rows[0]);
 }
 
-export async function findPendingKycForUser(userId, client) {
+export async function findPendingKycForUser(userId, client, { role } = {}) {
+  const params = [userId];
+  const roleFilter = role ? "AND u.role = $2" : "";
+
+  if (role) {
+    params.push(role);
+  }
+
   const result = await db(client).query(
-    `SELECT *
-     FROM kyc_submissions
-     WHERE user_id = $1
-       AND status = 'PENDING'
-     ORDER BY created_at DESC
+    `SELECT
+       k.*,
+       u.role AS user_role,
+       u.email AS user_email,
+       u.phone AS user_phone
+     FROM kyc_submissions k
+     JOIN users u ON u.id = k.user_id
+     WHERE k.user_id = $1
+       AND k.status = 'PENDING'
+       ${roleFilter}
+     ORDER BY k.created_at DESC
      LIMIT 1`,
-    [userId],
+    params,
   );
 
   return mapKycSubmission(result.rows[0]);

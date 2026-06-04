@@ -33,6 +33,7 @@ export default function SellerKycForm({
   const [errors, setErrors] = useState({});
   const [formMessage, setFormMessage] = useState("");
   const [selfieResetKey, setSelfieResetKey] = useState(0);
+  const formMessageRef = useRef(null);
   const selfiePreviewUrlRef = useRef("");
 
   useEffect(() => {
@@ -76,6 +77,12 @@ export default function SellerKycForm({
     setFormMessage("");
   }
 
+  function focusFormMessage() {
+    window.requestAnimationFrame(() => {
+      formMessageRef.current?.focus();
+    });
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     const nextErrors = validateSellerKycForm(values);
@@ -83,6 +90,7 @@ export default function SellerKycForm({
 
     if (Object.keys(nextErrors).length > 0) {
       setFormMessage("Please fix the highlighted KYC details before submitting.");
+      focusFormMessage();
       if (import.meta.env.DEV) {
         console.debug(`${contextLabel} KYC validation failed`, {
           fields: Object.keys(nextErrors),
@@ -92,13 +100,15 @@ export default function SellerKycForm({
     }
 
     try {
-      setFormMessage("");
+      setFormMessage(`${contextLabel} KYC is being submitted securely...`);
       await onSubmit(buildSellerKycFormData(values));
     } catch (error) {
       setFormMessage(error.message || `Unable to submit ${contextLabel.toLowerCase()} KYC.`);
+      focusFormMessage();
       return;
     }
 
+    setFormMessage("");
     setValues((currentValues) => ({
       ...currentValues,
       aadhaarNumber: "",
@@ -114,7 +124,12 @@ export default function SellerKycForm({
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
       {formMessage ? (
-        <p className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper)">
+        <p
+          ref={formMessageRef}
+          tabIndex={-1}
+          aria-live="polite"
+          className="rounded-2xl bg-(--gw-color-copper)/10 px-4 py-3 text-sm font-medium text-(--gw-color-copper) outline-none focus-visible:ring-4 focus-visible:ring-(--gw-color-copper)/15"
+        >
           {formMessage}
         </p>
       ) : null}
@@ -126,6 +141,7 @@ export default function SellerKycForm({
           value={values.fullName}
           error={errors.fullName}
           disabled={isSubmitting}
+          aria-invalid={Boolean(errors.fullName)}
           maxLength={150}
           onChange={(value) => updateField("fullName", value)}
         />
@@ -135,6 +151,7 @@ export default function SellerKycForm({
           value={values.mobileNumber}
           error={errors.mobileNumber}
           disabled={isSubmitting}
+          aria-invalid={Boolean(errors.mobileNumber)}
           inputMode="numeric"
           maxLength={10}
           onChange={(value) => updateField("mobileNumber", value)}
@@ -147,6 +164,7 @@ export default function SellerKycForm({
         value={values.addressAsPerAadhaar}
         error={errors.addressAsPerAadhaar}
         disabled={isSubmitting}
+        aria-invalid={Boolean(errors.addressAsPerAadhaar)}
         onChange={(value) => updateField("addressAsPerAadhaar", value)}
       />
 
@@ -157,6 +175,7 @@ export default function SellerKycForm({
           value={values.aadhaarNumber}
           error={errors.aadhaarNumber}
           disabled={isSubmitting}
+          aria-invalid={Boolean(errors.aadhaarNumber)}
           inputMode="numeric"
           maxLength={12}
           placeholder="12 digit number"
@@ -168,6 +187,7 @@ export default function SellerKycForm({
           value={values.panNumber}
           error={errors.panNumber}
           disabled={isSubmitting}
+          aria-invalid={Boolean(errors.panNumber)}
           maxLength={10}
           placeholder="ABCDE1234F"
           onChange={(value) => updateField("panNumber", value)}
@@ -186,6 +206,7 @@ export default function SellerKycForm({
       <button
         type="submit"
         disabled={isSubmitting}
+        aria-busy={isSubmitting}
         className="inline-flex h-12 w-full items-center justify-center rounded-full bg-(--gw-color-green) px-6 text-sm font-semibold text-(--gw-color-cream) shadow-[0_16px_34px_rgba(26,54,45,0.18)] transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {isSubmitting ? "Submitting..." : "Submit KYC"}
@@ -205,6 +226,8 @@ function KycInput({
   placeholder = "",
   ...props
 }) {
+  const errorId = `${id}-error`;
+
   return (
     <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
@@ -215,18 +238,21 @@ function KycInput({
         placeholder={placeholder}
         disabled={disabled}
         required
+        aria-describedby={error ? errorId : undefined}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm text-(--gw-color-green) outline-none transition placeholder:text-(--gw-color-muted)/55 focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:bg-(--gw-color-border)/35"
         {...props}
       />
       {error ? (
-        <p className="mt-2 text-xs font-medium text-(--gw-color-copper)">{error}</p>
+        <p id={errorId} className="mt-2 text-xs font-medium text-(--gw-color-copper)">{error}</p>
       ) : null}
     </label>
   );
 }
 
-function KycTextArea({ id, label, value, onChange, disabled, error }) {
+function KycTextArea({ id, label, value, onChange, disabled, error, ...props }) {
+  const errorId = `${id}-error`;
+
   return (
     <label className="block min-w-0" htmlFor={id}>
       <span className="text-sm font-semibold text-(--gw-color-green)">{label}</span>
@@ -235,13 +261,15 @@ function KycTextArea({ id, label, value, onChange, disabled, error }) {
         value={value}
         disabled={disabled}
         required
+        aria-describedby={error ? errorId : undefined}
         rows={4}
         maxLength={500}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full resize-none rounded-2xl border border-(--gw-color-border) bg-white px-4 py-3 text-sm text-(--gw-color-green) outline-none transition placeholder:text-(--gw-color-muted)/55 focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:bg-(--gw-color-border)/35"
+        {...props}
       />
       {error ? (
-        <p className="mt-2 text-xs font-medium text-(--gw-color-copper)">{error}</p>
+        <p id={errorId} className="mt-2 text-xs font-medium text-(--gw-color-copper)">{error}</p>
       ) : null}
     </label>
   );

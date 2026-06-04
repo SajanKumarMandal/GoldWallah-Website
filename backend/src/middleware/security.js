@@ -10,5 +10,6 @@ export const securityMiddleware = [
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+    maxAge: 600,
   }),
 ];

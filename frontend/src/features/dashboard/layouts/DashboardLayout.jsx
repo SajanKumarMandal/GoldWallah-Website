@@ -68,7 +68,10 @@ export default function DashboardLayout() {
   const { user, accessToken, clearAuthUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  useKycStatusSync();
+  const isKycPage = [ROUTES.sellerKyc, ROUTES.jewellerKyc].includes(
+    location.pathname,
+  );
+  useKycStatusSync({ enabled: !isKycPage });
 
   const navigation = useMemo(() => navByRole[user?.role] || [], [user?.role]);
   const dashboardHomePath = useMemo(() => getDashboardHomePath(user), [user]);

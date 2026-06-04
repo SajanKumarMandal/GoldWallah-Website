@@ -182,7 +182,9 @@ export async function submitKycForRole(user, payload, role) {
 
   try {
     return await withTransaction(async (client) => {
-    const latestSubmission = await findLatestKycForUser(user.id, client);
+    const latestSubmission = await findLatestKycForUser(user.id, client, {
+      role,
+    });
 
     if (latestSubmission?.status === "PENDING") {
       throw createError(
@@ -201,7 +203,9 @@ export async function submitKycForRole(user, payload, role) {
     }
 
     const data = toSubmissionPayload(user.id, payload);
-    const pendingSubmission = await findPendingKycForUser(user.id, client);
+    const pendingSubmission = await findPendingKycForUser(user.id, client, {
+      role,
+    });
 
     if (pendingSubmission) {
       throw createError(
@@ -231,7 +235,7 @@ export async function submitKycForRole(user, payload, role) {
 
 export async function getKycForRole(user, role) {
   assertUserRole(user, role);
-  const submission = await findLatestKycForUser(user.id);
+  const submission = await findLatestKycForUser(user.id, undefined, { role });
 
   return {
     success: true,
