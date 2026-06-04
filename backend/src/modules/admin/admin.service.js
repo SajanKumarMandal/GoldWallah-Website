@@ -48,6 +48,7 @@ import {
 } from "./admin.repository.js";
 
 function createError(message, statusCode, code) {
+  // Normalize admin service failures for the shared error handler.
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
@@ -55,24 +56,29 @@ function createError(message, statusCode, code) {
 }
 
 function createGenericLoginError() {
+  // Keep credential failures generic to avoid admin account enumeration.
   return createError("Invalid email or password", 401, "INVALID_CREDENTIALS");
 }
 
 export function hashRefreshToken(refreshToken) {
+  // Admin refresh tokens are bearer credentials, so store only hashes in DB.
   return createHash("sha256").update(refreshToken).digest("hex");
 }
 
 function generateRefreshToken() {
+  // High-entropy opaque token used only inside the admin HttpOnly cookie.
   return randomBytes(48).toString("base64url");
 }
 
 function refreshTokenExpiry() {
+  // Persist absolute expiry for DB-side refresh-token validation.
   return new Date(
     Date.now() + env.adminRefreshTokenTtlDays * 24 * 60 * 60 * 1000,
   ).toISOString();
 }
 
 function isRecentlyRevoked(session) {
+  // Avoid treating a near-simultaneous double refresh as token theft.
   if (!session?.revokedAt) {
     return false;
   }
@@ -84,6 +90,8 @@ function isRecentlyRevoked(session) {
 }
 
 function createAccessToken(admin) {
+  // Admin access tokens use a separate secret, audience, and token type from
+  // seller/jeweller user tokens.
   if (!env.adminJwtAccessSecret && env.nodeEnv !== "test") {
     throw createError(
       "Admin authentication is not configured",
@@ -108,10 +116,13 @@ function createAccessToken(admin) {
 }
 
 async function hashPassword(password) {
+  // Admin passwords use the same bcrypt work factor configured for the app.
   return bcrypt.hash(password, env.bcryptSaltRounds);
 }
 
 function sanitizeAdmin(admin, roles = [], permissions = []) {
+  // Remove sensitive fields such as password hashes and encrypted MFA secrets
+  // before admin profiles leave the service layer.
   return {
     id: admin.id,
     name: admin.name,
@@ -128,6 +139,7 @@ function sanitizeAdmin(admin, roles = [], permissions = []) {
 }
 
 async function buildAdminProfile(admin, client) {
+  // Attach RBAC roles and permissions to the safe admin profile.
   const [roles, permissions] = await Promise.all([
     findAdminRoles(admin.id, client),
     findAdminPermissions(admin.id, client),
@@ -137,6 +149,7 @@ async function buildAdminProfile(admin, client) {
 }
 
 async function createAdminAuthResponse({ admin, requestMeta, client }) {
+  // Shared admin session issuer for login and refresh rotation.
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshToken);
 
@@ -165,6 +178,8 @@ async function auditRefreshFailure(
   { action, session = null, reason, severity, requestMeta },
   client,
 ) {
+  // Refresh failures are audited because they can indicate session theft or
+  // automated attacks against admin accounts.
   await writeAdminAuditLog(
     {
       actorAdminId: session?.adminUserId || null,
@@ -180,6 +195,7 @@ async function auditRefreshFailure(
 }
 
 function isLockActive(admin) {
+  // Locked admins stay blocked until lockedUntil has passed.
   return (
     admin.status === "LOCKED" &&
     admin.lockedUntil &&
@@ -188,6 +204,7 @@ function isLockActive(admin) {
 }
 
 async function writeLoginFailureAudit({ admin, email, reason, requestMeta }, client) {
+  // Audit every admin login failure, including unknown email attempts.
   await writeAdminAuditLog(
     {
       actorAdminId: admin?.id || null,
@@ -203,6 +220,7 @@ async function writeLoginFailureAudit({ admin, email, reason, requestMeta }, cli
 }
 
 async function recordAdminFailedLogin(admin, reason, requestMeta, client) {
+  // Increment failed login count and calculate lock expiry when max attempts are hit.
   const lockUntil = new Date(
     Date.now() + env.adminLoginLockMinutes * 60 * 1000,
   ).toISOString();
@@ -224,6 +242,7 @@ async function recordAdminFailedLogin(admin, reason, requestMeta, client) {
 }
 
 function verifyAdminMfa(admin, mfaCode) {
+  // TOTP verification decrypts the stored secret only long enough to verify the code.
   if (!admin.mfaSecretEncrypted) {
     return false;
   }
@@ -232,6 +251,8 @@ function verifyAdminMfa(admin, mfaCode) {
 }
 
 export async function loginAdmin({ payload, requestMeta }) {
+  // Admin login handles credential checks, lockouts, MFA policy, audit logs, and
+  // session issuance in a single transaction.
   return withTransaction(async (client) => {
     let admin = await findAdminByEmail(payload.email, client);
 
@@ -248,6 +269,7 @@ export async function loginAdmin({ payload, requestMeta }) {
     const unlockedAdmin = await unlockExpiredAdminLock(admin.id, client);
 
     if (unlockedAdmin) {
+      // Expired locks are cleared before evaluating the current login attempt.
       admin = unlockedAdmin;
     }
 
@@ -267,11 +289,13 @@ export async function loginAdmin({ payload, requestMeta }) {
     );
 
     if (!isPasswordValid) {
+      // Wrong password can advance failed-attempt lockout state.
       await recordAdminFailedLogin(admin, "invalid_credentials", requestMeta, client);
       throw createGenericLoginError();
     }
 
     if (!admin.mfaEnabled && env.adminMfaRequired) {
+      // Production can require MFA for all admins before login is allowed.
       await writeLoginFailureAudit({
         admin,
         email: payload.email,
@@ -286,6 +310,7 @@ export async function loginAdmin({ payload, requestMeta }) {
     }
 
     if (admin.mfaEnabled && !payload.mfaCode) {
+      // MFA-enabled admins must provide a current TOTP code.
       await writeLoginFailureAudit({
         admin,
         email: payload.email,
@@ -296,6 +321,7 @@ export async function loginAdmin({ payload, requestMeta }) {
     }
 
     if (admin.mfaEnabled && !verifyAdminMfa(admin, payload.mfaCode)) {
+      // Invalid MFA codes are treated like failed login attempts.
       await recordAdminFailedLogin(admin, "invalid_mfa_code", requestMeta, client);
       throw createGenericLoginError();
     }
@@ -325,6 +351,7 @@ export async function loginAdmin({ payload, requestMeta }) {
 }
 
 export async function refreshAdminSession({ refreshToken, requestMeta }) {
+  // Rotate admin refresh tokens atomically and audit invalid/reused tokens.
   const refreshTokenHash = hashRefreshToken(refreshToken);
 
   return withTransaction(async (client) => {
@@ -347,6 +374,8 @@ export async function refreshAdminSession({ refreshToken, requestMeta }) {
     }
 
     if (existingSession.revokedAt) {
+      // Reuse of a revoked refresh token outside the grace window revokes the
+      // admin's entire session family.
       if (isRecentlyRevoked(existingSession)) {
         await auditRefreshFailure(
           {
@@ -376,6 +405,7 @@ export async function refreshAdminSession({ refreshToken, requestMeta }) {
     }
 
     if (new Date(existingSession.expiresAt).getTime() <= Date.now()) {
+      // Expired refresh attempts are audited and rejected.
       await auditRefreshFailure(
         {
           action: ADMIN_AUDIT_ACTIONS.refreshExpired,
@@ -408,6 +438,7 @@ export async function refreshAdminSession({ refreshToken, requestMeta }) {
     const admin = await findAdminById(session.adminUserId, client);
 
     if (!admin || admin.status !== "ACTIVE") {
+      // Inactive admins cannot rotate sessions even with an otherwise valid token.
       await auditRefreshFailure(
         {
           action: ADMIN_AUDIT_ACTIONS.refreshBlockedInactiveAdmin,
@@ -440,6 +471,7 @@ export async function refreshAdminSession({ refreshToken, requestMeta }) {
 }
 
 export async function logoutAdmin({ admin, refreshToken, requestMeta }) {
+  // Logout revokes the refresh token hash and records an audit event.
   const refreshTokenHash = hashRefreshToken(refreshToken);
 
   await withTransaction(async (client) => {
@@ -465,6 +497,7 @@ export async function logoutAdmin({ admin, refreshToken, requestMeta }) {
 }
 
 export async function getCurrentAdmin(admin) {
+  // Return current verified admin profile for route guards and admin UI chrome.
   return {
     success: true,
     data: {
@@ -474,6 +507,7 @@ export async function getCurrentAdmin(admin) {
 }
 
 export async function beginAdminMfaSetup({ admin, payload, requestMeta }) {
+  // MFA enrollment starts only after the current password is confirmed.
   return withTransaction(async (client) => {
     const currentAdmin = await findAdminById(admin.id, client, {
       includeSensitive: true,
@@ -494,6 +528,7 @@ export async function beginAdminMfaSetup({ admin, payload, requestMeta }) {
 
     const secret = generateTotpSecret();
 
+    // Store encrypted secret as disabled until the admin confirms a valid TOTP.
     await updateAdminMfaSecret(
       {
         id: admin.id,
@@ -530,6 +565,7 @@ export async function beginAdminMfaSetup({ admin, payload, requestMeta }) {
 }
 
 export async function confirmAdminMfaSetup({ admin, payload, requestMeta }) {
+  // MFA confirmation enables the encrypted secret only after code verification.
   return withTransaction(async (client) => {
     const currentAdmin = await findAdminById(admin.id, client, {
       includeSensitive: true,
@@ -747,6 +783,8 @@ export async function unblockPlatformUser({
 }
 
 export async function createSubAdmin({ actorAdmin, payload, requestMeta }) {
+  // Sub-admin creation is part of admin access management: create account, assign
+  // roles, and audit the operation atomically.
   return withTransaction(async (client) => {
     const existing = await findAdminByEmail(payload.email, client);
 
@@ -836,6 +874,8 @@ export async function changeAdminPassword({
   payload,
   requestMeta,
 }) {
+  // Password changes verify the current password, update the hash, revoke every
+  // active admin session, and force a fresh login.
   return withTransaction(async (client) => {
     const currentAdmin = await findAdminById(admin.id, client, {
       includeSensitive: true,

@@ -3,10 +3,13 @@ import { randomInt } from "node:crypto";
 import { env } from "../../../config/env.js";
 
 export function generateOtp() {
+  // Generate a six-digit numeric OTP using Node crypto instead of Math.random.
   return String(randomInt(100000, 1000000));
 }
 
 function otpProviderError(message, code = "OTP_PROVIDER_FAILED") {
+  // Hide provider-specific response details from clients while preserving a
+  // machine-readable code for logs/handlers.
   const error = new Error(message);
   error.statusCode = 502;
   error.code = code;
@@ -14,6 +17,7 @@ function otpProviderError(message, code = "OTP_PROVIDER_FAILED") {
 }
 
 async function sendMsg91Otp({ phone, otp }) {
+  // MSG91 handles templated OTP delivery for Indian phone numbers.
   const url = new URL("https://control.msg91.com/api/v5/otp");
   url.searchParams.set("template_id", env.msg91TemplateId);
   url.searchParams.set("mobile", `91${phone}`);
@@ -33,6 +37,7 @@ async function sendMsg91Otp({ phone, otp }) {
 }
 
 async function sendTwilioSmsOtp({ phone, otp }) {
+  // Twilio fallback sends a direct SMS with the generated OTP and expiry copy.
   const credentials = Buffer.from(
     `${env.twilioAccountSid}:${env.twilioAuthToken}`,
   ).toString("base64");
@@ -58,6 +63,8 @@ async function sendTwilioSmsOtp({ phone, otp }) {
 }
 
 export async function sendOtp({ phone, otp }) {
+  // Select the configured provider at runtime. Production blocks mock OTP in env
+  // validation, so mock mode remains local/test only.
   if (env.otpProvider === "mock") {
     return {
       configured: true,
@@ -68,6 +75,7 @@ export async function sendOtp({ phone, otp }) {
   }
 
   if (env.otpProvider === "msg91") {
+    // Fail as not configured instead of silently dropping OTPs.
     if (!env.msg91AuthKey || !env.msg91TemplateId || !env.msg91SenderId) {
       return {
         configured: false,
@@ -83,6 +91,7 @@ export async function sendOtp({ phone, otp }) {
     };
   }
 
+  // Any non-MSG91 provider currently routes to Twilio SMS.
   if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioFromPhone) {
     return {
       configured: false,

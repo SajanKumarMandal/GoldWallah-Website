@@ -11,6 +11,8 @@ import {
 } from "@/features/admin/auth/utils/adminTokenStorage";
 
 function passwordChecks(password) {
+  // Frontend strength checklist mirrors backend admin-password requirements for
+  // immediate feedback before submission.
   return [
     { label: "At least 12 characters", passed: password.length >= 12 },
     { label: "Contains uppercase and lowercase letters", passed: /[A-Z]/.test(password) && /[a-z]/.test(password) },
@@ -19,6 +21,7 @@ function passwordChecks(password) {
   ];
 }
 
+// Forced password-change screen for seeded or reset admin accounts.
 export default function AdminChangePasswordPage() {
   const navigate = useNavigate();
   const session = readAdminSession();
@@ -30,21 +33,26 @@ export default function AdminChangePasswordPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Recompute strength checks only when the proposed new password changes.
   const checks = useMemo(
     () => passwordChecks(values.newPassword),
     [values.newPassword],
   );
 
   if (!session?.accessToken) {
+    // Password change is protected by the in-memory admin access token.
     return <Navigate to="/admin/login" replace />;
   }
 
   function updateField(name, value) {
+    // Clear stale validation errors while the admin edits password fields.
     setValues((currentValues) => ({ ...currentValues, [name]: value }));
     setErrorMessage("");
   }
 
   function validate() {
+    // Client-side validation avoids unnecessary auth calls; backend still
+    // enforces the same password policy.
     if (!values.currentPassword || !values.newPassword || !values.confirmPassword) {
       return "All password fields are required.";
     }
@@ -65,6 +73,8 @@ export default function AdminChangePasswordPage() {
   }
 
   async function handleSubmit(event) {
+    // After a successful password change, force a fresh admin login so old
+    // temporary-password sessions cannot continue.
     event.preventDefault();
     const validationError = validate();
 
@@ -189,6 +199,7 @@ export default function AdminChangePasswordPage() {
 }
 
 function PasswordField({ id, label, value, onChange, disabled }) {
+  // Local password input wrapper used for current/new/confirmation fields.
   return (
     <label className="mt-5 block" htmlFor={id}>
       <span className="text-sm font-semibold">{label}</span>

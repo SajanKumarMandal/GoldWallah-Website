@@ -2,6 +2,8 @@ import { useContext } from "react";
 
 import { AuthContext } from "@/features/auth/context/authContextValue";
 
+// Typed-by-convention hook for auth consumers. Throwing here catches missing
+// AuthProvider wiring during development instead of returning unsafe null state.
 export function useAuth() {
   const context = useContext(AuthContext);
 

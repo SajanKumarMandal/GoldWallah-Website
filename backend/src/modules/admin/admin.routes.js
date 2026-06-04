@@ -5,6 +5,8 @@ import { requireAdminAuth } from "../../middleware/adminAuth.js";
 import { requireAdminPermission } from "../../middleware/requireAdminPermission.js";
 import * as adminController from "./admin.controller.js";
 
+// Admin login has its own limiter because admin credentials are higher risk
+// than ordinary user credentials.
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 25,
@@ -19,6 +21,8 @@ const adminLoginLimiter = rateLimit({
   },
 });
 
+// Admin refresh/logout can happen frequently from the console, but still need a
+// ceiling to prevent refresh loops from stressing the API.
 const adminSessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 600,
@@ -36,6 +40,7 @@ const adminSessionLimiter = rateLimit({
 export const adminRouter = Router();
 
 adminRouter.get("/", (_request, response) => {
+  // Lightweight admin module status endpoint.
   response.status(200).json({
     module: "admin",
     status: "ready",
@@ -43,6 +48,8 @@ adminRouter.get("/", (_request, response) => {
   });
 });
 
+// Admin auth endpoints. Controllers enforce trusted browser origin, CSRF header
+// checks for unsafe methods, and secure refresh-cookie handling.
 adminRouter.post("/auth/login", adminLoginLimiter, adminController.login);
 adminRouter.post("/auth/refresh", adminSessionLimiter, adminController.refresh);
 adminRouter.post("/auth/logout", adminSessionLimiter, adminController.logout);

@@ -5,6 +5,7 @@ export const AUTH_ROLES = {
   jeweller: "JEWELLER",
 };
 
+// Zod schemas define the server-side contract for all auth request bodies.
 const indianPhoneSchema = z
   .string()
   .trim()
@@ -25,6 +26,7 @@ const passwordSchema = z
   .max(128, "Password is too long")
   .refine((value) => !/^\s|\s$/.test(value), "Password cannot start or end with spaces");
 
+// Email registration requires full identity/contact details plus a password.
 export const registerSchema = z.object({
   fullName: fullNameSchema,
   email: emailSchema,
@@ -33,20 +35,24 @@ export const registerSchema = z.object({
   role: roleSchema,
 });
 
+// Login keeps the public error generic in the service, but still validates shape here.
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Password is required"),
 });
 
+// OTP send accepts only a phone number; purpose is decided by route/service.
 export const sendOtpSchema = z.object({
   phone: indianPhoneSchema,
 });
 
+// OTP login verifies the submitted OTP against the existing account phone.
 export const verifyLoginOtpSchema = z.object({
   phone: indianPhoneSchema,
   otp: otpSchema,
 });
 
+// OTP registration creates a user only after fullName, phone, role, and OTP pass.
 export const verifyRegisterOtpSchema = z.object({
   fullName: fullNameSchema,
   phone: indianPhoneSchema,
@@ -54,10 +60,12 @@ export const verifyRegisterOtpSchema = z.object({
   otp: otpSchema,
 });
 
+// Social login accepts provider tokens only; backend provider modules verify them.
 export const googleLoginSchema = z.object({
   idToken: z.string().trim().min(1, "Google idToken is required"),
 });
 
+// Social registration adds the GoldWallah role gate to provider identity.
 export const googleRegisterSchema = googleLoginSchema.extend({
   role: roleSchema,
 });
@@ -70,6 +78,7 @@ export const facebookRegisterSchema = facebookLoginSchema.extend({
   role: roleSchema,
 });
 
+// Refresh/logout validate token shape after the controller reads the HttpOnly cookie.
 export const refreshSchema = z.object({
   refreshToken: z.string().trim().min(32, "Refresh token is required"),
 });
@@ -77,6 +86,8 @@ export const refreshSchema = z.object({
 export const logoutSchema = refreshSchema;
 
 export function validateBody(schema, body) {
+  // Convert validation failures into structured API errors without exposing raw
+  // parser internals to clients.
   const result = schema.safeParse(body);
 
   if (!result.success) {
@@ -91,6 +102,7 @@ export function validateBody(schema, body) {
 }
 
 export function normalizePhone(phone) {
+  // Store Indian mobile numbers consistently without country-code punctuation.
   const digits = phone.replace(/\D/g, "");
   return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
 }

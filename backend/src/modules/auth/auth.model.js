@@ -1,3 +1,4 @@
+// Canonical user fields used by older auth-model consumers and documentation.
 export const USER_TABLE_FIELDS = [
   "id",
   "fullName",
@@ -14,6 +15,7 @@ export const USER_TABLE_FIELDS = [
   "updatedAt",
 ];
 
+// Canonical OTP fields used by older auth-model consumers and documentation.
 export const OTP_TABLE_FIELDS = [
   "id",
   "phone",

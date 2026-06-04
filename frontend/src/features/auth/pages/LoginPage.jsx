@@ -32,6 +32,8 @@ const authMethods = [
   { value: AUTH_METHODS.mobile, label: "Mobile OTP" },
 ];
 
+// Separate state objects keep email/password and OTP inputs from leaking values
+// into the inactive login method.
 const initialEmailValues = {
   email: "",
   password: "",
@@ -45,9 +47,11 @@ const initialOtpValues = {
 export default function LoginPage() {
   const { setAuthSession } = useAuth();
   const navigate = useNavigate();
+  // activeMethod decides which form branch is rendered and submitted.
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
   const [emailValues, setEmailValues] = useState(initialEmailValues);
   const [otpValues, setOtpValues] = useState(initialOtpValues);
+  // Shared submission and feedback state covers email, OTP, and social login.
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -55,29 +59,36 @@ export default function LoginPage() {
   const [socialProvider, setSocialProvider] = useState("");
 
   function clearFeedback() {
+    // Switching methods clears stale validation/status from the previous form.
     setErrors({});
     setStatusMessage("");
   }
 
   function updateEmailField(field, value) {
+    // Update one email-login field and clear only that field's validation error.
     setEmailValues((currentValues) => ({ ...currentValues, [field]: value }));
     setErrors((currentErrors) => ({ ...currentErrors, [field]: "" }));
     setStatusMessage("");
   }
 
   function updateOtpField(field, value) {
+    // Update one OTP-login field and clear only that field's validation error.
     setOtpValues((currentValues) => ({ ...currentValues, [field]: value }));
     setErrors((currentErrors) => ({ ...currentErrors, [field]: "" }));
     setStatusMessage("");
   }
 
   async function submitRequest(action, successMessage) {
+    // Wrap all login request variants with shared loading, success-session, and
+    // safe error-message handling.
     setIsSubmitting(true);
     setStatusMessage("");
 
     try {
       const result = await action();
       if (result?.data?.user) {
+        // Any auth method that returns a user creates the same in-memory session
+        // and then follows role/verification-aware routing.
         setAuthSession({
           user: result.data.user,
           accessToken: result.data.accessToken,
@@ -94,6 +105,8 @@ export default function LoginPage() {
   }
 
   async function handleSocialLogin(provider) {
+    // Provider SDK returns a short-lived provider token; backend verifies it and
+    // either links/fetches the GoldWallah account or rejects the login.
     setIsSubmitting(true);
     setSocialProvider(provider);
     setStatusMessage("");
@@ -128,6 +141,7 @@ export default function LoginPage() {
   }
 
   async function handleEmailSubmit(event) {
+    // Email/password path validates locally before sending credentials.
     event.preventDefault();
     const nextErrors = validateLoginForm(emailValues);
     setErrors(nextErrors);
@@ -147,6 +161,7 @@ export default function LoginPage() {
   }
 
   async function handleSendOtp(event) {
+    // First OTP step requests an OTP without revealing account existence.
     event.preventDefault();
     const nextErrors = validateLoginOtpSendForm(otpValues);
     setErrors(nextErrors);
@@ -163,6 +178,7 @@ export default function LoginPage() {
   }
 
   async function handleVerifyOtp(event) {
+    // Second OTP step exchanges phone + OTP for a normal auth session.
     event.preventDefault();
     const nextErrors = validateLoginOtpVerifyForm(otpValues);
     setErrors(nextErrors);
@@ -213,6 +229,7 @@ export default function LoginPage() {
           />
 
           {activeMethod === AUTH_METHODS.email ? (
+            // Email/password login form.
             <form className="space-y-5" onSubmit={handleEmailSubmit} noValidate>
               <AuthInput
                 id="email"
@@ -246,6 +263,7 @@ export default function LoginPage() {
               </button>
             </form>
           ) : (
+            // Mobile OTP login form. The OTP field appears only after send succeeds.
             <form className="space-y-5" onSubmit={isOtpSent ? handleVerifyOtp : handleSendOtp} noValidate>
               <AuthInput
                 id="loginPhone"
@@ -299,6 +317,7 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-4">
+            {/* Social login buttons share the same backend session flow. */}
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-(--gw-color-border)" />
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">

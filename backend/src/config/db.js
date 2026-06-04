@@ -18,7 +18,7 @@ export const pool = new Pool({
     ? {
         ssl: {
           ca: env.pgSslCa,
-          rejectUnauthorized: true,
+          rejectUnauthorized: false,
         },
       }
     : {}),

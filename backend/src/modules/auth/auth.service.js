@@ -36,6 +36,8 @@ const OTP_PURPOSES = {
 const REFRESH_REUSE_GRACE_MS = 30 * 1000;
 
 function createError(message, statusCode, code) {
+  // Services throw normalized errors so the shared error handler can return
+  // consistent status codes and safe public messages.
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
@@ -43,6 +45,7 @@ function createError(message, statusCode, code) {
 }
 
 function toRole(role) {
+  // Fail closed on role tampering before any user row is created.
   const normalizedRole = typeof role === "string" ? role.trim().toUpperCase() : "";
 
   if (!Object.values(AUTH_ROLES).includes(normalizedRole)) {
@@ -53,10 +56,12 @@ function toRole(role) {
 }
 
 function hashToken(token) {
+  // Refresh tokens are bearer credentials, so only a hash is stored in Postgres.
   return createHash("sha256").update(token).digest("hex");
 }
 
 function getTokenExpiry(token) {
+  // Store the JWT expiry alongside the token hash for fast DB-side validity checks.
   const decoded = jwt.decode(token);
 
   if (!decoded?.exp) {
@@ -67,6 +72,8 @@ function getTokenExpiry(token) {
 }
 
 function isRecentlyRevoked(refreshTokenRecord) {
+  // A short grace window prevents harmless double-submit races from being
+  // treated as refresh-token theft.
   if (!refreshTokenRecord?.revokedAt) {
     return false;
   }
@@ -77,6 +84,7 @@ function isRecentlyRevoked(refreshTokenRecord) {
 }
 
 async function createAuthResponse(user, message, client) {
+  // Shared session issuer for every auth method: email/password, OTP, and OAuth.
   if (user?.accountStatus !== "ACTIVE") {
     throw createError("Account is not active", 403, "ACCOUNT_INACTIVE");
   }
@@ -115,6 +123,8 @@ async function createAuthResponse(user, message, client) {
     : null;
 
   if (refreshToken) {
+    // Save refresh-token hash inside the same transaction when a caller passes
+    // a transaction client.
     await saveRefreshToken(
       {
         userId: safeUser.id,
@@ -137,6 +147,7 @@ async function createAuthResponse(user, message, client) {
 }
 
 function verifyRefreshToken(refreshToken) {
+  // Verify signature, issuer, audience, and algorithm before trusting claims.
   if (!env.jwtRefreshSecret) {
     throw createError(
       "Refresh authentication is not configured",
@@ -157,6 +168,7 @@ function verifyRefreshToken(refreshToken) {
 }
 
 async function ensureUniqueIdentity({ email, phone }, client) {
+  // Enforce friendly duplicate errors before relying on database unique indexes.
   if (email && (await findUserByEmail(email, client))) {
     throw createError("Account already exists", 409, "ACCOUNT_EXISTS");
   }
@@ -167,10 +179,13 @@ async function ensureUniqueIdentity({ email, phone }, client) {
 }
 
 async function hashSecret(secret) {
+  // Passwords and OTPs use bcrypt with environment-controlled work factor.
   return bcrypt.hash(secret, env.bcryptSaltRounds);
 }
 
 async function verifyOtp({ phone, otp, purpose, client }) {
+  // OTP verification checks active status, attempt count, and then consumes the
+  // OTP to prevent replay.
   const otpRecord = await findLatestActiveOtp(phone, purpose, client);
 
   if (!otpRecord) {
@@ -186,6 +201,7 @@ async function verifyOtp({ phone, otp, purpose, client }) {
   const isMatch = isDevelopmentMockOtp || (await bcrypt.compare(otp, otpRecord.otpHash));
 
   if (!isMatch) {
+    // Increment attempts only after a wrong OTP, then return a generic failure.
     await incrementOtpAttempts(otpRecord.id, client);
     throw createError("Invalid or expired OTP", 400, "INVALID_OTP");
   }
@@ -194,6 +210,7 @@ async function verifyOtp({ phone, otp, purpose, client }) {
 }
 
 async function createAndSendOtp({ phone, purpose }) {
+  // OTP send applies a resend cooldown before generating and storing a new code.
   const existingOtp = await findLatestActiveOtp(phone, purpose);
   const cooldownMs = env.otpResendCooldownSeconds * 1000;
 
@@ -205,6 +222,7 @@ async function createAndSendOtp({ phone, purpose }) {
   }
 
   const otp = generateOtp();
+  // Store a hash of the OTP so database exposure does not reveal active codes.
   const otpHash = await hashSecret(otp);
   const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000).toISOString();
 
@@ -234,6 +252,8 @@ async function createAndSendOtp({ phone, purpose }) {
 }
 
 export async function registerWithEmail(payload) {
+  // Email registration validates uniqueness, hashes the password, and starts the
+  // user at NOT_SUBMITTED verification gates.
   const email = payload.email.toLowerCase();
   const phone = normalizePhone(payload.phone);
 
@@ -265,6 +285,8 @@ export async function registerWithEmail(payload) {
 }
 
 export async function loginWithEmail(payload) {
+  // Use a single public error for missing users and password mismatch to avoid
+  // account enumeration.
   const email = payload.email.toLowerCase();
   const user = await findUserByEmail(email);
   const invalidLoginError = createError(
@@ -287,6 +309,8 @@ export async function loginWithEmail(payload) {
 }
 
 export async function refreshUserSession({ refreshToken }) {
+  // Rotate refresh tokens atomically. Old token hash is revoked and a fresh token
+  // is saved before the response is returned.
   const refreshTokenHash = hashToken(refreshToken);
 
   return withTransaction(async (client) => {
@@ -300,6 +324,8 @@ export async function refreshUserSession({ refreshToken }) {
     }
 
     if (existingRefreshToken.revokedAt) {
+      // Reuse of an older revoked token can indicate theft; revoke the whole
+      // session family unless it is within the race-condition grace window.
       if (isRecentlyRevoked(existingRefreshToken)) {
         throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
       }
@@ -309,6 +335,7 @@ export async function refreshUserSession({ refreshToken }) {
     }
 
     if (new Date(existingRefreshToken.expiresAt).getTime() <= Date.now()) {
+      // Expired refresh tokens are revoked so future attempts are tracked.
       await revokeRefreshToken(refreshTokenHash, client);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
@@ -316,6 +343,7 @@ export async function refreshUserSession({ refreshToken }) {
     const payload = verifyRefreshToken(refreshToken);
 
     if (payload.sub !== existingRefreshToken.userId) {
+      // A valid JWT paired with a different DB token owner is treated as invalid.
       await revokeRefreshToken(refreshTokenHash, client);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
@@ -328,6 +356,7 @@ export async function refreshUserSession({ refreshToken }) {
     }
 
     if (user.accountStatus !== "ACTIVE") {
+      // Inactive accounts lose every active refresh token immediately.
       await revokeAllActiveRefreshTokens(user.id, client);
       throw createError("Account is not active", 403, "ACCOUNT_INACTIVE");
     }
@@ -338,6 +367,8 @@ export async function refreshUserSession({ refreshToken }) {
 }
 
 export async function logoutUser({ refreshToken }) {
+  // Logout is idempotent from the browser perspective; revoking an already
+  // revoked/missing token still returns success through the controller path.
   await revokeRefreshToken(hashToken(refreshToken));
 
   return {
@@ -347,6 +378,8 @@ export async function logoutUser({ refreshToken }) {
 }
 
 export async function sendLoginOtp(payload) {
+  // Return a generic success when the phone is unknown to prevent account
+  // enumeration through OTP requests.
   const phone = normalizePhone(payload.phone);
 
   if (!(await findUserByPhone(phone))) {
@@ -365,6 +398,8 @@ export async function sendLoginOtp(payload) {
 }
 
 export async function verifyLoginOtp(payload) {
+  // Existing account lookup happens before OTP verification, but failures remain
+  // generic to avoid leaking account existence.
   const phone = normalizePhone(payload.phone);
   const user = await findUserByPhone(phone);
 
@@ -377,6 +412,8 @@ export async function verifyLoginOtp(payload) {
 }
 
 export async function sendRegisterOtp(payload) {
+  // Registration OTP send rejects existing phones so duplicate accounts cannot
+  // be created through the OTP flow.
   const phone = normalizePhone(payload.phone);
 
   if (await findUserByPhone(phone)) {
@@ -387,6 +424,8 @@ export async function sendRegisterOtp(payload) {
 }
 
 export async function verifyRegisterOtp(payload) {
+  // Verify OTP and create the phone account in one transaction to prevent races
+  // between OTP use and account creation.
   const phone = normalizePhone(payload.phone);
 
   return withTransaction(async (client) => {
@@ -427,26 +466,32 @@ export async function verifyRegisterOtp(payload) {
 }
 
 export async function loginWithGoogle(payload) {
+  // Provider module verifies token authenticity before shared OAuth login logic.
   const profile = await verifyGoogleIdToken(payload.idToken);
   return loginWithOAuthProfile(profile);
 }
 
 export async function registerWithGoogle(payload) {
+  // Provider profile plus requested role are handled by shared OAuth registration.
   const profile = await verifyGoogleIdToken(payload.idToken);
   return registerWithOAuthProfile(profile, payload.role);
 }
 
 export async function loginWithFacebook(payload) {
+  // Facebook access token must be validated server-side before account lookup.
   const profile = await verifyFacebookAccessToken(payload.accessToken);
   return loginWithOAuthProfile(profile);
 }
 
 export async function registerWithFacebook(payload) {
+  // Facebook registration follows the same role and uniqueness rules as Google.
   const profile = await verifyFacebookAccessToken(payload.accessToken);
   return registerWithOAuthProfile(profile, payload.role);
 }
 
 async function loginWithOAuthProfile(profile) {
+  // Prefer exact provider-subject link. If not linked yet, a verified email match
+  // can attach the provider to an existing account.
   const linkedUser = await findOAuthAccount(
     profile.provider,
     profile.providerSubject,
@@ -459,6 +504,7 @@ async function loginWithOAuthProfile(profile) {
   const emailUser = await findUserByEmail(profile.email);
 
   if (emailUser) {
+    // Link provider on first social login only after provider email verification.
     await linkOAuthAccount({
       userId: emailUser.id,
       provider: profile.provider,
@@ -472,6 +518,8 @@ async function loginWithOAuthProfile(profile) {
 }
 
 async function registerWithOAuthProfile(profile, role) {
+  // OAuth registration creates a new account only when the provider identity and
+  // verified email are not already associated with GoldWallah.
   const requestedRole = toRole(role);
 
   return withTransaction(async (client) => {
@@ -482,6 +530,8 @@ async function registerWithOAuthProfile(profile, role) {
     );
 
     if (linkedUser) {
+      // If the provider identity already exists, only allow login when the user
+      // selected the same account role.
       if (linkedUser.role !== requestedRole) {
         throw createError(
           "This social account is already registered with a different role. Sign in to the existing account or use a different verified social identity.",
@@ -496,6 +546,8 @@ async function registerWithOAuthProfile(profile, role) {
     const existingEmailUser = await findUserByEmail(profile.email, client);
 
     if (existingEmailUser) {
+      // Do not auto-link during registration; users must sign in to connect an
+      // existing account deliberately.
       throw createError(
         "An account already exists for this email. Sign in instead to continue with this social account.",
         409,
@@ -503,6 +555,8 @@ async function registerWithOAuthProfile(profile, role) {
       );
     }
 
+    // Create user and provider link in one transaction so no orphan OAuth link
+    // or duplicate user can be left behind.
     const user = await createUser(
       {
         fullName: profile.fullName,

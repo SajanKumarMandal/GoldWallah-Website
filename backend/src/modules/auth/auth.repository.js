@@ -3,10 +3,14 @@ import { randomUUID } from "node:crypto";
 import { query } from "../../config/db.js";
 
 function db(client) {
+  // Repository functions accept an optional transaction client; otherwise they
+  // use the shared pool query helper.
   return client || { query };
 }
 
 function mapUser(row) {
+  // Convert database snake_case rows into the camelCase shape used by services
+  // and frontend responses.
   if (!row) {
     return null;
   }
@@ -31,6 +35,7 @@ function mapUser(row) {
 }
 
 function mapOtp(row) {
+  // Normalize OTP records so service logic never depends on raw column names.
   if (!row) {
     return null;
   }
@@ -48,6 +53,7 @@ function mapOtp(row) {
 }
 
 function mapRefreshToken(row) {
+  // Refresh-token records store hashes only; plaintext tokens never live in DB.
   if (!row) {
     return null;
   }
@@ -63,6 +69,8 @@ function mapRefreshToken(row) {
 }
 
 export async function createUser(data, client) {
+  // Create a user with verification gates closed by default. KYC/business flows
+  // must explicitly move these statuses forward.
   const result = await db(client).query(
     `INSERT INTO users (
       id,
@@ -98,6 +106,8 @@ export async function createUser(data, client) {
 }
 
 export async function findOAuthAccount(provider, providerSubject, client) {
+  // Look up a social identity by provider-specific subject, then return the
+  // linked GoldWallah user.
   const result = await db(client).query(
     `SELECT users.*
      FROM user_oauth_accounts
@@ -111,6 +121,8 @@ export async function findOAuthAccount(provider, providerSubject, client) {
 }
 
 export async function linkOAuthAccount(data, client) {
+  // Link a provider identity idempotently. If a race links the same provider
+  // subject to another user, fail with a conflict.
   const result = await db(client).query(
     `INSERT INTO user_oauth_accounts (
       id,
@@ -156,21 +168,26 @@ export async function linkOAuthAccount(data, client) {
 }
 
 export async function findUserByEmail(email, client) {
+  // Email lookup supports password auth and social-account linking.
   const result = await db(client).query("SELECT * FROM users WHERE email = $1", [email]);
   return mapUser(result.rows[0]);
 }
 
 export async function findUserByPhone(phone, client) {
+  // Phone lookup supports OTP login and uniqueness checks.
   const result = await db(client).query("SELECT * FROM users WHERE phone = $1", [phone]);
   return mapUser(result.rows[0]);
 }
 
 export async function findUserById(id, client) {
+  // ID lookup is used by refresh-token rotation and authenticated middleware.
   const result = await db(client).query("SELECT * FROM users WHERE id = $1", [id]);
   return mapUser(result.rows[0]);
 }
 
 export async function createOtp(data, client) {
+  // Store only a hashed OTP with expiry and purpose; plaintext OTP is sent by
+  // the provider and never persisted.
   const result = await db(client).query(
     `INSERT INTO otp_codes (id, phone, otp_hash, purpose, expires_at)
      VALUES ($1, $2, $3, $4, $5)
@@ -182,6 +199,7 @@ export async function createOtp(data, client) {
 }
 
 export async function findLatestActiveOtp(phone, purpose, client) {
+  // Only unconsumed, unexpired OTPs are valid for verification.
   const result = await db(client).query(
     `SELECT *
      FROM otp_codes
@@ -198,6 +216,7 @@ export async function findLatestActiveOtp(phone, purpose, client) {
 }
 
 export async function incrementOtpAttempts(id, client) {
+  // Track failed verification attempts to cap brute-force retries per OTP.
   const result = await db(client).query(
     `UPDATE otp_codes
      SET attempts = attempts + 1
@@ -210,6 +229,7 @@ export async function incrementOtpAttempts(id, client) {
 }
 
 export async function consumeOtp(id, client) {
+  // Mark an OTP used so it cannot be replayed after successful verification.
   const result = await db(client).query(
     `UPDATE otp_codes
      SET consumed_at = now()
@@ -222,6 +242,8 @@ export async function consumeOtp(id, client) {
 }
 
 export async function saveRefreshToken(data, client) {
+  // Persist the refresh-token hash so rotation/revocation works across app
+  // instances behind a load balancer.
   const result = await db(client).query(
     `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
      VALUES ($1, $2, $3, $4)
@@ -233,6 +255,7 @@ export async function saveRefreshToken(data, client) {
 }
 
 export async function revokeRefreshToken(tokenHash, client) {
+  // Idempotently mark one refresh token as revoked.
   const result = await db(client).query(
     `UPDATE refresh_tokens
      SET revoked_at = COALESCE(revoked_at, now())
@@ -245,6 +268,8 @@ export async function revokeRefreshToken(tokenHash, client) {
 }
 
 export async function findRefreshToken(tokenHash, client) {
+  // Fetch only active refresh tokens. Kept for callers that do not need reuse
+  // detection on revoked records.
   const result = await db(client).query(
     `SELECT *
      FROM refresh_tokens
@@ -258,6 +283,8 @@ export async function findRefreshToken(tokenHash, client) {
 }
 
 export async function findRefreshTokenByHash(tokenHash, client) {
+  // Fetch a refresh token regardless of revoked status so the service can detect
+  // token reuse and revoke the session family.
   const result = await db(client).query(
     `SELECT *
      FROM refresh_tokens
@@ -269,6 +296,8 @@ export async function findRefreshTokenByHash(tokenHash, client) {
 }
 
 export async function revokeAllActiveRefreshTokens(userId, client) {
+  // Revoke every active token for a user after suspected refresh-token reuse or
+  // account deactivation.
   const result = await db(client).query(
     `UPDATE refresh_tokens
      SET revoked_at = COALESCE(revoked_at, now())
@@ -282,6 +311,7 @@ export async function revokeAllActiveRefreshTokens(userId, client) {
 }
 
 export function sanitizeUser(user) {
+  // Strip server-only credential material before user data leaves the auth layer.
   if (!user) {
     return null;
   }

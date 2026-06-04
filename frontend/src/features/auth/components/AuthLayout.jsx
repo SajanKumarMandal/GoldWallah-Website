@@ -20,6 +20,8 @@ const trustItems = [
   },
 ];
 
+// Branded two-column auth page layout. The left panel explains trust signals,
+// while children render the active login/register form in the right panel.
 export default function AuthLayout({ eyebrow, title, description, children }) {
   return (
     <section className="min-w-0 bg-(--gw-color-green) px-4 py-6 text-(--gw-color-cream) sm:px-6 md:py-12 lg:px-12">

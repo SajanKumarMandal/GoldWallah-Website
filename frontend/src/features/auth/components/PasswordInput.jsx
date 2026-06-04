@@ -1,8 +1,11 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
+// Password field with local-only visibility toggle. The password value remains
+// controlled by the parent form and is never persisted by this component.
 export default function PasswordInput({ id, label, error, className = "", ...props }) {
   const [isVisible, setIsVisible] = useState(false);
+  // Link screen readers to the inline validation message only when needed.
   const describedBy = error ? `${id}-error` : undefined;
 
   return (

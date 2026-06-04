@@ -1,11 +1,14 @@
 import { z } from "zod";
 
+// Shared admin email normalization for login, sub-admin creation, and lookup.
 const emailSchema = z
   .string()
   .trim()
   .email()
   .transform((email) => email.toLowerCase());
 
+// Admin passwords are intentionally stronger than normal user passwords because
+// admin accounts can view sensitive verification and platform data.
 const passwordSchema = z
   .string()
   .min(12, "Password must be at least 12 characters")
@@ -21,6 +24,7 @@ const passwordSchema = z
   )
   .refine((value) => !/^\s|\s$/.test(value), "Password cannot start or end with spaces");
 
+// Admin login accepts optional MFA for accounts where MFA is enabled/required.
 export const adminLoginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Password is required"),
@@ -31,25 +35,30 @@ export const adminLoginSchema = z.object({
     .optional(),
 });
 
+// Refresh/logout validate the HttpOnly cookie value after the controller reads it.
 export const adminRefreshSchema = z.object({
   refreshToken: z.string().trim().min(32, "Refresh token is required"),
 });
 
 export const adminLogoutSchema = adminRefreshSchema;
 
+// Forced password change and manual password updates use the same strength policy.
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: passwordSchema,
 });
 
+// MFA setup starts only after current password confirmation.
 export const beginMfaSetupSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
 });
 
+// MFA confirmation requires a six-digit TOTP code.
 export const confirmMfaSetupSchema = z.object({
   mfaCode: z.string().trim().regex(/^\d{6}$/, "MFA code must be 6 digits"),
 });
 
+// Sub-admin creation shares admin password policy and assigns explicit RBAC roles.
 export const createSubAdminSchema = z.object({
   name: z.string().trim().min(2).max(160),
   email: emailSchema,
@@ -101,6 +110,7 @@ export const adminIdParamSchema = z.object({
 });
 
 function createValidationError(message, details) {
+  // Normalize Zod failures into the app's structured validation error format.
   const error = new Error(message);
   error.statusCode = 400;
   error.code = "VALIDATION_ERROR";
@@ -109,6 +119,7 @@ function createValidationError(message, details) {
 }
 
 export function validateBody(schema, body) {
+  // Validate JSON request bodies before service-layer auth/RBAC logic runs.
   const result = schema.safeParse(body);
 
   if (!result.success) {
@@ -122,6 +133,7 @@ export function validateBody(schema, body) {
 }
 
 export function validateParams(schema, params) {
+  // Validate route params such as admin/user UUIDs before repository calls.
   const result = schema.safeParse(params);
 
   if (!result.success) {
@@ -135,6 +147,7 @@ export function validateParams(schema, params) {
 }
 
 export function validateQuery(schema, query) {
+  // Validate admin list filters and pagination before querying.
   const result = schema.safeParse(query);
 
   if (!result.success) {

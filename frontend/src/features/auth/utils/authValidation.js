@@ -8,6 +8,8 @@ const MIN_PASSWORD_LENGTH = 10;
 const MAX_PASSWORD_LENGTH = 128;
 
 function validatePassword(password) {
+  // Client-side password checks mirror backend constraints for immediate
+  // feedback; backend validation remains authoritative.
   if (!password) {
     return "Password is required.";
   }
@@ -28,6 +30,8 @@ function validatePassword(password) {
 }
 
 function validateFullName(fullName) {
+  // Keep legal-name input broad enough for Indian names while rejecting control
+  // characters and unsupported symbols.
   const trimmedName = fullName.trim();
 
   if (!trimmedName) {
@@ -50,18 +54,22 @@ function validateFullName(fullName) {
 }
 
 function validateRole(role) {
+  // Role validation protects against tampered radio values before submission.
   return isValidAuthRole(role) ? "" : "Choose a valid account role.";
 }
 
 export function validateIndianPhone(phone) {
+  // Accept Indian mobile numbers with optional +91 prefix.
   return INDIAN_PHONE_PATTERN.test(phone.trim());
 }
 
 export function validateOtp(otp) {
+  // Support 4- or 6-digit OTPs because providers can vary by configuration.
   return OTP_PATTERN.test(otp.trim());
 }
 
 export function validateLoginForm(values) {
+  // Email/password login only validates fields needed for that method.
   const errors = {};
 
   if (!values.email.trim()) {
@@ -78,6 +86,8 @@ export function validateLoginForm(values) {
 }
 
 export function validateLoginOtpSendForm(values) {
+  // OTP send requires only the phone number. The backend avoids account
+  // enumeration by returning a generic success message for unknown phones.
   const errors = {};
 
   if (!values.phone.trim()) {
@@ -90,6 +100,7 @@ export function validateLoginOtpSendForm(values) {
 }
 
 export function validateLoginOtpVerifyForm(values) {
+  // OTP verification reuses phone validation and adds the OTP field check.
   const errors = validateLoginOtpSendForm(values);
 
   if (!values.otp.trim()) {
@@ -102,6 +113,8 @@ export function validateLoginOtpVerifyForm(values) {
 }
 
 export function validateRegisterForm(values) {
+  // Full email registration validates identity, contact, role, password, and
+  // explicit acceptance before account creation.
   const errors = {};
   const fullNameError = validateFullName(values.fullName);
   const passwordError = validatePassword(values.password);
@@ -145,6 +158,8 @@ export function validateRegisterForm(values) {
 }
 
 export function validateRegisterOtpSendForm(values) {
+  // Phone registration collects name, phone, role, and acceptance before
+  // requesting the OTP that will authorize account creation.
   const errors = {};
   const fullNameError = validateFullName(values.fullName);
   const roleError = validateRole(values.role);
@@ -171,6 +186,7 @@ export function validateRegisterOtpSendForm(values) {
 }
 
 export function validateRegisterOtpVerifyForm(values) {
+  // Account creation through OTP adds OTP validation on top of send-step fields.
   const errors = validateRegisterOtpSendForm(values);
 
   if (!values.otp.trim()) {
@@ -183,6 +199,8 @@ export function validateRegisterOtpVerifyForm(values) {
 }
 
 export function validateSocialRegisterForm(values) {
+  // Social providers supply identity details; GoldWallah still requires role
+  // selection and terms acceptance before creating an account.
   const errors = {};
   const roleError = validateRole(values.role);
 

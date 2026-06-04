@@ -11,6 +11,8 @@ import {
   writeAdminSession,
 } from "@/features/admin/auth/utils/adminTokenStorage";
 
+// Admin login is intentionally separate from seller/jeweller auth because it
+// uses a different backend token, refresh cookie, MFA policy, and dashboard.
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,6 +20,8 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessage] = useState(location.state?.message || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // If no in-memory admin token exists, try restoring from the backend-owned
+  // HttpOnly refresh cookie before showing the login form.
   const [isRestoringSession, setIsRestoringSession] = useState(!readAdminSession());
   const existingSession = readAdminSession();
 
@@ -25,12 +29,15 @@ export default function AdminLoginPage() {
     let isMounted = true;
 
     async function restoreCookieSession() {
+      // Existing in-memory sessions do not need a cookie refresh.
       if (existingSession?.accessToken) {
         setIsRestoringSession(false);
         return;
       }
 
       try {
+        // Refresh endpoint rotates the admin refresh cookie and returns a fresh
+        // short-lived admin access token.
         const result = await refreshAdminSession();
         const data = result?.data || {};
 
@@ -44,6 +51,7 @@ export default function AdminLoginPage() {
         });
 
         if (isMounted) {
+          // Temporary-password admins must change password before dashboard access.
           navigate(
             data.admin?.mustChangePassword
               ? "/admin/change-password"
@@ -66,6 +74,7 @@ export default function AdminLoginPage() {
   }, [existingSession?.accessToken, location.state?.from?.pathname, navigate]);
 
   if (existingSession?.accessToken) {
+    // Already-authenticated admins skip the login form.
     return (
       <Navigate
         to={
@@ -79,6 +88,7 @@ export default function AdminLoginPage() {
   }
 
   if (isRestoringSession) {
+    // Hold the page while refresh-cookie restoration is in flight.
     return (
       <div className="flex min-h-screen items-center justify-center bg-(--gw-color-green) text-(--gw-color-cream)">
         Verifying admin session...
@@ -87,11 +97,13 @@ export default function AdminLoginPage() {
   }
 
   function updateField(name, value) {
+    // Clear visible login errors as soon as the admin edits any credential field.
     setValues((currentValues) => ({ ...currentValues, [name]: value }));
     setErrorMessage("");
   }
 
   async function handleSubmit(event) {
+    // Submit email/password and optional MFA code to the admin auth endpoint.
     event.preventDefault();
 
     if (!values.email.trim() || !values.password) {
@@ -103,6 +115,7 @@ export default function AdminLoginPage() {
     setErrorMessage("");
 
     try {
+      // Store admin access token in memory only; refresh stays HttpOnly server-side.
       const result = await loginAdmin({
         email: values.email.trim(),
         password: values.password,

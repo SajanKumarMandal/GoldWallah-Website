@@ -5,6 +5,8 @@ import * as authController from "./auth.controller.js";
 
 export const authRouter = Router();
 
+// Login endpoints are rate-limited separately from registration and OTP so one
+// abuse path cannot exhaust every auth workflow.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -18,6 +20,7 @@ const loginLimiter = rateLimit({
   },
 });
 
+// Registration is more expensive and abuse-sensitive, so it has a lower hourly cap.
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 15,
@@ -31,6 +34,7 @@ const registerLimiter = rateLimit({
   },
 });
 
+// OTP send/verify endpoints share a tight limiter to reduce SMS abuse and brute force.
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 8,
@@ -44,6 +48,8 @@ const otpLimiter = rateLimit({
   },
 });
 
+// Refresh/logout may run frequently from active browser sessions, but still need
+// a ceiling to protect the API from loops or scripted abuse.
 const sessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 600,
@@ -58,6 +64,7 @@ const sessionLimiter = rateLimit({
 });
 
 authRouter.get("/", (_request, response) => {
+  // Lightweight module health/capability endpoint for API discovery.
   response.status(200).json({
     module: "auth",
     status: "ready",
@@ -72,6 +79,8 @@ authRouter.get("/", (_request, response) => {
   });
 });
 
+// Public browser auth routes. Controllers still enforce trusted origin, CSRF
+// header presence for unsafe methods, and schema validation.
 authRouter.post("/register", registerLimiter, authController.register);
 authRouter.post("/login", loginLimiter, authController.login);
 authRouter.post("/refresh", sessionLimiter, authController.refresh);

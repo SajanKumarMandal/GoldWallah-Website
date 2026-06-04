@@ -1,3 +1,5 @@
+// Shared auth panel shell used by login/register forms so title, helper text,
+// form content, and footer links stay visually consistent.
 export default function AuthCard({ title, description, children, footer }) {
   return (
     <div className="mx-auto w-full min-w-0 rounded-[1.5rem] border border-(--gw-color-border) bg-(--gw-color-cream) p-4 text-(--gw-color-green) shadow-[0_28px_90px_rgba(0,0,0,0.18)] sm:p-7 xl:p-8">

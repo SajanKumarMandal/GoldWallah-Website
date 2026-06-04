@@ -38,6 +38,8 @@ const authMethods = [
   { value: AUTH_METHODS.mobile, label: "Mobile OTP" },
 ];
 
+// One state object covers all registration methods because role and terms are
+// shared across email, OTP, and social account creation.
 const initialValues = {
   fullName: "",
   email: "",
@@ -52,6 +54,8 @@ const initialValues = {
 export default function RegisterPage() {
   const location = useLocation();
 
+  // Remount content when query params change so /register?role=... reliably
+  // reapplies the requested default role.
   return <RegisterPageContent key={location.search} />;
 }
 
@@ -60,11 +64,14 @@ function RegisterPageContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialRole = useMemo(() => {
+    // Allow CTA links to preselect seller or jeweller while rejecting invalid
+    // role query parameters.
     const requestedRole = normalizeAuthRole(searchParams.get("role"));
 
     return requestedRole || DEFAULT_REGISTER_ROLE;
   }, [searchParams]);
 
+  // activeMethod decides whether the email/password or mobile OTP branch is active.
   const [activeMethod, setActiveMethod] = useState(AUTH_METHODS.email);
   const [values, setValues] = useState({
     ...initialValues,
@@ -77,11 +84,14 @@ function RegisterPageContent() {
   const [socialProvider, setSocialProvider] = useState("");
 
   function clearFeedback() {
+    // Method switches should not carry stale validation or API status messages.
     setErrors({});
     setStatusMessage("");
   }
 
   function updateField(field, value) {
+    // Role values are normalized immediately so every validator and API mapper
+    // receives a canonical seller/jeweller value.
     const nextValue = field === "role" ? normalizeAuthRole(value) : value;
 
     setValues((currentValues) => ({
@@ -96,12 +106,15 @@ function RegisterPageContent() {
   }
 
   async function submitRequest(action, successMessage) {
+    // Shared registration request wrapper for email and OTP flows.
     setIsSubmitting(true);
     setStatusMessage("");
 
     try {
       const result = await action();
       if (result?.data?.user) {
+        // Successful account creation signs the user in and routes to the first
+        // required verification gate for their role.
         setAuthSession({
           user: result.data.user,
           accessToken: result.data.accessToken,
@@ -118,6 +131,7 @@ function RegisterPageContent() {
   }
 
   async function handleEmailSubmit(event) {
+    // Email registration creates a password-backed account after local validation.
     event.preventDefault();
     const nextErrors = validateRegisterForm(values);
     setErrors(nextErrors);
@@ -140,6 +154,7 @@ function RegisterPageContent() {
   }
 
   async function handleSendOtp(event) {
+    // First phone-registration step requests an OTP before any user row is created.
     event.preventDefault();
     const nextErrors = validateRegisterOtpSendForm(values);
     setErrors(nextErrors);
@@ -156,6 +171,7 @@ function RegisterPageContent() {
   }
 
   async function handleVerifyOtp(event) {
+    // OTP verification creates a phone-backed account inside the backend transaction.
     event.preventDefault();
     const nextErrors = validateRegisterOtpVerifyForm(values);
     setErrors(nextErrors);
@@ -177,6 +193,8 @@ function RegisterPageContent() {
   }
 
   async function handleSocialRegister(provider) {
+    // Social registration validates GoldWallah-specific role/terms first, then
+    // obtains a provider token for backend verification.
     const nextErrors = validateSocialRegisterForm(values);
     setErrors(nextErrors);
     setStatusMessage("");
@@ -256,6 +274,7 @@ function RegisterPageContent() {
           />
 
           {activeMethod === AUTH_METHODS.email ? (
+            // Email/password registration form.
             <form className="space-y-5" onSubmit={handleEmailSubmit} noValidate>
               <AuthInput
                 id="fullName"
@@ -339,6 +358,7 @@ function RegisterPageContent() {
               </button>
             </form>
           ) : (
+            // Mobile OTP registration form. OTP input is shown after send succeeds.
             <form className="space-y-5" onSubmit={isOtpSent ? handleVerifyOtp : handleSendOtp} noValidate>
               <AuthInput
                 id="otpFullName"
@@ -406,6 +426,7 @@ function RegisterPageContent() {
           )}
 
           <div className="space-y-4">
+            {/* Social registration keeps role and terms checks before provider login. */}
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-(--gw-color-border)" />
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-(--gw-color-muted)">
@@ -455,6 +476,7 @@ function RegisterPageContent() {
 }
 
 function TermsCheckbox({ checked, error, disabled, onChange }) {
+  // Terms acceptance is a required registration gate for every account method.
   return (
     <div>
       <label className="flex items-start gap-3 text-sm leading-6 text-(--gw-color-muted)">

@@ -19,6 +19,8 @@ const initialState = {
 };
 
 function getJwtExpiryMs(accessToken) {
+  // Decode expiry only for scheduling refresh. Backend still performs real JWT
+  // verification for every admin API request.
   try {
     const [, payload] = accessToken.split(".");
     const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
@@ -31,6 +33,7 @@ function getJwtExpiryMs(accessToken) {
 }
 
 function applyAdminSession(result, fallbackAccessToken = "") {
+  // Normalize admin refresh/me responses into route state and memory storage.
   const admin = result?.data?.admin || null;
   const accessToken = result?.data?.accessToken || fallbackAccessToken;
 
@@ -48,6 +51,8 @@ function applyAdminSession(result, fallbackAccessToken = "") {
   };
 }
 
+// Admin route guard verifies the in-memory admin access token or restores a
+// session through the admin HttpOnly refresh cookie before rendering children.
 export default function AdminProtectedRoute() {
   const location = useLocation();
   const [state, setState] = useState(initialState);
@@ -56,6 +61,7 @@ export default function AdminProtectedRoute() {
     let isMounted = true;
 
     async function verifySession() {
+      // First try the current in-memory access token against /admin/auth/me.
       const session = readAdminSession();
 
       if (session?.accessToken) {
@@ -71,6 +77,8 @@ export default function AdminProtectedRoute() {
           }
         } catch (error) {
           if (error.status !== 401) {
+            // Non-auth failures should not silently redirect as if credentials
+            // were wrong; keep an authError available to child layouts.
             clearAdminSession();
             if (isMounted) {
               setState({
@@ -85,6 +93,7 @@ export default function AdminProtectedRoute() {
       }
 
       try {
+        // If no valid in-memory token exists, rotate the admin refresh cookie.
         const nextState = applyAdminSession(await refreshAdminSession());
 
         if (!nextState) {
@@ -124,6 +133,7 @@ export default function AdminProtectedRoute() {
       return undefined;
     }
 
+    // Refresh one minute before expiry, with a lower bound to avoid tight loops.
     const refreshInMs = Math.max(expiresAtMs - Date.now() - 60_000, 30_000);
     let isActive = true;
     const timerId = window.setTimeout(async () => {
@@ -155,6 +165,7 @@ export default function AdminProtectedRoute() {
   }, [state.accessToken]);
 
   if (state.isLoading) {
+    // Hold admin pages while auth restoration is in progress.
     return (
       <div className="flex min-h-screen items-center justify-center bg-(--gw-color-green) text-(--gw-color-cream)">
         Verifying admin session...
@@ -163,6 +174,7 @@ export default function AdminProtectedRoute() {
   }
 
   if (!state.accessToken || !state.admin) {
+    // Preserve attempted admin route so login can return there after success.
     return <Navigate to="/admin/login" replace state={{ from: location }} />;
   }
 
@@ -170,10 +182,12 @@ export default function AdminProtectedRoute() {
     state.admin.mustChangePassword &&
     location.pathname !== "/admin/change-password"
   ) {
+    // Temporary-password admins cannot access the dashboard until changed.
     return <Navigate to="/admin/change-password" replace />;
   }
 
   return (
+    // Child admin layouts read the verified admin identity/token from outlet context.
     <Outlet
       context={{
         admin: state.admin,

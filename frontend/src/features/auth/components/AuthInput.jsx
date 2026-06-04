@@ -1,6 +1,8 @@
 const baseInputClasses =
   "mt-2 h-12 w-full rounded-2xl border bg-white px-4 text-sm text-(--gw-color-green) outline-none transition placeholder:text-(--gw-color-muted)/55 focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:bg-(--gw-color-border)/35";
 
+// Generic labelled input for auth forms. Error wiring uses ARIA attributes so
+// validation messages are announced by assistive technology.
 export default function AuthInput({
   id,
   label,
@@ -9,6 +11,7 @@ export default function AuthInput({
   type = "text",
   ...props
 }) {
+  // Tie the input to its field-level error only when an error is present.
   const describedBy = error ? `${id}-error` : undefined;
 
   return (

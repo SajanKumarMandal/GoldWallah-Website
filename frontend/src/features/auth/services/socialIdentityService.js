@@ -1,6 +1,8 @@
 import { env } from "@/config/env";
 
 function loadScript({ id, src }) {
+  // Load provider SDKs once per page session; repeated social button clicks
+  // reuse the existing script instead of injecting duplicates.
   return new Promise((resolve, reject) => {
     const existingScript = document.getElementById(id);
 
@@ -21,6 +23,8 @@ function loadScript({ id, src }) {
 }
 
 export async function getGoogleIdToken() {
+  // The browser only collects Google's ID token. Account lookup, audience
+  // checks, and email verification happen on the backend.
   if (!env.googleClientId) {
     throw new Error("Google login is not configured.");
   }
@@ -33,6 +37,8 @@ export async function getGoogleIdToken() {
   return new Promise((resolve, reject) => {
     let settled = false;
 
+    // Google Identity Services returns a credential through this callback when
+    // the user chooses or confirms an account.
     window.google.accounts.id.initialize({
       client_id: env.googleClientId,
       callback: (response) => {
@@ -45,6 +51,7 @@ export async function getGoogleIdToken() {
       },
     });
 
+    // Treat a skipped or blocked One Tap prompt as a user-visible login failure.
     window.google.accounts.id.prompt((notification) => {
       if (
         !settled &&
@@ -58,6 +65,8 @@ export async function getGoogleIdToken() {
 }
 
 export async function getFacebookAccessToken() {
+  // The browser obtains a Facebook access token; backend validates app id,
+  // profile ownership, and email before creating a session.
   if (!env.facebookAppId) {
     throw new Error("Facebook login is not configured.");
   }
@@ -67,6 +76,8 @@ export async function getFacebookAccessToken() {
     src: "https://connect.facebook.net/en_US/sdk.js",
   });
 
+  // Disable Facebook cookies/XFBML here because GoldWallah handles session
+  // state through its own backend-issued HttpOnly cookie.
   window.FB.init({
     appId: env.facebookAppId,
     cookie: false,

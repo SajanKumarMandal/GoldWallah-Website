@@ -2,6 +2,8 @@ import { Landmark, Store } from "lucide-react";
 
 import { AUTH_ROLES } from "@/features/auth/utils/authConstants";
 
+// Role choice is captured during registration because it controls which
+// verification gates and dashboard routes the user will receive after login.
 const roleOptions = [
   {
     value: AUTH_ROLES.seller,
@@ -17,12 +19,14 @@ const roleOptions = [
   },
 ];
 
+// Accessible radio-card selector for seller/jeweller account creation.
 export default function RoleSelector({ value, onChange, error, disabled }) {
   return (
     <fieldset>
       <legend className="text-sm font-medium text-(--gw-color-green)">Account role</legend>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         {roleOptions.map(({ value: optionValue, label, description, icon: Icon }) => {
+          // The visual card mirrors the underlying radio state.
           const isSelected = value === optionValue;
 
           return (

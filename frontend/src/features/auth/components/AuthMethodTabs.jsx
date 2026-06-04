@@ -1,7 +1,10 @@
+// Segmented control used to switch between email/password and mobile OTP auth.
 export default function AuthMethodTabs({ activeMethod, methods, onChange }) {
   return (
     <div className="grid min-w-0 grid-cols-2 rounded-full border border-(--gw-color-border) bg-white p-1">
       {methods.map((method) => {
+        // Active state is derived from parent form state so tab changes can
+        // also reset validation and status messages there.
         const isActive = activeMethod === method.value;
 
         return (

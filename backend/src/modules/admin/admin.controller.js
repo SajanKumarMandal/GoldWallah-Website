@@ -35,12 +35,14 @@ import {
 } from "./admin.validation.js";
 
 function sendSuccess(response, result, statusCode = 200) {
+  // Standard success response helper for admin controller actions.
   response.status(statusCode).json(result);
 }
 
 const adminRefreshCookieName = "goldwallah_admin_refresh_token";
 
 function requestOrigin(request) {
+  // Rebuild original browser origin when API is behind a proxy/load balancer.
   const forwardedProto = request.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const forwardedHost = request.get("x-forwarded-host")?.split(",")[0]?.trim();
   const protocol = forwardedProto || request.protocol;
@@ -50,6 +52,7 @@ function requestOrigin(request) {
 }
 
 function isCrossSiteFrontend(request) {
+  // Cross-site production deployments require SameSite=None cookies.
   try {
     const frontendOrigin = new URL(env.frontendOrigin).origin;
 
@@ -60,6 +63,7 @@ function isCrossSiteFrontend(request) {
 }
 
 function adminRefreshCookieOptions(request) {
+  // Admin refresh tokens are HttpOnly cookies scoped to admin auth routes only.
   const useCrossSiteCookie = env.isProduction && isCrossSiteFrontend(request);
   const options = {
     httpOnly: true,
@@ -77,6 +81,7 @@ function adminRefreshCookieOptions(request) {
 }
 
 function createRequestOriginError() {
+  // Generic origin failure avoids exposing deployment origin details.
   const error = new Error("Invalid request origin");
   error.statusCode = 403;
   error.code = "UNTRUSTED_ORIGIN";
@@ -84,6 +89,7 @@ function createRequestOriginError() {
 }
 
 function createInvalidRefreshTokenError() {
+  // Keep missing/invalid refresh-token responses indistinguishable.
   const error = new Error("Invalid refresh token");
   error.statusCode = 401;
   error.code = "INVALID_REFRESH_TOKEN";
@@ -91,6 +97,7 @@ function createInvalidRefreshTokenError() {
 }
 
 function assertTrustedBrowserOrigin(request) {
+  // Admin auth mutations require trusted frontend origin and CSRF header.
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
   const csrfHeader = request.get("x-csrf-token");
@@ -126,6 +133,7 @@ function assertTrustedBrowserOrigin(request) {
 }
 
 function readCookie(request, name) {
+  // Minimal cookie parser for admin refresh-cookie reads.
   const cookieHeader = request.get("cookie") || "";
   const cookies = cookieHeader
     .split(";")
@@ -144,6 +152,7 @@ function readCookie(request, name) {
 }
 
 function clearAdminRefreshCookie(request, response) {
+  // Clear with the same cookie attributes used when the cookie was set.
   const clearOptions = { ...adminRefreshCookieOptions(request) };
   delete clearOptions.maxAge;
 
@@ -154,6 +163,7 @@ function clearAdminRefreshCookie(request, response) {
 }
 
 function sendAdminAuthSuccess(request, response, result, statusCode = 200) {
+  // Move admin refreshToken into HttpOnly cookie and remove it from JSON.
   const refreshToken = result?.data?.refreshToken;
 
   if (refreshToken) {
@@ -179,6 +189,7 @@ function sendAdminAuthSuccess(request, response, result, statusCode = 200) {
 
 export async function login(request, response, next) {
   try {
+    // Admin login validates credentials/MFA and writes an admin refresh cookie.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(adminLoginSchema, request.body);
     sendAdminAuthSuccess(
@@ -193,6 +204,7 @@ export async function login(request, response, next) {
 
 export async function refresh(request, response, next) {
   try {
+    // Admin refresh rotates the HttpOnly refresh token and returns a new access token.
     assertTrustedBrowserOrigin(request);
     const refreshToken = readCookie(request, adminRefreshCookieName);
 
@@ -218,6 +230,7 @@ export async function refresh(request, response, next) {
 
 export async function logout(request, response, next) {
   try {
+    // Logout clears the cookie first, then revokes the stored refresh token when present.
     assertTrustedBrowserOrigin(request);
     const refreshToken = readCookie(request, adminRefreshCookieName);
     clearAdminRefreshCookie(request, response);
@@ -247,6 +260,7 @@ export async function logout(request, response, next) {
 
 export async function me(request, response, next) {
   try {
+    // Returns current admin profile from requireAdminAuth middleware state.
     sendSuccess(response, await getCurrentAdmin(request.admin));
   } catch (error) {
     next(error);
@@ -255,6 +269,7 @@ export async function me(request, response, next) {
 
 export async function changePassword(request, response, next) {
   try {
+    // Password changes invalidate the refresh cookie so the admin must sign in again.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(changePasswordSchema, request.body);
     const result = await changeAdminPassword({
@@ -272,6 +287,7 @@ export async function changePassword(request, response, next) {
 
 export async function beginMfaSetup(request, response, next) {
   try {
+    // MFA setup requires current password confirmation before issuing setup material.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(beginMfaSetupSchema, request.body);
     sendSuccess(
@@ -290,6 +306,7 @@ export async function beginMfaSetup(request, response, next) {
 
 export async function confirmMfaSetup(request, response, next) {
   try {
+    // MFA confirmation verifies a TOTP code before enabling MFA for the admin.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(confirmMfaSetupSchema, request.body);
     sendSuccess(
