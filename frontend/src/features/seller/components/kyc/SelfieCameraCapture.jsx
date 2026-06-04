@@ -1,5 +1,8 @@
-import { Camera } from "lucide-react";
+import { Camera, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+const ALLOWED_SELFIE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SELFIE_SIZE_BYTES = 5 * 1024 * 1024;
 
 function formatCapturedAt(value) {
   if (!value) {
@@ -12,6 +15,22 @@ function formatCapturedAt(value) {
   }).format(new Date(value));
 }
 
+function validateUploadedSelfie(file) {
+  if (!file) {
+    return "Choose a selfie image to continue.";
+  }
+
+  if (!ALLOWED_SELFIE_TYPES.includes(file.type)) {
+    return "Selfie must be a JPEG, PNG, or WebP image.";
+  }
+
+  if (file.size > MAX_SELFIE_SIZE_BYTES) {
+    return "Selfie image must be 5MB or smaller.";
+  }
+
+  return "";
+}
+
 export default function SelfieCameraCapture({
   error,
   disabled,
@@ -20,6 +39,7 @@ export default function SelfieCameraCapture({
   onChange,
 }) {
   const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
   const streamRef = useRef(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -37,7 +57,7 @@ export default function SelfieCameraCapture({
 
       if (playPromise?.catch) {
         playPromise.catch(() => {
-          setCameraError("Camera preview is not ready yet.");
+          setCameraError("Camera preview is not ready yet. You can upload a fresh selfie instead.");
         });
       }
     }
@@ -53,29 +73,31 @@ export default function SelfieCameraCapture({
     setCameraError("");
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera capture is not supported on this browser.");
+      setCameraError("Camera capture is not supported on this browser. Upload a fresh selfie instead.");
       return;
     }
 
     try {
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+      });
       streamRef.current = stream;
       setIsCameraOpen(true);
     } catch (caughtError) {
       const errorName = caughtError?.name || "";
 
       if (errorName === "NotAllowedError" || errorName === "SecurityError") {
-        setCameraError("Camera permission is required for KYC selfie verification.");
+        setCameraError("Camera permission is required, or you can upload a fresh selfie instead.");
         return;
       }
 
       if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
-        setCameraError("No camera was found on this device.");
+        setCameraError("No camera was found on this device. Upload a fresh selfie instead.");
         return;
       }
 
-      setCameraError("Unable to open camera. Please check your camera and try again.");
+      setCameraError("Unable to open camera. Upload a fresh selfie or check your camera and try again.");
     }
   }
 
@@ -135,6 +157,30 @@ export default function SelfieCameraCapture({
     await openCamera();
   }
 
+  function openFilePicker() {
+    setCameraError("");
+    fileInputRef.current?.click();
+  }
+
+  function handleFileUpload(event) {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+
+    const validationError = validateUploadedSelfie(file);
+    if (validationError) {
+      setCameraError(validationError);
+      return;
+    }
+
+    stopCamera();
+    const nextPreviewUrl = URL.createObjectURL(file);
+    onChange({
+      file,
+      previewUrl: nextPreviewUrl,
+      capturedAt: new Date().toISOString(),
+    });
+  }
+
   const visibleError = error || cameraError;
 
   return (
@@ -171,9 +217,21 @@ export default function SelfieCameraCapture({
             <div className="flex aspect-video flex-col items-center justify-center text-(--gw-color-cream)">
               <Camera className="h-10 w-10 text-(--gw-color-gold)" aria-hidden="true" />
               <p className="mt-3 text-sm font-semibold">Camera selfie required</p>
+              <p className="mt-1 px-4 text-center text-xs text-white/70">
+                Open your camera or upload a fresh selfie image.
+              </p>
             </div>
           )}
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          disabled={disabled}
+          onChange={handleFileUpload}
+        />
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {!isCameraOpen && !previewUrl ? (
@@ -206,6 +264,15 @@ export default function SelfieCameraCapture({
               </button>
             </>
           ) : null}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={openFilePicker}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-(--gw-color-border) bg-white px-5 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            Upload Selfie
+          </button>
           {previewUrl ? (
             <button
               type="button"
