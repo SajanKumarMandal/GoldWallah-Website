@@ -45,9 +45,13 @@ function mapOtp(row) {
     phone: row.phone,
     otpHash: row.otp_hash,
     purpose: row.purpose,
+    deliveryStatus: row.delivery_status || "SENT",
     expiresAt: row.expires_at,
     consumedAt: row.consumed_at,
     attempts: row.attempts,
+    sentAt: row.sent_at,
+    failedAt: row.failed_at,
+    failureReason: row.failure_reason,
     createdAt: row.created_at,
   };
 }
@@ -186,30 +190,116 @@ export async function findUserById(id, client) {
 }
 
 export async function createOtp(data, client) {
-  // Store only a hashed OTP with expiry and purpose; plaintext OTP is sent by
-  // the provider and never persisted.
+  // Store only a hashed OTP with delivery state. Plaintext OTP is sent by the
+  // provider and never persisted.
   const result = await db(client).query(
-    `INSERT INTO otp_codes (id, phone, otp_hash, purpose, expires_at)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO otp_codes (
+       id,
+       phone,
+       otp_hash,
+       purpose,
+       delivery_status,
+       expires_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [randomUUID(), data.phone, data.otpHash, data.purpose, data.expiresAt],
+    [
+      randomUUID(),
+      data.phone,
+      data.otpHash,
+      data.purpose,
+      data.deliveryStatus || "PENDING",
+      data.expiresAt,
+    ],
   );
 
   return mapOtp(result.rows[0]);
 }
 
 export async function findLatestActiveOtp(phone, purpose, client) {
-  // Only unconsumed, unexpired OTPs are valid for verification.
+  // Only delivered, unconsumed, unexpired OTPs are valid for verification.
   const result = await db(client).query(
     `SELECT *
      FROM otp_codes
      WHERE phone = $1
        AND purpose = $2
+       AND delivery_status = 'SENT'
        AND consumed_at IS NULL
        AND expires_at > now()
      ORDER BY created_at DESC
      LIMIT 1`,
     [phone, purpose],
+  );
+
+  return mapOtp(result.rows[0]);
+}
+
+export async function findLatestResendBlockingOtp(phone, purpose, client) {
+  // Pending or delivered OTPs block immediate resend attempts until cooldown ends.
+  const result = await db(client).query(
+    `SELECT *
+     FROM otp_codes
+     WHERE phone = $1
+       AND purpose = $2
+       AND delivery_status IN ('PENDING', 'SENT')
+       AND consumed_at IS NULL
+       AND expires_at > now()
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [phone, purpose],
+  );
+
+  return mapOtp(result.rows[0]);
+}
+
+export async function revokeActiveOtpCodes(phone, purpose, client) {
+  // Invalidate older active OTPs before issuing a fresh code so only one OTP can
+  // be verified at a time for a phone/purpose pair.
+  const result = await db(client).query(
+    `UPDATE otp_codes
+     SET consumed_at = COALESCE(consumed_at, now()),
+         delivery_status = CASE
+           WHEN delivery_status IN ('PENDING', 'SENT') THEN 'CONSUMED'
+           ELSE delivery_status
+         END
+     WHERE phone = $1
+       AND purpose = $2
+       AND delivery_status IN ('PENDING', 'SENT')
+       AND consumed_at IS NULL
+       AND expires_at > now()
+     RETURNING *`,
+    [phone, purpose],
+  );
+
+  return result.rows.map(mapOtp);
+}
+
+export async function markOtpSent(id, client) {
+  // Mark delivery success after the provider accepts the OTP send request.
+  const result = await db(client).query(
+    `UPDATE otp_codes
+     SET delivery_status = 'SENT',
+         sent_at = now()
+     WHERE id = $1
+       AND consumed_at IS NULL
+     RETURNING *`,
+    [id],
+  );
+
+  return mapOtp(result.rows[0]);
+}
+
+export async function markOtpFailed(id, failureReason, client) {
+  // Keep failed OTPs non-verifiable and preserve a safe diagnostic reason.
+  const result = await db(client).query(
+    `UPDATE otp_codes
+     SET delivery_status = 'FAILED',
+         failed_at = now(),
+         failure_reason = LEFT($2, 255),
+         consumed_at = COALESCE(consumed_at, now())
+     WHERE id = $1
+     RETURNING *`,
+    [id, failureReason || "OTP delivery failed"],
   );
 
   return mapOtp(result.rows[0]);
@@ -232,7 +322,8 @@ export async function consumeOtp(id, client) {
   // Mark an OTP used so it cannot be replayed after successful verification.
   const result = await db(client).query(
     `UPDATE otp_codes
-     SET consumed_at = now()
+     SET consumed_at = now(),
+         delivery_status = 'CONSUMED'
      WHERE id = $1
      RETURNING *`,
     [id],
