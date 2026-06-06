@@ -5,8 +5,6 @@ import * as authController from "./auth.controller.js";
 
 export const authRouter = Router();
 
-// Login endpoints are rate-limited separately from registration and OTP so one
-// abuse path cannot exhaust every auth workflow.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -20,7 +18,6 @@ const loginLimiter = rateLimit({
   },
 });
 
-// Registration is more expensive and abuse-sensitive, so it has a lower hourly cap.
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 15,
@@ -34,22 +31,32 @@ const registerLimiter = rateLimit({
   },
 });
 
-// OTP send/verify endpoints share a tight limiter to reduce SMS abuse and brute force.
-const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 8,
+const otpSendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: {
-      message: "Too many OTP attempts. Please try again later.",
-      code: "OTP_RATE_LIMITED",
+      message: "Too many OTP requests. Please try again later.",
+      code: "OTP_SEND_RATE_LIMITED",
     },
   },
 });
 
-// Refresh/logout may run frequently from active browser sessions, but still need
-// a ceiling to protect the API from loops or scripted abuse.
+const otpVerifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      message: "Too many OTP verification attempts. Please try again later.",
+      code: "OTP_VERIFY_RATE_LIMITED",
+    },
+  },
+});
+
 const sessionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 600,
@@ -64,7 +71,6 @@ const sessionLimiter = rateLimit({
 });
 
 authRouter.get("/", (_request, response) => {
-  // Lightweight module health/capability endpoint for API discovery.
   response.status(200).json({
     module: "auth",
     status: "ready",
@@ -79,16 +85,14 @@ authRouter.get("/", (_request, response) => {
   });
 });
 
-// Public browser auth routes. Controllers still enforce trusted origin, CSRF
-// header presence for unsafe methods, and schema validation.
 authRouter.post("/register", registerLimiter, authController.register);
 authRouter.post("/login", loginLimiter, authController.login);
 authRouter.post("/refresh", sessionLimiter, authController.refresh);
 authRouter.post("/logout", sessionLimiter, authController.logout);
-authRouter.post("/otp/login/send", otpLimiter, authController.sendLoginOtp);
-authRouter.post("/otp/login/verify", otpLimiter, authController.verifyLoginOtp);
-authRouter.post("/otp/register/send", otpLimiter, authController.sendRegisterOtp);
-authRouter.post("/otp/register/verify", otpLimiter, authController.verifyRegisterOtp);
+authRouter.post("/otp/login/send", otpSendLimiter, authController.sendLoginOtp);
+authRouter.post("/otp/login/verify", otpVerifyLimiter, authController.verifyLoginOtp);
+authRouter.post("/otp/register/send", otpSendLimiter, authController.sendRegisterOtp);
+authRouter.post("/otp/register/verify", otpVerifyLimiter, authController.verifyRegisterOtp);
 authRouter.post("/google/login", loginLimiter, authController.googleLogin);
 authRouter.post("/google/register", registerLimiter, authController.googleRegister);
 authRouter.post("/facebook/login", loginLimiter, authController.facebookLogin);
