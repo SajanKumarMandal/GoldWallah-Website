@@ -134,6 +134,45 @@ if (
 
 if (
   parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.OTP_PROVIDER === "twilio" &&
+  (
+    !parsedEnv.data.TWILIO_ACCOUNT_SID ||
+    !parsedEnv.data.TWILIO_AUTH_TOKEN ||
+    !parsedEnv.data.TWILIO_FROM_PHONE
+  )
+) {
+  console.error(
+    "OTP_PROVIDER=twilio requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE in production",
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.OTP_PROVIDER === "twilio" &&
+  !/^\+[1-9]\d{7,14}$/.test(parsedEnv.data.TWILIO_FROM_PHONE)
+) {
+  console.error("TWILIO_FROM_PHONE must be in E.164 format, for example +14155552671");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.OTP_PROVIDER === "msg91" &&
+  (
+    !parsedEnv.data.MSG91_AUTH_KEY ||
+    !parsedEnv.data.MSG91_TEMPLATE_ID ||
+    !parsedEnv.data.MSG91_SENDER_ID
+  )
+) {
+  console.error(
+    "OTP_PROVIDER=msg91 requires MSG91_AUTH_KEY, MSG91_TEMPLATE_ID, and MSG91_SENDER_ID in production",
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
   parsedEnv.data.UPLOAD_STORAGE_PROVIDER !== "cloudinary"
 ) {
   console.error(
