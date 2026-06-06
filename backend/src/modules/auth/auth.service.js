@@ -12,6 +12,7 @@ import {
   createUser,
   createOtp,
   findLatestActiveOtp,
+  findLatestResendBlockingOtp,
   findOAuthAccount,
   findRefreshTokenByHash,
   findUserByEmail,
@@ -20,6 +21,9 @@ import {
   incrementOtpAttempts,
   linkOAuthAccount,
   consumeOtp,
+  markOtpFailed,
+  markOtpSent,
+  revokeActiveOtpCodes,
   revokeAllActiveRefreshTokens,
   revokeRefreshToken,
   saveRefreshToken,
@@ -209,9 +213,19 @@ async function verifyOtp({ phone, otp, purpose, client }) {
   await consumeOtp(otpRecord.id, client);
 }
 
+function toSafeOtpFailureReason(error) {
+  if (error?.code === "OTP_NOT_CONFIGURED") {
+    return error.code;
+  }
+
+  return "OTP_DELIVERY_FAILED";
+}
+
 async function createAndSendOtp({ phone, purpose }) {
-  // OTP send applies a resend cooldown before generating and storing a new code.
-  const existingOtp = await findLatestActiveOtp(phone, purpose);
+  // OTP send is a two-phase lifecycle: persist a pending OTP first, send through
+  // the provider second, then mark SENT or FAILED. This prevents sending a code
+  // that the database cannot later verify.
+  const existingOtp = await findLatestResendBlockingOtp(phone, purpose);
   const cooldownMs = env.otpResendCooldownSeconds * 1000;
 
   if (
@@ -222,33 +236,45 @@ async function createAndSendOtp({ phone, purpose }) {
   }
 
   const otp = generateOtp();
-  // Store a hash of the OTP so database exposure does not reveal active codes.
   const otpHash = await hashSecret(otp);
   const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000).toISOString();
+  const otpRecord = await withTransaction(async (client) => {
+    await revokeActiveOtpCodes(phone, purpose, client);
 
-  const providerResult = await sendOtp({ phone, otp });
-
-  if (!providerResult.configured) {
-    const error = createError(providerResult.message, 503, "OTP_NOT_CONFIGURED");
-    throw error;
-  }
-
-  await createOtp({
-    phone,
-    otpHash,
-    purpose,
-    expiresAt,
+    return createOtp(
+      {
+        phone,
+        otpHash,
+        purpose,
+        expiresAt,
+        deliveryStatus: "PENDING",
+      },
+      client,
+    );
   });
 
-  return {
-    success: true,
-    message: providerResult.message,
-    data: {
-      configured: providerResult.configured,
-      expiresInMinutes: env.otpExpiryMinutes,
-      resendCooldownSeconds: env.otpResendCooldownSeconds,
-    },
-  };
+  try {
+    const providerResult = await sendOtp({ phone, otp });
+
+    if (!providerResult.configured) {
+      throw createError(providerResult.message, 503, "OTP_NOT_CONFIGURED");
+    }
+
+    await markOtpSent(otpRecord.id);
+
+    return {
+      success: true,
+      message: providerResult.message,
+      data: {
+        configured: providerResult.configured,
+        expiresInMinutes: env.otpExpiryMinutes,
+        resendCooldownSeconds: env.otpResendCooldownSeconds,
+      },
+    };
+  } catch (error) {
+    await markOtpFailed(otpRecord.id, toSafeOtpFailureReason(error));
+    throw error;
+  }
 }
 
 export async function registerWithEmail(payload) {
@@ -387,7 +413,7 @@ export async function sendLoginOtp(payload) {
       success: true,
       message: "If an account exists, an OTP will be sent.",
       data: {
-        configured: env.otpProvider === "mock",
+        configured: true,
         expiresInMinutes: env.otpExpiryMinutes,
         resendCooldownSeconds: env.otpResendCooldownSeconds,
       },
