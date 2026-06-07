@@ -30,6 +30,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/features/notifications/notificationService";
+import { useNotificationStream } from "@/features/notifications/useNotificationStream";
 import { useKycStatusSync } from "@/features/kyc/hooks/useKycStatusSync";
 
 const navByRole = {
@@ -140,6 +141,34 @@ export default function DashboardLayout() {
       isMounted = false;
     };
   }, [accessToken]);
+
+  useNotificationStream({
+    accessToken,
+    enabled: Boolean(accessToken),
+    onConnected: () => setNotificationError(""),
+    onNotification: ({ notification, unreadCount: nextUnreadCount }) => {
+      if (!notification?.id) {
+        return;
+      }
+
+      if (notification.type === "ACCOUNT_SUSPENDED") {
+        clearAuthUser();
+        navigate(ROUTES.login, { replace: true });
+        return;
+      }
+
+      setNotifications((current) =>
+        [
+          notification,
+          ...current.filter((item) => item.id !== notification.id),
+        ].slice(0, 5),
+      );
+      setUnreadCount((current) =>
+        typeof nextUnreadCount === "number" ? nextUnreadCount : current + 1,
+      );
+      setNotificationError("");
+    },
+  });
 
   async function handleLogout() {
     try {

@@ -45,6 +45,12 @@ function sendSuccess(response, result, statusCode = 200) {
   response.status(statusCode).json(result);
 }
 
+function otpRequestMeta(request) {
+  return {
+    ip: request.ip || request.socket?.remoteAddress || "",
+  };
+}
+
 function refreshCookieOptions(request) {
   // Refresh tokens are stored only in HttpOnly cookies. JavaScript receives only
   // short-lived access tokens in response bodies.
@@ -252,7 +258,7 @@ export async function sendLoginOtp(request, response, next) {
     // Send login OTP after validating origin and phone format.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(sendOtpSchema, request.body);
-    sendSuccess(response, await authService.sendLoginOtp(payload));
+    sendSuccess(response, await authService.sendLoginOtp(payload, otpRequestMeta(request)));
   } catch (error) {
     next(error);
   }
@@ -274,7 +280,7 @@ export async function sendRegisterOtp(request, response, next) {
     // Send registration OTP before creating any account record.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(sendOtpSchema, request.body);
-    sendSuccess(response, await authService.sendRegisterOtp(payload));
+    sendSuccess(response, await authService.sendRegisterOtp(payload, otpRequestMeta(request)));
   } catch (error) {
     next(error);
   }

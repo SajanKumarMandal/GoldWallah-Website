@@ -51,6 +51,17 @@ export async function createNotification(data, client) {
   return mapNotification(result.rows[0]);
 }
 
+export async function findNotificationById(notificationId, client) {
+  const result = await db(client).query(
+    `SELECT *
+     FROM notifications
+     WHERE id = $1`,
+    [notificationId],
+  );
+
+  return mapNotification(result.rows[0]);
+}
+
 export async function listUserNotifications({ userId, unreadOnly, limit }, client) {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const params = [userId, safeLimit];

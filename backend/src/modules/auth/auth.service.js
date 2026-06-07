@@ -7,7 +7,12 @@ import { withTransaction } from "../../config/db.js";
 import { env } from "../../config/env.js";
 import { verifyFacebookAccessToken } from "./providers/facebookAuth.provider.js";
 import { verifyGoogleIdToken } from "./providers/googleAuth.provider.js";
-import { generateOtp, sendOtp } from "./providers/otp.provider.js";
+import {
+  generateOtp,
+  sendOtp,
+  usesProviderManagedOtpVerification,
+  verifyOtpWithProvider,
+} from "./providers/otp.provider.js";
 import {
   createUser,
   createOtp,
@@ -198,7 +203,9 @@ async function verifyOtp({ phone, otp, purpose, client }) {
 
   const isDevelopmentMockOtp =
     !env.isProduction && env.otpProvider === "mock" && otp === "123456";
-  const isMatch = isDevelopmentMockOtp || (await bcrypt.compare(otp, otpRecord.otpHash));
+  const isMatch = usesProviderManagedOtpVerification()
+    ? await verifyOtpWithProvider({ phone, otp })
+    : isDevelopmentMockOtp || (await bcrypt.compare(otp, otpRecord.otpHash));
 
   if (!isMatch) {
     // Increment attempts only after a wrong OTP, then return a generic failure.
@@ -209,7 +216,7 @@ async function verifyOtp({ phone, otp, purpose, client }) {
   await consumeOtp(otpRecord.id, client);
 }
 
-async function createAndSendOtp({ phone, purpose }) {
+async function createAndSendOtp({ phone, purpose, requestMeta }) {
   // OTP send applies a resend cooldown before generating and storing a new code.
   const existingOtp = await findLatestActiveOtp(phone, purpose);
   const cooldownMs = env.otpResendCooldownSeconds * 1000;
@@ -221,12 +228,21 @@ async function createAndSendOtp({ phone, purpose }) {
     throw createError("Please wait before requesting another OTP", 429, "OTP_COOLDOWN");
   }
 
-  const otp = generateOtp();
-  // Store a hash of the OTP so database exposure does not reveal active codes.
-  const otpHash = await hashSecret(otp);
+  const providerManagedOtp = usesProviderManagedOtpVerification();
+  const otp = providerManagedOtp ? undefined : generateOtp();
+  // Store a hash only. For provider-managed OTPs this is an opaque nonce used
+  // to preserve local cooldown, expiry, attempt, and replay controls.
+  const otpHash = await hashSecret(providerManagedOtp ? randomUUID() : otp);
   const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000).toISOString();
 
-  const providerResult = await sendOtp({ phone, otp });
+  const providerResult = await sendOtp({
+    phone,
+    otp,
+    rateLimitContext: {
+      phone,
+      ip: requestMeta?.ip,
+    },
+  });
 
   if (!providerResult.configured) {
     const error = createError(providerResult.message, 503, "OTP_NOT_CONFIGURED");
@@ -377,7 +393,7 @@ export async function logoutUser({ refreshToken }) {
   };
 }
 
-export async function sendLoginOtp(payload) {
+export async function sendLoginOtp(payload, requestMeta = {}) {
   // Return a generic success when the phone is unknown to prevent account
   // enumeration through OTP requests.
   const phone = normalizePhone(payload.phone);
@@ -394,7 +410,7 @@ export async function sendLoginOtp(payload) {
     };
   }
 
-  return createAndSendOtp({ phone, purpose: OTP_PURPOSES.login });
+  return createAndSendOtp({ phone, purpose: OTP_PURPOSES.login, requestMeta });
 }
 
 export async function verifyLoginOtp(payload) {
@@ -411,7 +427,7 @@ export async function verifyLoginOtp(payload) {
   return createAuthResponse(user, "OTP login successful");
 }
 
-export async function sendRegisterOtp(payload) {
+export async function sendRegisterOtp(payload, requestMeta = {}) {
   // Registration OTP send rejects existing phones so duplicate accounts cannot
   // be created through the OTP flow.
   const phone = normalizePhone(payload.phone);
@@ -420,7 +436,7 @@ export async function sendRegisterOtp(payload) {
     throw createError("Account already exists", 409, "ACCOUNT_EXISTS");
   }
 
-  return createAndSendOtp({ phone, purpose: OTP_PURPOSES.register });
+  return createAndSendOtp({ phone, purpose: OTP_PURPOSES.register, requestMeta });
 }
 
 export async function verifyRegisterOtp(payload) {

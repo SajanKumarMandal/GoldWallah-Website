@@ -66,11 +66,12 @@ Current foundation:
 - Modular `src/modules/*` structure
 - Central config, logging, security middleware, and error handling
 - Health and module status endpoints
+- Redis-backed rate limiting, BullMQ jobs, and real-time notification fanout
 
 Planned production services:
 
 - PostgreSQL with PostGIS
-- Redis for cache, rate limiting, OTP, and temporary data
+- Redis for cache, rate limiting, OTP, queues, pub/sub, and temporary data
 - BullMQ for background jobs
 - JWT auth with refresh token rotation
 - Object storage/CDN for media and private documents
@@ -82,6 +83,45 @@ Commands:
 cd backend
 npm run lint
 npm run check
+```
+
+### Local Redis
+
+GoldWallah includes a local Redis service for development. It binds only to
+`127.0.0.1`, requires a password, persists to a Docker volume, and uses
+`noeviction` so BullMQ queue keys are not silently dropped.
+
+```bash
+docker compose up -d redis
+```
+
+On Windows without Docker, install the local Redis-compatible server once and
+start it with the checked-in helper script:
+
+```powershell
+winget install --id taizod1024.redis-windows-fork --accept-source-agreements --accept-package-agreements --silent
+.\scripts\start-local-redis.ps1
+```
+
+Use this backend environment value with the default local Compose password:
+
+```bash
+REDIS_URL=redis://:goldwallah-local-redis-change-me@127.0.0.1:6379/0
+```
+
+For a custom local password, set `GOLDWALLAH_REDIS_PASSWORD` before starting
+Compose and update `REDIS_URL` accordingly.
+
+Redis-backed features currently include:
+
+- BullMQ notification delivery jobs
+- Redis pub/sub for authenticated real-time notification streams
+- Global API, auth, OTP, admin, payment, notification-stream, and location rate limits
+
+Readiness can be checked at:
+
+```bash
+GET /health/ready
 ```
 
 ## Backend Modules

@@ -4,6 +4,7 @@ import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
 } from "../admin/admin.audit.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 import {
   approveJewellerVerification,
   createAuditLog,
@@ -328,6 +329,17 @@ export async function approveJewellerBusinessVerification({
       "APPROVED",
       client,
     );
+    await notifyUser(
+      {
+        userId: verification.jewellerId,
+        type: "BUSINESS_VERIFICATION_APPROVED",
+        title: "Business verification approved",
+        body: "Your jeweller business verification is approved. You can now access verified marketplace bidding.",
+        entityType: ENTITY_TYPE,
+        entityId: verification.id,
+      },
+      client,
+    );
     await writeAudit(
       {
         actorUserId: adminUser.id,
@@ -394,6 +406,17 @@ export async function rejectJewellerBusinessVerification({
     await updateUserBusinessVerificationStatus(
       verification.jewellerId,
       "REJECTED",
+      client,
+    );
+    await notifyUser(
+      {
+        userId: verification.jewellerId,
+        type: "BUSINESS_VERIFICATION_REJECTED",
+        title: "Business verification needs correction",
+        body: "Your jeweller business verification was rejected. Review the reason and submit updated business details.",
+        entityType: ENTITY_TYPE,
+        entityId: verification.id,
+      },
       client,
     );
     await writeAudit(

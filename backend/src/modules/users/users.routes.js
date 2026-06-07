@@ -1,16 +1,15 @@
 import { Router } from "express";
-import { rateLimit } from "express-rate-limit";
 
 import { authenticate } from "../../middleware/auth.js";
+import { createRateLimiter } from "../../middleware/rateLimiter.js";
 import * as usersController from "./users.controller.js";
 
 export const usersRouter = Router();
 
-const updateLocationRateLimit = rateLimit({
+const updateLocationRateLimit = createRateLimiter({
+  name: "users-location",
   windowMs: 5 * 60 * 1000,
   limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     success: false,
     message: "Too many location updates. Please try again later.",

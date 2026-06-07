@@ -1,17 +1,16 @@
-import rateLimit from "express-rate-limit";
 import { Router } from "express";
 
 import { requireAdminAuth } from "../../middleware/adminAuth.js";
+import { createRateLimiter } from "../../middleware/rateLimiter.js";
 import { requireAdminPermission } from "../../middleware/requireAdminPermission.js";
 import * as adminController from "./admin.controller.js";
 
 // Admin login has its own limiter because admin credentials are higher risk
 // than ordinary user credentials.
-const adminLoginLimiter = rateLimit({
+const adminLoginLimiter = createRateLimiter({
+  name: "admin-login",
   windowMs: 15 * 60 * 1000,
   limit: 25,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     message: "Too many login attempts. Please try again later.",
     error: {
@@ -23,11 +22,10 @@ const adminLoginLimiter = rateLimit({
 
 // Admin refresh/logout can happen frequently from the console, but still need a
 // ceiling to prevent refresh loops from stressing the API.
-const adminSessionLimiter = rateLimit({
+const adminSessionLimiter = createRateLimiter({
+  name: "admin-session",
   windowMs: 15 * 60 * 1000,
   limit: 600,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     message: "Too many admin session requests. Please try again later.",
     error: {

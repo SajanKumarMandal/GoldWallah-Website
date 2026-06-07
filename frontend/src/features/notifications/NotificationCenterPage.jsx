@@ -10,6 +10,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/features/notifications/notificationService";
+import { useNotificationStream } from "@/features/notifications/useNotificationStream";
 
 function formatDate(value) {
   if (!value) {
@@ -92,6 +93,31 @@ export default function NotificationCenterPage() {
       isMounted = false;
     };
   }, [accessToken, unreadOnly]);
+
+  useNotificationStream({
+    accessToken,
+    enabled: Boolean(accessToken),
+    onNotification: ({ notification, unreadCount: nextUnreadCount }) => {
+      if (!notification?.id) {
+        return;
+      }
+
+      setNotifications((current) => {
+        if (unreadOnly && notification.readAt) {
+          return current;
+        }
+
+        return [
+          notification,
+          ...current.filter((item) => item.id !== notification.id),
+        ].slice(0, 100);
+      });
+      setUnreadCount((current) =>
+        typeof nextUnreadCount === "number" ? nextUnreadCount : current + 1,
+      );
+      setErrorMessage("");
+    },
+  });
 
   const summary = useMemo(
     () => ({

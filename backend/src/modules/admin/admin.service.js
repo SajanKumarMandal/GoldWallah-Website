@@ -15,6 +15,7 @@ import {
   decryptSensitiveValue,
   encryptSensitiveValue,
 } from "../kyc/kyc.encryption.js";
+import { notifyUser } from "../notifications/notifications.service.js";
 import {
   ADMIN_AUDIT_ACTIONS,
   writeAdminAuditLog,
@@ -713,6 +714,17 @@ export async function blockPlatformUser({
     );
 
     await revokeAllActiveUserRefreshTokens(userId, client);
+    await notifyUser(
+      {
+        userId,
+        type: "ACCOUNT_SUSPENDED",
+        title: "Account access suspended",
+        body: "Your GoldWallah account access was suspended by platform administration.",
+        entityType: "USER_ACCOUNT",
+        entityId: userId,
+      },
+      client,
+    );
 
     await writeAdminAuditLog(
       {
@@ -756,6 +768,17 @@ export async function unblockPlatformUser({
 
     const updatedUser = await updatePlatformUserAccountStatus(
       { userId, accountStatus: "ACTIVE" },
+      client,
+    );
+    await notifyUser(
+      {
+        userId,
+        type: "ACCOUNT_REACTIVATED",
+        title: "Account access restored",
+        body: "Your GoldWallah account access was restored by platform administration.",
+        entityType: "USER_ACCOUNT",
+        entityId: userId,
+      },
       client,
     );
 

@@ -1,8 +1,10 @@
 import pg from "pg";
 
 import { env } from "./env.js";
+import { logger } from "./logger.js";
 
 const { Pool } = pg;
+const afterCommitTasksSymbol = Symbol("goldwallah.afterCommitTasks");
 
 // Shared PostgreSQL connection pool. Production SSL verifies the provider
 // certificate; do not switch this back to rejectUnauthorized:false.
@@ -32,16 +34,37 @@ export function query(text, params) {
 // back every query made through the transaction client.
 export async function withTransaction(callback) {
   const client = await pool.connect();
+  const afterCommitTasks = [];
 
   try {
+    client[afterCommitTasksSymbol] = afterCommitTasks;
     await client.query("BEGIN");
     const result = await callback(client);
     await client.query("COMMIT");
+    await Promise.allSettled(
+      afterCommitTasks.map(async (task) => {
+        try {
+          await task();
+        } catch (error) {
+          logger.warn({ error }, "Post-commit task failed");
+        }
+      }),
+    );
     return result;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
+    delete client[afterCommitTasksSymbol];
     client.release();
   }
+}
+
+export function registerAfterCommit(client, task) {
+  if (!client?.[afterCommitTasksSymbol]) {
+    return false;
+  }
+
+  client[afterCommitTasksSymbol].push(task);
+  return true;
 }

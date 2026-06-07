@@ -3,6 +3,7 @@ import {
   readAllNotifications,
   readNotification,
 } from "./notifications.service.js";
+import { openNotificationStream } from "./notificationRealtime.service.js";
 import {
   notificationParamSchema,
   notificationQuerySchema,
@@ -44,6 +45,18 @@ export async function markRead(request, response, next) {
 export async function markAllRead(request, response, next) {
   try {
     response.status(200).json(await readAllNotifications(request.user));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function streamNotifications(request, response, next) {
+  try {
+    await openNotificationStream({
+      request,
+      response,
+      user: request.user,
+    });
   } catch (error) {
     next(error);
   }

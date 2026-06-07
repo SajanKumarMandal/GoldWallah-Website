@@ -1,17 +1,16 @@
-import rateLimit from "express-rate-limit";
 import { Router } from "express";
 
+import { createRateLimiter } from "../../middleware/rateLimiter.js";
 import * as authController from "./auth.controller.js";
 
 export const authRouter = Router();
 
 // Login endpoints are rate-limited separately from registration and OTP so one
 // abuse path cannot exhaust every auth workflow.
-const loginLimiter = rateLimit({
+const loginLimiter = createRateLimiter({
+  name: "auth-login",
   windowMs: 15 * 60 * 1000,
   limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     error: {
       message: "Too many login attempts. Please try again later.",
@@ -21,11 +20,10 @@ const loginLimiter = rateLimit({
 });
 
 // Registration is more expensive and abuse-sensitive, so it has a lower hourly cap.
-const registerLimiter = rateLimit({
+const registerLimiter = createRateLimiter({
+  name: "auth-register",
   windowMs: 60 * 60 * 1000,
   limit: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     error: {
       message: "Too many registration attempts. Please try again later.",
@@ -35,11 +33,10 @@ const registerLimiter = rateLimit({
 });
 
 // OTP send/verify endpoints share a tight limiter to reduce SMS abuse and brute force.
-const otpLimiter = rateLimit({
+const otpLimiter = createRateLimiter({
+  name: "auth-otp",
   windowMs: 10 * 60 * 1000,
   limit: 8,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     error: {
       message: "Too many OTP attempts. Please try again later.",
@@ -50,11 +47,10 @@ const otpLimiter = rateLimit({
 
 // Refresh/logout may run frequently from active browser sessions, but still need
 // a ceiling to protect the API from loops or scripted abuse.
-const sessionLimiter = rateLimit({
+const sessionLimiter = createRateLimiter({
+  name: "auth-session",
   windowMs: 15 * 60 * 1000,
   limit: 600,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: {
     error: {
       message: "Too many session requests. Please try again later.",

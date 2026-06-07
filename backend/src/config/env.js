@@ -31,6 +31,7 @@ const envSchema = z.object({
   OTP_PROVIDER: z.enum(["mock", "msg91", "twilio"]).default("mock"),
   OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(5),
   OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
+  OTP_RATE_LIMIT_HASH_SECRET: z.string().optional().default(""),
   MSG91_AUTH_KEY: z.string().optional().default(""),
   MSG91_TEMPLATE_ID: z.string().optional().default(""),
   MSG91_SENDER_ID: z.string().optional().default(""),
@@ -56,6 +57,14 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().trim().optional().default(""),
   CLOUDINARY_API_KEY: z.string().trim().optional().default(""),
   CLOUDINARY_API_SECRET: z.string().trim().optional().default(""),
+  REDIS_URL: z.string().url().optional().default(""),
+  BULLMQ_WORKER_ENABLED: z.enum(["true", "false"]).default("true"),
+  NOTIFICATION_QUEUE_CONCURRENCY: z.coerce.number().int().positive().default(5),
+  NOTIFICATION_STREAM_HEARTBEAT_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(25),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -65,6 +74,10 @@ if (!parsedEnv.success) {
   console.error(parsedEnv.error.flatten().fieldErrors);
   process.exit(1);
 }
+
+const hasTwilioProvider = parsedEnv.data.OTP_PROVIDER === "twilio";
+const hasTwilioVerifyService = Boolean(parsedEnv.data.TWILIO_VERIFY_SERVICE_SID);
+const hasTwilioDirectSmsSender = Boolean(parsedEnv.data.TWILIO_FROM_PHONE);
 
 if (
   parsedEnv.data.NODE_ENV !== "test" &&
@@ -133,26 +146,72 @@ if (
 }
 
 if (
-  parsedEnv.data.NODE_ENV === "production" &&
-  parsedEnv.data.OTP_PROVIDER === "twilio" &&
-  (
-    !parsedEnv.data.TWILIO_ACCOUNT_SID ||
-    !parsedEnv.data.TWILIO_AUTH_TOKEN ||
-    !parsedEnv.data.TWILIO_FROM_PHONE
-  )
+  parsedEnv.data.NODE_ENV !== "test" &&
+  hasTwilioProvider &&
+  (!parsedEnv.data.TWILIO_ACCOUNT_SID || !parsedEnv.data.TWILIO_AUTH_TOKEN)
 ) {
   console.error(
-    "OTP_PROVIDER=twilio requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE in production",
+    "OTP_PROVIDER=twilio requires TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN",
+  );
+  process.exit(1);
+}
+
+if (
+  hasTwilioProvider &&
+  parsedEnv.data.TWILIO_ACCOUNT_SID &&
+  !/^AC[0-9a-fA-F]{32}$/.test(parsedEnv.data.TWILIO_ACCOUNT_SID)
+) {
+  console.error("TWILIO_ACCOUNT_SID must be a Twilio Account SID starting with AC");
+  process.exit(1);
+}
+
+if (
+  hasTwilioProvider &&
+  hasTwilioVerifyService &&
+  !/^VA[0-9a-fA-F]{32}$/.test(parsedEnv.data.TWILIO_VERIFY_SERVICE_SID)
+) {
+  console.error("TWILIO_VERIFY_SERVICE_SID must be a Twilio Verify Service SID starting with VA");
+  process.exit(1);
+}
+
+if (
+  hasTwilioProvider &&
+  hasTwilioDirectSmsSender &&
+  !/^\+[1-9]\d{7,14}$/.test(parsedEnv.data.TWILIO_FROM_PHONE)
+) {
+  console.error("TWILIO_FROM_PHONE must be in E.164 format, for example +14155552671");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  hasTwilioProvider &&
+  !hasTwilioVerifyService &&
+  !hasTwilioDirectSmsSender
+) {
+  console.error(
+    "OTP_PROVIDER=twilio requires TWILIO_VERIFY_SERVICE_SID or TWILIO_FROM_PHONE",
   );
   process.exit(1);
 }
 
 if (
   parsedEnv.data.NODE_ENV === "production" &&
-  parsedEnv.data.OTP_PROVIDER === "twilio" &&
-  !/^\+[1-9]\d{7,14}$/.test(parsedEnv.data.TWILIO_FROM_PHONE)
+  hasTwilioProvider &&
+  !hasTwilioVerifyService
 ) {
-  console.error("TWILIO_FROM_PHONE must be in E.164 format, for example +14155552671");
+  console.error("TWILIO_VERIFY_SERVICE_SID is required for Twilio OTP in production");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  hasTwilioProvider &&
+  parsedEnv.data.OTP_RATE_LIMIT_HASH_SECRET.length < 32
+) {
+  console.error(
+    "OTP_RATE_LIMIT_HASH_SECRET must be at least 32 characters for Twilio OTP in production",
+  );
   process.exit(1);
 }
 
@@ -195,6 +254,11 @@ if (
   process.exit(1);
 }
 
+if (parsedEnv.data.NODE_ENV === "production" && !parsedEnv.data.REDIS_URL) {
+  console.error("REDIS_URL is required in production for BullMQ notifications");
+  process.exit(1);
+}
+
 function readPgSslCa() {
   // Production PostgreSQL SSL can receive the provider CA directly or from a file.
   if (parsedEnv.data.PG_SSL_CA) {
@@ -229,6 +293,7 @@ export const env = {
   otpProvider: parsedEnv.data.OTP_PROVIDER,
   otpExpiryMinutes: parsedEnv.data.OTP_EXPIRY_MINUTES,
   otpResendCooldownSeconds: parsedEnv.data.OTP_RESEND_COOLDOWN_SECONDS,
+  otpRateLimitHashSecret: parsedEnv.data.OTP_RATE_LIMIT_HASH_SECRET,
   msg91AuthKey: parsedEnv.data.MSG91_AUTH_KEY,
   msg91TemplateId: parsedEnv.data.MSG91_TEMPLATE_ID,
   msg91SenderId: parsedEnv.data.MSG91_SENDER_ID,
@@ -257,5 +322,10 @@ export const env = {
   cloudinaryCloudName: parsedEnv.data.CLOUDINARY_CLOUD_NAME,
   cloudinaryApiKey: parsedEnv.data.CLOUDINARY_API_KEY,
   cloudinaryApiSecret: parsedEnv.data.CLOUDINARY_API_SECRET,
+  redisUrl: parsedEnv.data.REDIS_URL,
+  bullMqWorkerEnabled: parsedEnv.data.BULLMQ_WORKER_ENABLED === "true",
+  notificationQueueConcurrency: parsedEnv.data.NOTIFICATION_QUEUE_CONCURRENCY,
+  notificationStreamHeartbeatMs:
+    parsedEnv.data.NOTIFICATION_STREAM_HEARTBEAT_SECONDS * 1000,
   isProduction: parsedEnv.data.NODE_ENV === "production",
 };

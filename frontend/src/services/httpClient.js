@@ -2,7 +2,7 @@ import { env } from "@/config/env";
 
 // Shared fetch wrapper. It always sends credentials so the backend HttpOnly
 // refresh cookie can rotate sessions without exposing that token to JavaScript.
-function buildUrl(path, query) {
+export function buildApiUrl(path, query) {
   const baseUrl = env.apiBaseUrl.startsWith("http")
     ? env.apiBaseUrl
     : `${window.location.origin}${env.apiBaseUrl}`;
@@ -26,7 +26,7 @@ export async function apiRequest(path, options = {}) {
   const isFormData = fetchOptions.body instanceof FormData;
   const method = (fetchOptions.method || "GET").toUpperCase();
   const isUnsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(method);
-  const response = await fetch(buildUrl(path, query), {
+  const response = await fetch(buildApiUrl(path, query), {
     credentials: "include",
     ...fetchOptions,
     headers: {

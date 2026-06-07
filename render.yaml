@@ -11,6 +11,11 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: goldwallah-redis
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -31,6 +36,20 @@ services:
         sync: false
       - key: OTP_PROVIDER
         sync: false
+      - key: OTP_RATE_LIMIT_HASH_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
+      - key: BULLMQ_WORKER_ENABLED
+        value: "true"
+      - key: NOTIFICATION_QUEUE_CONCURRENCY
+        value: "5"
+      - key: NOTIFICATION_STREAM_HEARTBEAT_SECONDS
+        value: "25"
       - key: UPLOAD_STORAGE_PROVIDER
         value: cloudinary
       - key: CLOUDINARY_CLOUD_NAME
@@ -53,3 +72,9 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: keyvalue
+    name: goldwallah-redis
+    ipAllowList: []
+    plan: starter
+    maxmemoryPolicy: noeviction

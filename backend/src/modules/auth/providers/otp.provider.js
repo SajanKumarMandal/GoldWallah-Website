@@ -1,6 +1,8 @@
-import { randomInt } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 
 import { env } from "../../../config/env.js";
+
+const TWILIO_VERIFY_BASE_URL = "https://verify.twilio.com/v2/Services";
 
 export function generateOtp() {
   // Generate a six-digit numeric OTP using Node crypto instead of Math.random.
@@ -14,6 +16,59 @@ function otpProviderError(message, code = "OTP_PROVIDER_FAILED") {
   error.statusCode = 502;
   error.code = code;
   return error;
+}
+
+function toIndianE164Phone(phone) {
+  return `+91${phone}`;
+}
+
+function twilioAuthorizationHeader() {
+  return `Basic ${Buffer.from(
+    `${env.twilioAccountSid}:${env.twilioAuthToken}`,
+  ).toString("base64")}`;
+}
+
+function twilioVerifyUrl(resource) {
+  return `${TWILIO_VERIFY_BASE_URL}/${encodeURIComponent(
+    env.twilioVerifyServiceSid,
+  )}/${resource}`;
+}
+
+function twilioCredentialsConfigured() {
+  return Boolean(env.twilioAccountSid && env.twilioAuthToken);
+}
+
+function hashRateLimitValue(value) {
+  const normalizedValue = typeof value === "string" ? value.trim() : "";
+
+  if (!env.otpRateLimitHashSecret || !normalizedValue) {
+    return "";
+  }
+
+  return createHmac("sha256", env.otpRateLimitHashSecret)
+    .update(normalizedValue)
+    .digest("hex");
+}
+
+function appendTwilioRateLimits(body, { phone, ip } = {}) {
+  const phoneHash = hashRateLimitValue(phone);
+  const ipHash = hashRateLimitValue(ip);
+
+  if (phoneHash) {
+    body.set("RateLimits[phone_hash]", phoneHash);
+  }
+
+  if (ipHash) {
+    body.set("RateLimits[ip_hash]", ipHash);
+  }
+}
+
+async function readJsonSafely(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
 }
 
 async function sendMsg91Otp({ phone, otp }) {
@@ -38,19 +93,16 @@ async function sendMsg91Otp({ phone, otp }) {
 
 async function sendTwilioSmsOtp({ phone, otp }) {
   // Twilio fallback sends a direct SMS with the generated OTP and expiry copy.
-  const credentials = Buffer.from(
-    `${env.twilioAccountSid}:${env.twilioAuthToken}`,
-  ).toString("base64");
   const response = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${env.twilioAccountSid}/Messages.json`,
     {
       method: "POST",
       headers: {
-        Authorization: `Basic ${credentials}`,
+        Authorization: twilioAuthorizationHeader(),
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        To: `+91${phone}`,
+        To: toIndianE164Phone(phone),
         From: env.twilioFromPhone,
         Body: `Your GoldWallah verification code is ${otp}. It expires in ${env.otpExpiryMinutes} minutes.`,
       }),
@@ -62,7 +114,73 @@ async function sendTwilioSmsOtp({ phone, otp }) {
   }
 }
 
-export async function sendOtp({ phone, otp }) {
+async function sendTwilioVerifyOtp({ phone, rateLimitContext }) {
+  // Twilio Verify owns code generation and carrier-compliant delivery.
+  const body = new URLSearchParams({
+    To: toIndianE164Phone(phone),
+    Channel: "sms",
+    RiskCheck: "enable",
+  });
+  appendTwilioRateLimits(body, rateLimitContext);
+
+  const response = await fetch(twilioVerifyUrl("Verifications"), {
+    method: "POST",
+    headers: {
+      Authorization: twilioAuthorizationHeader(),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    throw otpProviderError("Unable to send OTP right now");
+  }
+}
+
+async function verifyTwilioOtp({ phone, otp }) {
+  const response = await fetch(twilioVerifyUrl("VerificationCheck"), {
+    method: "POST",
+    headers: {
+      Authorization: twilioAuthorizationHeader(),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      To: toIndianE164Phone(phone),
+      Code: otp,
+    }),
+  });
+
+  if ([400, 404].includes(response.status)) {
+    // Twilio uses these for wrong, expired, already-approved, or exhausted
+    // verification checks. Return a generic OTP failure to the auth service.
+    return false;
+  }
+
+  if (!response.ok) {
+    throw otpProviderError("Unable to verify OTP right now");
+  }
+
+  const payload = await readJsonSafely(response);
+  return payload.status === "approved" || payload.valid === true;
+}
+
+export function usesProviderManagedOtpVerification() {
+  return env.otpProvider === "twilio" && Boolean(env.twilioVerifyServiceSid);
+}
+
+export async function verifyOtpWithProvider({ phone, otp }) {
+  if (!usesProviderManagedOtpVerification()) {
+    return false;
+  }
+
+  if (!twilioCredentialsConfigured()) {
+    throw otpProviderError("Unable to verify OTP right now");
+  }
+
+  return verifyTwilioOtp({ phone, otp });
+}
+
+export async function sendOtp({ phone, otp, rateLimitContext }) {
   // Select the configured provider at runtime. Production blocks mock OTP in env
   // validation, so mock mode remains local/test only.
   if (env.otpProvider === "mock") {
@@ -91,12 +209,27 @@ export async function sendOtp({ phone, otp }) {
     };
   }
 
-  // Any non-MSG91 provider currently routes to Twilio SMS.
-  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioFromPhone) {
+  if (!twilioCredentialsConfigured()) {
     return {
       configured: false,
       message:
-        "Twilio OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE in backend .env",
+        "Twilio OTP is not configured. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in backend .env",
+    };
+  }
+
+  if (env.twilioVerifyServiceSid) {
+    await sendTwilioVerifyOtp({ phone, rateLimitContext });
+    return {
+      configured: true,
+      message: "OTP sent successfully.",
+    };
+  }
+
+  if (!env.twilioFromPhone || !otp) {
+    return {
+      configured: false,
+      message:
+        "Twilio SMS OTP is not configured. Add TWILIO_VERIFY_SERVICE_SID or TWILIO_FROM_PHONE in backend .env",
     };
   }
 

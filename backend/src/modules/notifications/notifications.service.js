@@ -1,4 +1,9 @@
 import {
+  registerAfterCommit,
+} from "../../config/db.js";
+import { logger } from "../../config/logger.js";
+import { enqueueNotificationDelivery } from "../../queues/notificationQueue.js";
+import {
   countUnreadNotifications,
   createNotification,
   listUserNotifications,
@@ -16,7 +21,23 @@ function createError(message, statusCode, code) {
 }
 
 export async function notifyUser(data, client) {
-  return createNotification(data, client);
+  const notification = await createNotification(data, client);
+  const enqueueDelivery = async () => {
+    try {
+      await enqueueNotificationDelivery(notification.id);
+    } catch (error) {
+      logger.warn(
+        { error, notificationId: notification.id, userId: notification.userId },
+        "Failed to enqueue notification delivery",
+      );
+    }
+  };
+
+  if (!registerAfterCommit(client, enqueueDelivery)) {
+    await enqueueDelivery();
+  }
+
+  return notification;
 }
 
 export async function getMyNotifications({ user, query }) {
