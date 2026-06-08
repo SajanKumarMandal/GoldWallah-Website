@@ -31,7 +31,18 @@ try {
     );
   });
 } catch (error) {
-  logger.error({ error }, "Failed to start GoldWallah API");
+  logger.error(
+    {
+      err: {
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+        code: error?.code,
+        cause: error?.cause,
+      },
+    },
+    "Failed to start GoldWallah API",
+  );
   process.exit(1);
 }
 
