@@ -1,25 +1,10 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import { requireJewellerCanBid } from "../../middleware/verificationGuards.js";
 import * as bidsController from "./bids.controller.js";
 
 export const bidsRouter = Router();
-
-function createBidGuard(request, _response, next) {
-  const hasApprovedKyc = request.user?.kycStatus === "APPROVED";
-  const hasApprovedBusiness =
-    request.user?.businessVerificationStatus === "APPROVED";
-
-  if (!hasApprovedKyc || !hasApprovedBusiness) {
-    const error = new Error("Verification is required before placing bids.");
-    error.statusCode = 403;
-    error.code = "VERIFICATION_REQUIRED";
-    next(error);
-    return;
-  }
-
-  next();
-}
 
 bidsRouter.get("/", (_request, response) => {
   response.status(200).json({
@@ -37,7 +22,7 @@ bidsRouter.post(
   "/",
   authenticate,
   requireRole("JEWELLER"),
-  createBidGuard,
+  requireJewellerCanBid,
   bidsController.createBid,
 );
 

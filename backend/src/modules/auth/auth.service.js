@@ -1,11 +1,16 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import { withTransaction } from "../../config/db.js";
 import { env } from "../../config/env.js";
+import { AUTH_AUDIT_EVENTS, writeAuthAudit } from "./auth.audit.js";
 import { verifyFacebookAccessToken } from "./providers/facebookAuth.provider.js";
+import {
+  sendEmailVerificationEmail,
+  sendPasswordResetEmail,
+} from "./providers/email.provider.js";
 import { verifyGoogleIdToken } from "./providers/googleAuth.provider.js";
 import {
   generateOtp,
@@ -16,19 +21,32 @@ import {
 import {
   createUser,
   createOtp,
+  clearLoginAttempt,
+  consumeEmailVerificationToken,
+  consumePasswordResetToken,
+  createEmailVerificationToken,
+  createPasswordResetToken,
   findLatestActiveOtp,
+  findLoginAttempt,
+  findEmailVerificationTokenByHash,
   findOAuthAccount,
+  findPasswordResetTokenByHash,
   findRefreshTokenByHash,
   findUserByEmail,
   findUserById,
   findUserByPhone,
   incrementOtpAttempts,
   linkOAuthAccount,
+  markUserEmailVerified,
+  recordLoginFailure,
   consumeOtp,
   revokeAllActiveRefreshTokens,
+  revokeAllActiveRefreshTokensExcept,
   revokeRefreshToken,
   saveRefreshToken,
   sanitizeUser,
+  updateUserPasswordHash,
+  updateUserPhoneVerified,
 } from "./auth.repository.js";
 import { AUTH_ROLES, normalizePhone } from "./auth.validation.js";
 
@@ -37,8 +55,13 @@ import { AUTH_ROLES, normalizePhone } from "./auth.validation.js";
 const OTP_PURPOSES = {
   login: "LOGIN",
   register: "REGISTER",
+  phoneVerify: "PHONE_VERIFY",
 };
 const REFRESH_REUSE_GRACE_MS = 30 * 1000;
+const PASSWORD_FORGOT_RESPONSE = {
+  success: true,
+  message: "If an account exists for this email, password reset instructions will be sent.",
+};
 
 function createError(message, statusCode, code) {
   // Services throw normalized errors so the shared error handler can return
@@ -63,6 +86,102 @@ function toRole(role) {
 function hashToken(token) {
   // Refresh tokens are bearer credentials, so only a hash is stored in Postgres.
   return createHash("sha256").update(token).digest("hex");
+}
+
+function generateSecurityToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+function expiresInMinutes(minutes) {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+}
+
+function expiresInHours(hours) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function hashIdentity(value) {
+  const normalizedValue = typeof value === "string" ? value.trim().toLowerCase() : "";
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  const secret = env.kycIdentityHashSecret || env.jwtAccessSecret || "goldwallah-test";
+  return createHash("sha256")
+    .update(`${secret}:${normalizedValue}`)
+    .digest("hex");
+}
+
+function isExpired(dateValue) {
+  return new Date(dateValue).getTime() <= Date.now();
+}
+
+function buildFrontendUrl(path, token) {
+  const url = new URL(path, env.frontendUrl);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function isLocked(attempt) {
+  if (!attempt?.lockedUntil) {
+    return false;
+  }
+
+  return new Date(attempt.lockedUntil).getTime() > Date.now();
+}
+
+async function assertLoginAllowed({ email, requestMeta }, client) {
+  const emailHash = hashIdentity(email);
+  const ipHash = hashIdentity(requestMeta?.ip);
+  const attempts = await Promise.all([
+    emailHash ? findLoginAttempt("EMAIL", emailHash, client) : null,
+    ipHash ? findLoginAttempt("IP", ipHash, client) : null,
+  ]);
+
+  if (attempts.some(isLocked)) {
+    throw createError("Invalid email or password", 401, "INVALID_CREDENTIALS");
+  }
+}
+
+async function recordFailedPasswordLogin({ email, user, requestMeta }, client) {
+  const lockedUntil = new Date(
+    Date.now() + env.authLoginLockMinutes * 60 * 1000,
+  ).toISOString();
+  const emailHash = hashIdentity(email);
+  const ipHash = hashIdentity(requestMeta?.ip);
+
+  for (const [scope, identityHash] of [
+    ["EMAIL", emailHash],
+    ["IP", ipHash],
+  ]) {
+    if (!identityHash) {
+      continue;
+    }
+
+    const currentAttempt = await findLoginAttempt(scope, identityHash, client);
+    const nextFailureCount = (currentAttempt?.failedCount || 0) + 1;
+    await recordLoginFailure(
+      {
+        scope,
+        identityHash,
+        userId: user?.id,
+        lockedUntil:
+          nextFailureCount >= env.authLoginMaxFailedAttempts ? lockedUntil : null,
+      },
+      client,
+    );
+  }
+}
+
+async function clearPasswordLoginFailures({ email, requestMeta }, client) {
+  const emailHash = hashIdentity(email);
+  const ipHash = hashIdentity(requestMeta?.ip);
+
+  await Promise.all([
+    emailHash ? clearLoginAttempt("EMAIL", emailHash, client) : null,
+    ipHash ? clearLoginAttempt("IP", ipHash, client) : null,
+  ]);
 }
 
 function getTokenExpiry(token) {
@@ -267,64 +386,111 @@ async function createAndSendOtp({ phone, purpose, requestMeta }) {
   };
 }
 
-export async function registerWithEmail(payload) {
-  // Email registration validates uniqueness, hashes the password, and starts the
-  // user at NOT_SUBMITTED verification gates.
+export async function registerWithEmail(payload, requestMeta = {}) {
+  // Email registration stores the user and refresh token in one transaction so
+  // a failed session write cannot leave a half-created login response.
   const email = payload.email.toLowerCase();
   const phone = normalizePhone(payload.phone);
-
-  await ensureUniqueIdentity({ email, phone });
-
   const passwordHash = await hashSecret(payload.password);
-  let user;
 
-  try {
-    user = await createUser({
-      fullName: payload.fullName,
-      email,
-      phone,
-      passwordHash,
-      role: toRole(payload.role),
-      authProvider: "EMAIL",
-      isEmailVerified: false,
-      isPhoneVerified: false,
-    });
-  } catch (error) {
-    if (error.code === "23505") {
-      throw createError("Account already exists", 409, "ACCOUNT_EXISTS");
+  return withTransaction(async (client) => {
+    await ensureUniqueIdentity({ email, phone }, client);
+
+    let user;
+
+    try {
+      user = await createUser(
+        {
+          fullName: payload.fullName,
+          email,
+          phone,
+          passwordHash,
+          role: toRole(payload.role),
+          authProvider: "EMAIL",
+          isEmailVerified: false,
+          isPhoneVerified: false,
+        },
+        client,
+      );
+    } catch (error) {
+      if (error.code === "23505") {
+        throw createError("Account already exists", 409, "ACCOUNT_EXISTS");
+      }
+
+      throw error;
     }
 
-    throw error;
-  }
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.registerSuccess,
+        requestMeta,
+        metadata: { method: "email" },
+      },
+      client,
+    );
 
-  return createAuthResponse(user, "Account registered successfully");
+    return createAuthResponse(user, "Account registered successfully", client);
+  });
 }
 
-export async function loginWithEmail(payload) {
+export async function loginWithEmail(payload, requestMeta = {}) {
   // Use a single public error for missing users and password mismatch to avoid
   // account enumeration.
   const email = payload.email.toLowerCase();
-  const user = await findUserByEmail(email);
   const invalidLoginError = createError(
     "Invalid email or password",
     401,
     "INVALID_CREDENTIALS",
   );
 
-  if (!user?.passwordHash) {
-    throw invalidLoginError;
-  }
+  return withTransaction(async (client) => {
+    await assertLoginAllowed({ email, requestMeta }, client);
+    const user = await findUserByEmail(email, client);
 
-  const isPasswordValid = await bcrypt.compare(payload.password, user.passwordHash);
+    if (!user?.passwordHash) {
+      await recordFailedPasswordLogin({ email, user, requestMeta });
+      await writeAuthAudit(
+        {
+          userId: user?.id,
+          eventType: AUTH_AUDIT_EVENTS.loginFailed,
+          requestMeta,
+          metadata: { method: "email", reason: "invalid_credentials" },
+        },
+      );
+      throw invalidLoginError;
+    }
 
-  if (!isPasswordValid) {
-    throw invalidLoginError;
-  }
+    const isPasswordValid = await bcrypt.compare(payload.password, user.passwordHash);
 
-  return createAuthResponse(user, "Login successful");
+    if (!isPasswordValid) {
+      await recordFailedPasswordLogin({ email, user, requestMeta });
+      await writeAuthAudit(
+        {
+          userId: user.id,
+          eventType: AUTH_AUDIT_EVENTS.loginFailed,
+          requestMeta,
+          metadata: { method: "email", reason: "invalid_credentials" },
+        },
+      );
+      throw invalidLoginError;
+    }
+
+    await clearPasswordLoginFailures({ email, requestMeta }, client);
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.loginSuccess,
+        requestMeta,
+        metadata: { method: "email" },
+      },
+      client,
+    );
+    return createAuthResponse(user, "Login successful", client);
+  });
 }
 
-export async function refreshUserSession({ refreshToken }) {
+export async function refreshUserSession({ refreshToken, requestMeta = {} }) {
   // Rotate refresh tokens atomically. Old token hash is revoked and a fresh token
   // is saved before the response is returned.
   const refreshTokenHash = hashToken(refreshToken);
@@ -346,13 +512,20 @@ export async function refreshUserSession({ refreshToken }) {
         throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
       }
 
-      await revokeAllActiveRefreshTokens(existingRefreshToken.userId, client);
+      await revokeAllActiveRefreshTokens(existingRefreshToken.userId);
+      await writeAuthAudit(
+        {
+          userId: existingRefreshToken.userId,
+          eventType: AUTH_AUDIT_EVENTS.tokenReuseDetected,
+          requestMeta,
+        },
+      );
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
 
     if (new Date(existingRefreshToken.expiresAt).getTime() <= Date.now()) {
       // Expired refresh tokens are revoked so future attempts are tracked.
-      await revokeRefreshToken(refreshTokenHash, client);
+      await revokeRefreshToken(refreshTokenHash);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
 
@@ -360,37 +533,312 @@ export async function refreshUserSession({ refreshToken }) {
 
     if (payload.sub !== existingRefreshToken.userId) {
       // A valid JWT paired with a different DB token owner is treated as invalid.
-      await revokeRefreshToken(refreshTokenHash, client);
+      await revokeRefreshToken(refreshTokenHash);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
 
     const user = await findUserById(existingRefreshToken.userId, client);
 
     if (!user) {
-      await revokeRefreshToken(refreshTokenHash, client);
+      await revokeRefreshToken(refreshTokenHash);
       throw createError("Invalid refresh token", 401, "INVALID_REFRESH_TOKEN");
     }
 
     if (user.accountStatus !== "ACTIVE") {
       // Inactive accounts lose every active refresh token immediately.
-      await revokeAllActiveRefreshTokens(user.id, client);
+      await revokeAllActiveRefreshTokens(user.id);
       throw createError("Account is not active", 403, "ACCOUNT_INACTIVE");
     }
 
     await revokeRefreshToken(refreshTokenHash, client);
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.refreshSuccess,
+        requestMeta,
+      },
+      client,
+    );
     return createAuthResponse(user, "Session refreshed", client);
   });
 }
 
-export async function logoutUser({ refreshToken }) {
+export async function logoutUser({ refreshToken, requestMeta = {} }) {
   // Logout is idempotent from the browser perspective; revoking an already
   // revoked/missing token still returns success through the controller path.
-  await revokeRefreshToken(hashToken(refreshToken));
+  const revokedToken = await revokeRefreshToken(hashToken(refreshToken));
+
+  await writeAuthAudit({
+    userId: revokedToken?.userId,
+    eventType: AUTH_AUDIT_EVENTS.logout,
+    requestMeta,
+  });
 
   return {
     success: true,
     message: "Logged out successfully",
   };
+}
+
+export async function logoutAllUser({ user, requestMeta = {} }) {
+  await revokeAllActiveRefreshTokens(user.id);
+  await writeAuthAudit({
+    userId: user.id,
+    eventType: AUTH_AUDIT_EVENTS.logoutAll,
+    requestMeta,
+  });
+
+  return {
+    success: true,
+    message: "Logged out from all devices successfully",
+  };
+}
+
+export async function requestPasswordReset(payload, requestMeta = {}) {
+  const email = payload.email.toLowerCase();
+  const user = await findUserByEmail(email);
+
+  await writeAuthAudit({
+    userId: user?.id,
+    eventType: AUTH_AUDIT_EVENTS.passwordForgotRequested,
+    requestMeta,
+    metadata: { hasAccount: Boolean(user) },
+  });
+
+  if (!user?.passwordHash || user.accountStatus !== "ACTIVE") {
+    return PASSWORD_FORGOT_RESPONSE;
+  }
+
+  const token = generateSecurityToken();
+  const tokenHash = hashToken(token);
+  const expiresAt = expiresInMinutes(env.passwordResetExpiryMinutes);
+
+  await createPasswordResetToken({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  const resetUrl = buildFrontendUrl("/reset-password", token);
+
+  try {
+    await sendPasswordResetEmail({
+      to: user.email,
+      resetUrl,
+      expiresInMinutes: env.passwordResetExpiryMinutes,
+    });
+  } catch (error) {
+    await writeAuthAudit({
+      userId: user.id,
+      eventType: AUTH_AUDIT_EVENTS.passwordForgotRequested,
+      requestMeta,
+      metadata: { deliveryFailed: true, errorCode: error.code },
+    });
+  }
+
+  return PASSWORD_FORGOT_RESPONSE;
+}
+
+export async function resetPassword(payload, requestMeta = {}) {
+  const tokenHash = hashToken(payload.token);
+
+  return withTransaction(async (client) => {
+    const resetToken = await findPasswordResetTokenByHash(tokenHash, client);
+
+    if (!resetToken || resetToken.consumedAt || isExpired(resetToken.expiresAt)) {
+      throw createError(
+        "Invalid or expired reset token",
+        400,
+        "INVALID_PASSWORD_RESET_TOKEN",
+      );
+    }
+
+    const user = await findUserById(resetToken.userId, client);
+
+    if (!user?.passwordHash || user.accountStatus !== "ACTIVE") {
+      throw createError(
+        "Invalid or expired reset token",
+        400,
+        "INVALID_PASSWORD_RESET_TOKEN",
+      );
+    }
+
+    if (await bcrypt.compare(payload.newPassword, user.passwordHash)) {
+      throw createError(
+        "Choose a password that is different from your current password",
+        400,
+        "PASSWORD_REUSED",
+      );
+    }
+
+    await updateUserPasswordHash(user.id, await hashSecret(payload.newPassword), client);
+    await consumePasswordResetToken(resetToken.id, client);
+    await revokeAllActiveRefreshTokens(user.id, client);
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.passwordResetSuccess,
+        requestMeta,
+      },
+      client,
+    );
+
+    return {
+      success: true,
+      message: "Password reset successfully. Please sign in again.",
+    };
+  });
+}
+
+export async function changePassword(
+  { user, currentPassword, newPassword, currentRefreshToken },
+  requestMeta = {},
+) {
+  return withTransaction(async (client) => {
+    const fullUser = await findUserById(user.id, client);
+
+    if (!fullUser?.passwordHash) {
+      throw createError(
+        "Password change is available only for password-based accounts",
+        403,
+        "PASSWORD_LOGIN_REQUIRED",
+      );
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      fullUser.passwordHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw createError("Current password is incorrect", 401, "INVALID_PASSWORD");
+    }
+
+    if (await bcrypt.compare(newPassword, fullUser.passwordHash)) {
+      throw createError(
+        "Choose a password that is different from your current password",
+        400,
+        "PASSWORD_REUSED",
+      );
+    }
+
+    await updateUserPasswordHash(fullUser.id, await hashSecret(newPassword), client);
+
+    if (currentRefreshToken) {
+      await revokeAllActiveRefreshTokensExcept(
+        fullUser.id,
+        hashToken(currentRefreshToken),
+        client,
+      );
+    } else {
+      await revokeAllActiveRefreshTokens(fullUser.id, client);
+    }
+
+    await writeAuthAudit(
+      {
+        userId: fullUser.id,
+        eventType: AUTH_AUDIT_EVENTS.passwordChangeSuccess,
+        requestMeta,
+      },
+      client,
+    );
+
+    return {
+      success: true,
+      message: currentRefreshToken
+        ? "Password changed successfully"
+        : "Password changed successfully. Please sign in again.",
+    };
+  });
+}
+
+export async function sendEmailVerification({ user }, requestMeta = {}) {
+  const fullUser = await findUserById(user.id);
+
+  if (!fullUser?.email) {
+    throw createError("Email address is required", 400, "EMAIL_REQUIRED");
+  }
+
+  if (fullUser.isEmailVerified) {
+    return {
+      success: true,
+      message: "Email is already verified",
+    };
+  }
+
+  const token = generateSecurityToken();
+  const tokenHash = hashToken(token);
+  const expiresAt = expiresInHours(env.emailVerificationExpiryHours);
+
+  await createEmailVerificationToken({
+    userId: fullUser.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  const verificationUrl = buildFrontendUrl("/verify-email", token);
+
+  await sendEmailVerificationEmail({
+    to: fullUser.email,
+    verificationUrl,
+    expiresInHours: env.emailVerificationExpiryHours,
+  });
+
+  await writeAuthAudit({
+    userId: fullUser.id,
+    eventType: AUTH_AUDIT_EVENTS.emailVerificationSent,
+    requestMeta,
+  });
+
+  return {
+    success: true,
+    message: "Verification email sent",
+    data: {
+      expiresInHours: env.emailVerificationExpiryHours,
+    },
+  };
+}
+
+export async function verifyEmail(payload, requestMeta = {}) {
+  const tokenHash = hashToken(payload.token);
+
+  return withTransaction(async (client) => {
+    const verificationToken = await findEmailVerificationTokenByHash(
+      tokenHash,
+      client,
+    );
+
+    if (
+      !verificationToken ||
+      verificationToken.consumedAt ||
+      isExpired(verificationToken.expiresAt)
+    ) {
+      throw createError(
+        "Invalid or expired verification token",
+        400,
+        "INVALID_EMAIL_VERIFICATION_TOKEN",
+      );
+    }
+
+    const user = await markUserEmailVerified(verificationToken.userId, client);
+    await consumeEmailVerificationToken(verificationToken.id, client);
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.emailVerified,
+        requestMeta,
+      },
+      client,
+    );
+
+    return {
+      success: true,
+      message: "Email verified successfully",
+      data: {
+        user: sanitizeUser(user),
+      },
+    };
+  });
 }
 
 export async function sendLoginOtp(payload, requestMeta = {}) {
@@ -413,7 +861,7 @@ export async function sendLoginOtp(payload, requestMeta = {}) {
   return createAndSendOtp({ phone, purpose: OTP_PURPOSES.login, requestMeta });
 }
 
-export async function verifyLoginOtp(payload) {
+export async function verifyLoginOtp(payload, requestMeta = {}) {
   // Existing account lookup happens before OTP verification, but failures remain
   // generic to avoid leaking account existence.
   const phone = normalizePhone(payload.phone);
@@ -423,7 +871,24 @@ export async function verifyLoginOtp(payload) {
     throw createError("Invalid or expired OTP", 400, "INVALID_OTP");
   }
 
-  await verifyOtp({ phone, otp: payload.otp, purpose: OTP_PURPOSES.login });
+  try {
+    await verifyOtp({ phone, otp: payload.otp, purpose: OTP_PURPOSES.login });
+  } catch (error) {
+    await writeAuthAudit({
+      userId: user.id,
+      eventType: AUTH_AUDIT_EVENTS.otpFailed,
+      requestMeta,
+      metadata: { purpose: OTP_PURPOSES.login },
+    });
+    throw error;
+  }
+
+  await writeAuthAudit({
+    userId: user.id,
+    eventType: AUTH_AUDIT_EVENTS.loginSuccess,
+    requestMeta,
+    metadata: { method: "otp" },
+  });
   return createAuthResponse(user, "OTP login successful");
 }
 
@@ -481,59 +946,170 @@ export async function verifyRegisterOtp(payload) {
   });
 }
 
-export async function loginWithGoogle(payload) {
+export async function loginWithGoogle(payload, requestMeta = {}) {
   // Provider module verifies token authenticity before shared OAuth login logic.
   const profile = await verifyGoogleIdToken(payload.idToken);
-  return loginWithOAuthProfile(profile);
+  return loginWithOAuthProfile(profile, requestMeta);
 }
 
-export async function registerWithGoogle(payload) {
+export async function registerWithGoogle(payload, requestMeta = {}) {
   // Provider profile plus requested role are handled by shared OAuth registration.
   const profile = await verifyGoogleIdToken(payload.idToken);
-  return registerWithOAuthProfile(profile, payload.role);
+  return registerWithOAuthProfile(profile, payload.role, requestMeta);
 }
 
-export async function loginWithFacebook(payload) {
+export async function loginWithFacebook(payload, requestMeta = {}) {
   // Facebook access token must be validated server-side before account lookup.
   const profile = await verifyFacebookAccessToken(payload.accessToken);
-  return loginWithOAuthProfile(profile);
+  return loginWithOAuthProfile(profile, requestMeta);
 }
 
-export async function registerWithFacebook(payload) {
+export async function registerWithFacebook(payload, requestMeta = {}) {
   // Facebook registration follows the same role and uniqueness rules as Google.
   const profile = await verifyFacebookAccessToken(payload.accessToken);
-  return registerWithOAuthProfile(profile, payload.role);
+  return registerWithOAuthProfile(profile, payload.role, requestMeta);
 }
 
-async function loginWithOAuthProfile(profile) {
+async function loginWithOAuthProfile(profile, requestMeta = {}) {
   // Prefer exact provider-subject link. If not linked yet, a verified email match
   // can attach the provider to an existing account.
-  const linkedUser = await findOAuthAccount(
-    profile.provider,
-    profile.providerSubject,
-  );
+  return withTransaction(async (client) => {
+    const linkedUser = await findOAuthAccount(
+      profile.provider,
+      profile.providerSubject,
+      client,
+    );
 
-  if (linkedUser) {
-    return createAuthResponse(linkedUser, "Login successful");
-  }
+    if (linkedUser) {
+      await writeAuthAudit(
+        {
+          userId: linkedUser.id,
+          eventType: AUTH_AUDIT_EVENTS.oauthLoginSuccess,
+          requestMeta,
+          metadata: { provider: profile.provider },
+        },
+        client,
+      );
+      return createAuthResponse(linkedUser, "Login successful", client);
+    }
 
-  const emailUser = await findUserByEmail(profile.email);
+    const emailUser = await findUserByEmail(profile.email, client);
 
-  if (emailUser) {
-    // Link provider on first social login only after provider email verification.
-    await linkOAuthAccount({
-      userId: emailUser.id,
-      provider: profile.provider,
-      providerSubject: profile.providerSubject,
-      email: profile.email,
-    });
-    return createAuthResponse(emailUser, "Login successful");
-  }
+    if (emailUser) {
+      // Link provider on first social login only after provider email verification.
+      await linkOAuthAccount(
+        {
+          userId: emailUser.id,
+          provider: profile.provider,
+          providerSubject: profile.providerSubject,
+          email: profile.email,
+        },
+        client,
+      );
+      await writeAuthAudit(
+        {
+          userId: emailUser.id,
+          eventType: AUTH_AUDIT_EVENTS.oauthLinked,
+          requestMeta,
+          metadata: { provider: profile.provider },
+        },
+        client,
+      );
+      await writeAuthAudit(
+        {
+          userId: emailUser.id,
+          eventType: AUTH_AUDIT_EVENTS.oauthLoginSuccess,
+          requestMeta,
+          metadata: { provider: profile.provider },
+        },
+        client,
+      );
+      return createAuthResponse(emailUser, "Login successful", client);
+    }
 
-  throw createError("Account does not exist", 404, "ACCOUNT_NOT_FOUND");
+    throw createError("Account does not exist", 404, "ACCOUNT_NOT_FOUND");
+  });
 }
 
-async function registerWithOAuthProfile(profile, role) {
+export async function sendPhoneVerification(payload, user, requestMeta = {}) {
+  const phone = normalizePhone(payload.phone || user.phone || "");
+
+  if (!phone) {
+    throw createError("Phone number is required", 400, "PHONE_REQUIRED");
+  }
+
+  const existingUser = await findUserByPhone(phone);
+
+  if (existingUser && existingUser.id !== user.id) {
+    throw createError("Phone number cannot be used", 409, "PHONE_UNAVAILABLE");
+  }
+
+  const result = await createAndSendOtp({
+    phone,
+    purpose: OTP_PURPOSES.phoneVerify,
+    requestMeta,
+  });
+
+  await writeAuthAudit({
+    userId: user.id,
+    eventType: AUTH_AUDIT_EVENTS.phoneOtpSent,
+    requestMeta,
+  });
+
+  return {
+    ...result,
+    message: "Verification OTP sent",
+  };
+}
+
+export async function verifyPhone(payload, user, requestMeta = {}) {
+  const phone = normalizePhone(payload.phone);
+
+  return withTransaction(async (client) => {
+    const existingUser = await findUserByPhone(phone, client);
+
+    if (existingUser && existingUser.id !== user.id) {
+      throw createError("Phone number cannot be used", 409, "PHONE_UNAVAILABLE");
+    }
+
+    try {
+      await verifyOtp({
+        phone,
+        otp: payload.otp,
+        purpose: OTP_PURPOSES.phoneVerify,
+        client,
+      });
+    } catch (error) {
+      await writeAuthAudit({
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.otpFailed,
+        requestMeta,
+        metadata: { purpose: OTP_PURPOSES.phoneVerify },
+      });
+      throw error;
+    }
+
+    const updatedUser = await updateUserPhoneVerified(user.id, phone, client);
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.phoneVerified,
+        requestMeta,
+      },
+      client,
+    );
+
+    return {
+      success: true,
+      message: "Phone verified successfully",
+      data: {
+        user: sanitizeUser(updatedUser),
+      },
+    };
+  });
+}
+
+async function registerWithOAuthProfile(profile, role, requestMeta = {}) {
   // OAuth registration creates a new account only when the provider identity and
   // verified email are not already associated with GoldWallah.
   const requestedRole = toRole(role);
@@ -556,6 +1132,15 @@ async function registerWithOAuthProfile(profile, role) {
         );
       }
 
+      await writeAuthAudit(
+        {
+          userId: linkedUser.id,
+          eventType: AUTH_AUDIT_EVENTS.oauthLoginSuccess,
+          requestMeta,
+          metadata: { provider: profile.provider },
+        },
+        client,
+      );
       return createAuthResponse(linkedUser, "Login successful", client);
     }
 
@@ -593,6 +1178,16 @@ async function registerWithOAuthProfile(profile, role) {
         provider: profile.provider,
         providerSubject: profile.providerSubject,
         email: profile.email,
+      },
+      client,
+    );
+
+    await writeAuthAudit(
+      {
+        userId: user.id,
+        eventType: AUTH_AUDIT_EVENTS.registerSuccess,
+        requestMeta,
+        metadata: { method: "oauth", provider: profile.provider },
       },
       client,
     );

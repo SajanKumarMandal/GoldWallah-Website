@@ -214,3 +214,83 @@ export function validateSocialRegisterForm(values) {
 
   return errors;
 }
+
+export function validateForgotPasswordForm(values) {
+  const errors = {};
+
+  if (!values.email.trim()) {
+    errors.email = "Email is required.";
+  } else if (!EMAIL_PATTERN.test(values.email.trim())) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  return errors;
+}
+
+export function validateResetPasswordForm(values) {
+  const errors = {};
+  const passwordError = validatePassword(values.newPassword);
+
+  if (!values.token?.trim()) {
+    errors.token = "Reset token is required.";
+  }
+
+  if (passwordError) {
+    errors.newPassword = passwordError;
+  }
+
+  if (!values.confirmPassword) {
+    errors.confirmPassword = "Confirm your password.";
+  } else if (values.confirmPassword !== values.newPassword) {
+    errors.confirmPassword = "Passwords must match.";
+  }
+
+  return errors;
+}
+
+export function validateChangePasswordForm(values) {
+  const errors = {};
+  const passwordError = validatePassword(values.newPassword);
+
+  if (!values.currentPassword) {
+    errors.currentPassword = "Current password is required.";
+  }
+
+  if (passwordError) {
+    errors.newPassword = passwordError;
+  }
+
+  if (values.currentPassword && values.currentPassword === values.newPassword) {
+    errors.newPassword = "Choose a password that is different from your current password.";
+  }
+
+  return errors;
+}
+
+export function validatePhoneVerificationSendForm(values) {
+  const errors = {};
+
+  if (values.phone?.trim() && !validateIndianPhone(values.phone)) {
+    errors.phone = "Enter a valid Indian phone number.";
+  }
+
+  return errors;
+}
+
+export function validatePhoneVerificationVerifyForm(values) {
+  const errors = {};
+
+  if (!values.phone.trim()) {
+    errors.phone = "Phone number is required.";
+  } else if (!validateIndianPhone(values.phone)) {
+    errors.phone = "Enter a valid Indian phone number.";
+  }
+
+  if (!values.otp.trim()) {
+    errors.otp = "OTP is required.";
+  } else if (!validateOtp(values.otp)) {
+    errors.otp = "OTP must be 4 or 6 digits.";
+  }
+
+  return errors;
+}

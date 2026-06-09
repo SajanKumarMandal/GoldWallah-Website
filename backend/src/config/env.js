@@ -23,7 +23,19 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().min(1).default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().min(1).default("7d"),
   AUTH_COOKIE_DOMAIN: z.string().optional().default(""),
+  CSRF_SECRET: z.string().optional().default(""),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().positive().default(12),
+  PASSWORD_RESET_EXPIRY_MINUTES: z.coerce.number().int().positive().default(15),
+  EMAIL_VERIFICATION_EXPIRY_HOURS: z.coerce.number().int().positive().default(24),
+  AUTH_LOGIN_MAX_FAILED_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  AUTH_LOGIN_LOCK_MINUTES: z.coerce.number().int().positive().default(15),
+  EMAIL_PROVIDER: z.enum(["mock", "smtp"]).default("mock"),
+  EMAIL_FROM: z.string().trim().optional().default(""),
+  SMTP_HOST: z.string().trim().optional().default(""),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.enum(["true", "false"]).default("false"),
+  SMTP_USER: z.string().optional().default(""),
+  SMTP_PASSWORD: z.string().optional().default(""),
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
   FACEBOOK_APP_ID: z.string().optional().default(""),
@@ -78,6 +90,57 @@ if (!parsedEnv.success) {
 const hasTwilioProvider = parsedEnv.data.OTP_PROVIDER === "twilio";
 const hasTwilioVerifyService = Boolean(parsedEnv.data.TWILIO_VERIFY_SERVICE_SID);
 const hasTwilioDirectSmsSender = Boolean(parsedEnv.data.TWILIO_FROM_PHONE);
+const minimumJwtSecretLength = 32;
+const maximumAccessTokenTtlSeconds = 60 * 60;
+const maximumRefreshTokenTtlSeconds = 30 * 24 * 60 * 60;
+
+function parseJwtTtlSeconds(value) {
+  const match = /^(\d+)([smhd])$/i.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    return null;
+  }
+
+  const multipliers = {
+    s: 1,
+    m: 60,
+    h: 60 * 60,
+    d: 24 * 60 * 60,
+  };
+
+  return amount * multipliers[match[2].toLowerCase()];
+}
+
+function validateJwtTtl(name, value, maximumSeconds) {
+  const seconds = parseJwtTtlSeconds(value);
+
+  if (!seconds) {
+    console.error(`${name} must use a positive duration with s, m, h, or d suffix`);
+    process.exit(1);
+  }
+
+  if (seconds > maximumSeconds) {
+    console.error(`${name} exceeds the maximum allowed auth token lifetime`);
+    process.exit(1);
+  }
+}
+
+validateJwtTtl(
+  "JWT_ACCESS_EXPIRES_IN",
+  parsedEnv.data.JWT_ACCESS_EXPIRES_IN,
+  maximumAccessTokenTtlSeconds,
+);
+validateJwtTtl(
+  "JWT_REFRESH_EXPIRES_IN",
+  parsedEnv.data.JWT_REFRESH_EXPIRES_IN,
+  maximumRefreshTokenTtlSeconds,
+);
 
 if (
   parsedEnv.data.NODE_ENV !== "test" &&
@@ -105,9 +168,64 @@ if (
 
 if (
   parsedEnv.data.NODE_ENV !== "test" &&
+  parsedEnv.data.JWT_ACCESS_SECRET.length < minimumJwtSecretLength
+) {
+  console.error(
+    `JWT_ACCESS_SECRET must be at least ${minimumJwtSecretLength} characters`,
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
   !parsedEnv.data.JWT_REFRESH_SECRET
 ) {
   console.error("Missing required environment variable: JWT_REFRESH_SECRET");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  parsedEnv.data.JWT_REFRESH_SECRET.length < minimumJwtSecretLength
+) {
+  console.error(
+    `JWT_REFRESH_SECRET must be at least ${minimumJwtSecretLength} characters`,
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  parsedEnv.data.JWT_ACCESS_SECRET === parsedEnv.data.JWT_REFRESH_SECRET
+) {
+  console.error("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.CSRF_SECRET.length < minimumJwtSecretLength
+) {
+  console.error(
+    `CSRF_SECRET must be at least ${minimumJwtSecretLength} characters in production`,
+  );
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV === "production" &&
+  parsedEnv.data.EMAIL_PROVIDER === "mock"
+) {
+  console.error("EMAIL_PROVIDER=mock is not allowed in production");
+  process.exit(1);
+}
+
+if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  parsedEnv.data.EMAIL_PROVIDER === "smtp" &&
+  (!parsedEnv.data.EMAIL_FROM || !parsedEnv.data.SMTP_HOST)
+) {
+  console.error("EMAIL_PROVIDER=smtp requires EMAIL_FROM and SMTP_HOST");
   process.exit(1);
 }
 
@@ -216,6 +334,21 @@ if (
 }
 
 if (
+  parsedEnv.data.NODE_ENV !== "test" &&
+  parsedEnv.data.OTP_PROVIDER === "msg91" &&
+  (
+    !parsedEnv.data.MSG91_AUTH_KEY ||
+    !parsedEnv.data.MSG91_TEMPLATE_ID ||
+    !parsedEnv.data.MSG91_SENDER_ID
+  )
+) {
+  console.error(
+    "OTP_PROVIDER=msg91 requires MSG91_AUTH_KEY, MSG91_TEMPLATE_ID, and MSG91_SENDER_ID",
+  );
+  process.exit(1);
+}
+
+if (
   parsedEnv.data.NODE_ENV === "production" &&
   parsedEnv.data.OTP_PROVIDER === "msg91" &&
   (
@@ -285,7 +418,19 @@ export const env = {
   jwtAccessExpiresIn: parsedEnv.data.JWT_ACCESS_EXPIRES_IN,
   jwtRefreshExpiresIn: parsedEnv.data.JWT_REFRESH_EXPIRES_IN,
   authCookieDomain: parsedEnv.data.AUTH_COOKIE_DOMAIN,
+  csrfSecret: parsedEnv.data.CSRF_SECRET || parsedEnv.data.JWT_REFRESH_SECRET,
   bcryptSaltRounds: parsedEnv.data.BCRYPT_SALT_ROUNDS,
+  passwordResetExpiryMinutes: parsedEnv.data.PASSWORD_RESET_EXPIRY_MINUTES,
+  emailVerificationExpiryHours: parsedEnv.data.EMAIL_VERIFICATION_EXPIRY_HOURS,
+  authLoginMaxFailedAttempts: parsedEnv.data.AUTH_LOGIN_MAX_FAILED_ATTEMPTS,
+  authLoginLockMinutes: parsedEnv.data.AUTH_LOGIN_LOCK_MINUTES,
+  emailProvider: parsedEnv.data.EMAIL_PROVIDER,
+  emailFrom: parsedEnv.data.EMAIL_FROM,
+  smtpHost: parsedEnv.data.SMTP_HOST,
+  smtpPort: parsedEnv.data.SMTP_PORT,
+  smtpSecure: parsedEnv.data.SMTP_SECURE === "true",
+  smtpUser: parsedEnv.data.SMTP_USER,
+  smtpPassword: parsedEnv.data.SMTP_PASSWORD,
   googleClientId: parsedEnv.data.GOOGLE_CLIENT_ID,
   googleClientSecret: parsedEnv.data.GOOGLE_CLIENT_SECRET,
   facebookAppId: parsedEnv.data.FACEBOOK_APP_ID,

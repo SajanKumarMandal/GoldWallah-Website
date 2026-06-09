@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
+import { env } from "@/config/env";
 import { useAuth } from "@/features/auth/context/useAuth";
 import AuthCard from "@/features/auth/components/AuthCard";
 import AuthInput from "@/features/auth/components/AuthInput";
@@ -94,11 +95,13 @@ export default function LoginPage() {
           accessToken: result.data.accessToken,
         });
         navigate(getPostAuthRedirectPath(result.data.user), { replace: true });
-        return;
+        return true;
       }
       setStatusMessage(successMessage);
+      return true;
     } catch (error) {
       setStatusMessage(error.message || "Unable to complete request. Please try again.");
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -170,11 +173,14 @@ export default function LoginPage() {
       return;
     }
 
-    await submitRequest(
+    const wasOtpSent = await submitRequest(
       () => sendLoginOtp({ phone: otpValues.phone.trim() }),
       "OTP request sent if an account exists for this phone.",
     );
-    setIsOtpSent(true);
+
+    if (wasOtpSent) {
+      setIsOtpSent(true);
+    }
   }
 
   async function handleVerifyOtp(event) {
@@ -254,6 +260,15 @@ export default function LoginPage() {
                 disabled={isSubmitting}
               />
 
+              <div className="text-right">
+                <Link
+                  to={ROUTES.forgotPassword}
+                  className="text-sm font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4 transition hover:text-(--gw-color-green-soft)"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -329,26 +344,32 @@ export default function LoginPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !env.googleClientId}
                 onClick={() => handleSocialLogin("google")}
                 className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4285F4] text-xs font-bold text-white">
                   G
                 </span>
-                {socialProvider === "google" ? "Connecting..." : "Continue with Google"}
+                {!env.googleClientId
+                  ? "Google unavailable"
+                  : socialProvider === "google"
+                    ? "Connecting..."
+                    : "Continue with Google"}
               </button>
 
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !env.facebookAppId}
                 onClick={() => handleSocialLogin("facebook")}
                 className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-(--gw-color-border) bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:border-(--gw-color-gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1877F2] text-xs font-bold text-white">
                   f
                 </span>
-                {socialProvider === "facebook"
+                {!env.facebookAppId
+                  ? "Facebook unavailable"
+                  : socialProvider === "facebook"
                   ? "Connecting..."
                   : "Continue with Facebook"}
               </button>

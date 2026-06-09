@@ -26,6 +26,7 @@ import {
   countActiveSuperAdminsExcluding,
   createAdminSession,
   createAdminUser,
+  consumeAdminRecoveryCode,
   findPlatformUserById,
   findActiveAdminSessionByTokenHash,
   findAdminByEmail,
@@ -37,6 +38,7 @@ import {
   listAdminRoles,
   listPlatformUsers,
   listSubAdmins,
+  replaceAdminRecoveryCodes,
   revokeAllActiveAdminSessions,
   revokeAdminSessionByTokenHash,
   updateAdminFailedLogin,
@@ -47,6 +49,8 @@ import {
   updatePlatformUserAccountStatus,
   unlockExpiredAdminLock,
 } from "./admin.repository.js";
+
+const RECOVERY_CODE_COUNT = 8;
 
 function createError(message, statusCode, code) {
   // Normalize admin service failures for the shared error handler.
@@ -69,6 +73,30 @@ export function hashRefreshToken(refreshToken) {
 function generateRefreshToken() {
   // High-entropy opaque token used only inside the admin HttpOnly cookie.
   return randomBytes(48).toString("base64url");
+}
+
+function generateRecoveryCode() {
+  // 80 bits of entropy per code, grouped for manual entry.
+  return randomBytes(10)
+    .toString("hex")
+    .toUpperCase()
+    .match(/.{1,5}/g)
+    .join("-");
+}
+
+function normalizeRecoveryCode(code) {
+  return String(code || "")
+    .trim()
+    .replace(/-/g, "")
+    .toUpperCase();
+}
+
+function hashRecoveryCode(code) {
+  return createHash("sha256").update(normalizeRecoveryCode(code)).digest("hex");
+}
+
+function generateRecoveryCodeSet() {
+  return Array.from({ length: RECOVERY_CODE_COUNT }, () => generateRecoveryCode());
 }
 
 function refreshTokenExpiry() {
@@ -251,6 +279,56 @@ function verifyAdminMfa(admin, mfaCode) {
   return verifyTotpCode(decryptSensitiveValue(admin.mfaSecretEncrypted), mfaCode);
 }
 
+async function verifyAdminSecondFactor({ admin, payload, requestMeta }, client) {
+  if (payload.mfaCode) {
+    const isTotpValid = verifyAdminMfa(admin, payload.mfaCode);
+
+    await writeAdminAuditLog(
+      {
+        actorAdminId: admin.id,
+        action: isTotpValid
+          ? ADMIN_AUDIT_ACTIONS.mfaSuccess
+          : ADMIN_AUDIT_ACTIONS.mfaFailed,
+        resourceType: "ADMIN_AUTH",
+        resourceId: admin.id,
+        reason: isTotpValid ? null : "invalid_totp",
+        severity: isTotpValid ? "INFO" : "WARNING",
+        requestMeta,
+      },
+      client,
+    );
+
+    return isTotpValid;
+  }
+
+  if (payload.recoveryCode) {
+    const consumedCode = await consumeAdminRecoveryCode(
+      admin.id,
+      hashRecoveryCode(payload.recoveryCode),
+      client,
+    );
+
+    await writeAdminAuditLog(
+      {
+        actorAdminId: admin.id,
+        action: consumedCode
+          ? ADMIN_AUDIT_ACTIONS.recoveryCodeUsed
+          : ADMIN_AUDIT_ACTIONS.mfaFailed,
+        resourceType: "ADMIN_AUTH",
+        resourceId: admin.id,
+        reason: consumedCode ? null : "invalid_recovery_code",
+        severity: "WARNING",
+        requestMeta,
+      },
+      client,
+    );
+
+    return Boolean(consumedCode);
+  }
+
+  return false;
+}
+
 export async function loginAdmin({ payload, requestMeta }) {
   // Admin login handles credential checks, lockouts, MFA policy, audit logs, and
   // session issuance in a single transaction.
@@ -310,8 +388,8 @@ export async function loginAdmin({ payload, requestMeta }) {
       );
     }
 
-    if (admin.mfaEnabled && !payload.mfaCode) {
-      // MFA-enabled admins must provide a current TOTP code.
+    if (admin.mfaEnabled && !payload.mfaCode && !payload.recoveryCode) {
+      // MFA-enabled admins must provide a current TOTP or a one-time recovery code.
       await writeLoginFailureAudit({
         admin,
         email: payload.email,
@@ -321,8 +399,11 @@ export async function loginAdmin({ payload, requestMeta }) {
       throw createError("MFA code is required", 401, "ADMIN_MFA_REQUIRED");
     }
 
-    if (admin.mfaEnabled && !verifyAdminMfa(admin, payload.mfaCode)) {
-      // Invalid MFA codes are treated like failed login attempts.
+    if (
+      admin.mfaEnabled &&
+      !(await verifyAdminSecondFactor({ admin, payload, requestMeta }, client))
+    ) {
+      // Invalid MFA/recovery codes are treated like failed login attempts.
       await recordAdminFailedLogin(admin, "invalid_mfa_code", requestMeta, client);
       throw createGenericLoginError();
     }
@@ -588,6 +669,12 @@ export async function confirmAdminMfaSetup({ admin, payload, requestMeta }) {
       },
       client,
     );
+    const recoveryCodes = generateRecoveryCodeSet();
+    await replaceAdminRecoveryCodes(
+      admin.id,
+      recoveryCodes.map(hashRecoveryCode),
+      client,
+    );
 
     await writeAdminAuditLog(
       {
@@ -610,6 +697,7 @@ export async function confirmAdminMfaSetup({ admin, payload, requestMeta }) {
           await findAdminRoles(updatedAdmin.id, client),
           await findAdminPermissions(updatedAdmin.id, client),
         ),
+        recoveryCodes,
       },
     };
   });
@@ -830,6 +918,7 @@ export async function createSubAdmin({ actorAdmin, payload, requestMeta }) {
     }
 
     const mfaSecret = env.adminMfaRequired ? generateTotpSecret() : "";
+    const recoveryCodes = mfaSecret ? generateRecoveryCodeSet() : [];
     const admin = await createAdminUser(
       {
         name: payload.name,
@@ -844,6 +933,14 @@ export async function createSubAdmin({ actorAdmin, payload, requestMeta }) {
       },
       client,
     );
+
+    if (recoveryCodes.length) {
+      await replaceAdminRecoveryCodes(
+        admin.id,
+        recoveryCodes.map(hashRecoveryCode),
+        client,
+      );
+    }
 
     await assignRolesToAdmin(admin.id, payload.roleIds, client);
     await writeAdminAuditLog(
@@ -885,6 +982,7 @@ export async function createSubAdmin({ actorAdmin, payload, requestMeta }) {
                 accountName: admin.email,
                 secret: mfaSecret,
               }),
+              recoveryCodes,
             }
           : null,
       },

@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { env } from "../../config/env.js";
 import { requestAuditMeta } from "./admin.audit.js";
 import {
@@ -40,6 +42,7 @@ function sendSuccess(response, result, statusCode = 200) {
 }
 
 const adminRefreshCookieName = "goldwallah_admin_refresh_token";
+const csrfCookieName = "goldwallah_csrf_signature";
 
 function requestOrigin(request) {
   // Rebuild original browser origin when API is behind a proxy/load balancer.
@@ -96,11 +99,46 @@ function createInvalidRefreshTokenError() {
   return error;
 }
 
+function signCsrfToken(token) {
+  return createHmac("sha256", env.csrfSecret)
+    .update(token)
+    .digest("base64url");
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(left || "");
+  const rightBuffer = Buffer.from(right || "");
+
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
+
+function createCsrfError() {
+  const error = new Error("Invalid CSRF token");
+  error.statusCode = 403;
+  error.code = "INVALID_CSRF_TOKEN";
+  return error;
+}
+
+function assertValidCsrfToken(request) {
+  const csrfHeader = request.get("x-csrf-token");
+  const csrfSignature = readCookie(request, csrfCookieName);
+
+  if (!csrfHeader || !csrfSignature || !/^[A-Za-z0-9_-]{32,128}$/.test(csrfHeader)) {
+    throw createCsrfError();
+  }
+
+  if (!safeEqual(signCsrfToken(csrfHeader), csrfSignature)) {
+    throw createCsrfError();
+  }
+}
+
 function assertTrustedBrowserOrigin(request) {
-  // Admin auth mutations require trusted frontend origin and CSRF header.
+  // Admin auth mutations require trusted frontend origin and signed CSRF token.
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
-  const csrfHeader = request.get("x-csrf-token");
 
   if (!origin) {
     if (["cross-site", "same-site"].includes(secFetchSite)) {
@@ -124,11 +162,8 @@ function assertTrustedBrowserOrigin(request) {
     throw createRequestOriginError();
   }
 
-  if (request.method !== "GET" && !csrfHeader) {
-    const error = new Error("Missing CSRF protection header");
-    error.statusCode = 403;
-    error.code = "CSRF_HEADER_REQUIRED";
-    throw error;
+  if (request.method !== "GET") {
+    assertValidCsrfToken(request);
   }
 }
 
@@ -144,7 +179,11 @@ function readCookie(request, name) {
     const [cookieName, ...valueParts] = cookie.split("=");
 
     if (cookieName === name) {
-      return decodeURIComponent(valueParts.join("="));
+      try {
+        return decodeURIComponent(valueParts.join("="));
+      } catch {
+        return "";
+      }
     }
   }
 

@@ -16,7 +16,12 @@ import {
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [values, setValues] = useState({ email: "", password: "", mfaCode: "" });
+  const [values, setValues] = useState({
+    email: "",
+    password: "",
+    mfaCode: "",
+    recoveryCode: "",
+  });
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessage] = useState(location.state?.message || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,6 +107,24 @@ export default function AdminLoginPage() {
     setErrorMessage("");
   }
 
+  function updateMfaCode(value) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      mfaCode: value.replace(/\D/g, ""),
+      recoveryCode: "",
+    }));
+    setErrorMessage("");
+  }
+
+  function updateRecoveryCode(value) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      recoveryCode: value.trim(),
+      mfaCode: "",
+    }));
+    setErrorMessage("");
+  }
+
   async function handleSubmit(event) {
     // Submit email/password and optional MFA code to the admin auth endpoint.
     event.preventDefault();
@@ -120,6 +143,7 @@ export default function AdminLoginPage() {
         email: values.email.trim(),
         password: values.password,
         mfaCode: values.mfaCode.trim(),
+        recoveryCode: values.recoveryCode.trim(),
       });
       const data = result?.data || {};
 
@@ -223,11 +247,23 @@ export default function AdminLoginPage() {
                 maxLength={6}
                 value={values.mfaCode}
                 autoComplete="one-time-code"
-                disabled={isSubmitting}
-                onChange={(event) =>
-                  updateField("mfaCode", event.target.value.replace(/\D/g, ""))
-                }
+                disabled={isSubmitting || Boolean(values.recoveryCode.trim())}
+                onChange={(event) => updateMfaCode(event.target.value)}
                 className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm outline-none transition focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:opacity-70"
+              />
+            </label>
+
+            <label className="mt-5 block" htmlFor="admin-recovery-code">
+              <span className="text-sm font-semibold">Recovery code</span>
+              <input
+                id="admin-recovery-code"
+                type="text"
+                maxLength={80}
+                value={values.recoveryCode}
+                autoComplete="one-time-code"
+                disabled={isSubmitting || Boolean(values.mfaCode.trim())}
+                onChange={(event) => updateRecoveryCode(event.target.value)}
+                className="mt-2 h-12 w-full rounded-2xl border border-(--gw-color-border) bg-white px-4 text-sm uppercase outline-none transition focus:border-(--gw-color-gold) focus:ring-4 focus:ring-(--gw-color-gold)/15 disabled:cursor-not-allowed disabled:opacity-70"
               />
             </label>
 

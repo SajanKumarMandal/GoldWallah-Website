@@ -1,21 +1,31 @@
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+
 import * as authService from "./auth.service.js";
 import { env } from "../../config/env.js";
 import {
+  changePasswordSchema,
   facebookLoginSchema,
   facebookRegisterSchema,
+  forgotPasswordSchema,
   googleLoginSchema,
   googleRegisterSchema,
   loginSchema,
   logoutSchema,
+  resetPasswordSchema,
   registerSchema,
   refreshSchema,
+  sendPhoneVerificationSchema,
   sendOtpSchema,
   validateBody,
+  verifyEmailSchema,
   verifyLoginOtpSchema,
+  verifyPhoneSchema,
   verifyRegisterOtpSchema,
 } from "./auth.validation.js";
 
 const refreshCookieName = "goldwallah_refresh_token";
+const csrfCookieName = "goldwallah_csrf_signature";
+const csrfMaxAgeMs = 2 * 60 * 60 * 1000;
 
 function requestOrigin(request) {
   // Reconstruct the browser-visible origin while respecting proxy headers from
@@ -48,6 +58,14 @@ function sendSuccess(response, result, statusCode = 200) {
 function otpRequestMeta(request) {
   return {
     ip: request.ip || request.socket?.remoteAddress || "",
+    userAgent: request.get("user-agent") || "",
+  };
+}
+
+function requestMeta(request) {
+  return {
+    ip: request.ip || request.socket?.remoteAddress || "",
+    userAgent: request.get("user-agent") || "",
   };
 }
 
@@ -68,6 +86,59 @@ function refreshCookieOptions(request) {
   }
 
   return options;
+}
+
+function csrfCookieOptions(request) {
+  const useCrossSiteCookie = env.isProduction && isCrossSiteFrontend(request);
+  const options = {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: useCrossSiteCookie ? "none" : "lax",
+    path: `/api/${request.app.locals.apiVersion || "v1"}`,
+    maxAge: csrfMaxAgeMs,
+  };
+
+  if (env.authCookieDomain) {
+    options.domain = env.authCookieDomain;
+  }
+
+  return options;
+}
+
+function signCsrfToken(token) {
+  return createHmac("sha256", env.csrfSecret)
+    .update(token)
+    .digest("base64url");
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(left || "");
+  const rightBuffer = Buffer.from(right || "");
+
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
+}
+
+function createCsrfError() {
+  const error = new Error("Invalid CSRF token");
+  error.statusCode = 403;
+  error.code = "INVALID_CSRF_TOKEN";
+  return error;
+}
+
+function assertValidCsrfToken(request) {
+  const csrfHeader = request.get("x-csrf-token");
+  const csrfSignature = readCookie(request, csrfCookieName);
+
+  if (!csrfHeader || !csrfSignature || !/^[A-Za-z0-9_-]{32,128}$/.test(csrfHeader)) {
+    throw createCsrfError();
+  }
+
+  if (!safeEqual(signCsrfToken(csrfHeader), csrfSignature)) {
+    throw createCsrfError();
+  }
 }
 
 function createRequestOriginError() {
@@ -91,7 +162,6 @@ function assertTrustedBrowserOrigin(request) {
   // a CSRF header for unsafe methods.
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
-  const csrfHeader = request.get("x-csrf-token");
 
   if (!origin) {
     // Some non-browser clients omit Origin; Sec-Fetch-Site still catches obvious
@@ -117,11 +187,8 @@ function assertTrustedBrowserOrigin(request) {
     throw createRequestOriginError();
   }
 
-  if (request.method !== "GET" && !csrfHeader) {
-    const error = new Error("Missing CSRF protection header");
-    error.statusCode = 403;
-    error.code = "CSRF_HEADER_REQUIRED";
-    throw error;
+  if (request.method !== "GET") {
+    assertValidCsrfToken(request);
   }
 }
 
@@ -137,7 +204,11 @@ function readCookie(request, name) {
     const [cookieName, ...valueParts] = cookie.split("=");
 
     if (cookieName === name) {
-      return decodeURIComponent(valueParts.join("="));
+      try {
+        return decodeURIComponent(valueParts.join("="));
+      } catch {
+        return "";
+      }
     }
   }
 
@@ -172,6 +243,29 @@ function clearRefreshCookie(request, response) {
   response.clearCookie(refreshCookieName, clearOptions);
 }
 
+function issueCsrfToken(request, response) {
+  const csrfToken = randomBytes(32).toString("base64url");
+  response.cookie(csrfCookieName, signCsrfToken(csrfToken), csrfCookieOptions(request));
+
+  return csrfToken;
+}
+
+export async function csrf(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const csrfToken = issueCsrfToken(request, response);
+    sendSuccess(response, {
+      success: true,
+      data: {
+        csrfToken,
+        expiresInSeconds: csrfMaxAgeMs / 1000,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function register(request, response, next) {
   try {
     // Email/password registration validates browser origin and request body
@@ -181,7 +275,7 @@ export async function register(request, response, next) {
     sendAuthSuccess(
       request,
       response,
-      await authService.registerWithEmail(payload),
+      await authService.registerWithEmail(payload, requestMeta(request)),
       201,
     );
   } catch (error) {
@@ -194,7 +288,11 @@ export async function login(request, response, next) {
     // Email/password login returns the same auth response shape as OTP/OAuth.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(loginSchema, request.body);
-    sendAuthSuccess(request, response, await authService.loginWithEmail(payload));
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.loginWithEmail(payload, requestMeta(request)),
+    );
   } catch (error) {
     next(error);
   }
@@ -216,6 +314,7 @@ export async function refresh(request, response, next) {
       response,
       await authService.refreshUserSession({
         refreshToken: payload.refreshToken,
+        requestMeta: requestMeta(request),
       }),
     );
   } catch (error) {
@@ -245,6 +344,7 @@ export async function logout(request, response, next) {
       response,
       await authService.logoutUser({
         refreshToken: payload.refreshToken,
+        requestMeta: requestMeta(request),
       }),
     );
   } catch (error) {
@@ -269,7 +369,11 @@ export async function verifyLoginOtp(request, response, next) {
     // Successful OTP login issues the normal access token + refresh cookie pair.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(verifyLoginOtpSchema, request.body);
-    sendAuthSuccess(request, response, await authService.verifyLoginOtp(payload));
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.verifyLoginOtp(payload, requestMeta(request)),
+    );
   } catch (error) {
     next(error);
   }
@@ -307,7 +411,11 @@ export async function googleLogin(request, response, next) {
     // Backend validates the Google ID token before looking up/linking an account.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(googleLoginSchema, request.body);
-    sendAuthSuccess(request, response, await authService.loginWithGoogle(payload));
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.loginWithGoogle(payload, requestMeta(request)),
+    );
   } catch (error) {
     next(error);
   }
@@ -321,7 +429,7 @@ export async function googleRegister(request, response, next) {
     sendAuthSuccess(
       request,
       response,
-      await authService.registerWithGoogle(payload),
+      await authService.registerWithGoogle(payload, requestMeta(request)),
       201,
     );
   } catch (error) {
@@ -334,7 +442,11 @@ export async function facebookLogin(request, response, next) {
     // Backend validates Facebook app ownership and profile identity.
     assertTrustedBrowserOrigin(request);
     const payload = validateBody(facebookLoginSchema, request.body);
-    sendAuthSuccess(request, response, await authService.loginWithFacebook(payload));
+    sendAuthSuccess(
+      request,
+      response,
+      await authService.loginWithFacebook(payload, requestMeta(request)),
+    );
   } catch (error) {
     next(error);
   }
@@ -348,8 +460,131 @@ export async function facebookRegister(request, response, next) {
     sendAuthSuccess(
       request,
       response,
-      await authService.registerWithFacebook(payload),
+      await authService.registerWithFacebook(payload, requestMeta(request)),
       201,
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function forgotPassword(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(forgotPasswordSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.requestPasswordReset(payload, requestMeta(request)),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetPassword(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(resetPasswordSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.resetPassword(payload, requestMeta(request)),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changePassword(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(changePasswordSchema, request.body);
+    const refreshToken = readCookie(request, refreshCookieName);
+    sendSuccess(
+      response,
+      await authService.changePassword(
+        {
+          user: request.user,
+          currentPassword: payload.currentPassword,
+          newPassword: payload.newPassword,
+          currentRefreshToken: refreshToken,
+        },
+        requestMeta(request),
+      ),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logoutAll(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    clearRefreshCookie(request, response);
+    sendSuccess(
+      response,
+      await authService.logoutAllUser({
+        user: request.user,
+        requestMeta: requestMeta(request),
+      }),
+    );
+  } catch (error) {
+    clearRefreshCookie(request, response);
+    next(error);
+  }
+}
+
+export async function sendEmailVerification(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    sendSuccess(
+      response,
+      await authService.sendEmailVerification(
+        { user: request.user },
+        requestMeta(request),
+      ),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function verifyEmail(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(verifyEmailSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.verifyEmail(payload, requestMeta(request)),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function sendPhoneVerification(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(sendPhoneVerificationSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.sendPhoneVerification(
+        payload,
+        request.user,
+        requestMeta(request),
+      ),
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function verifyPhone(request, response, next) {
+  try {
+    assertTrustedBrowserOrigin(request);
+    const payload = validateBody(verifyPhoneSchema, request.body);
+    sendSuccess(
+      response,
+      await authService.verifyPhone(payload, request.user, requestMeta(request)),
     );
   } catch (error) {
     next(error);

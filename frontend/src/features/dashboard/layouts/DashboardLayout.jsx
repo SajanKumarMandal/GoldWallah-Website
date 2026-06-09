@@ -41,6 +41,7 @@ const navByRole = {
     { to: ROUTES.sellerNewListing, label: "Create Listing", icon: PlusCircle },
     { to: ROUTES.sellerDeals, label: "Deals", icon: Gavel },
     { to: ROUTES.sellerNotifications, label: "Notifications", icon: Bell },
+    { to: ROUTES.accountSecurity, label: "Security", icon: ShieldCheck },
   ],
   [USER_ROLES.jeweller]: [
     { to: ROUTES.jewellerDashboard, label: "Dashboard", icon: Home },
@@ -51,6 +52,7 @@ const navByRole = {
     { to: ROUTES.jewellerDeals, label: "Deals", icon: Gavel },
     { to: ROUTES.jewellerVerification, label: "Business Verification", icon: Building2 },
     { to: ROUTES.jewellerNotifications, label: "Notifications", icon: Bell },
+    { to: ROUTES.accountSecurity, label: "Security", icon: ShieldCheck },
   ],
   [USER_ROLES.admin]: [
     { to: ROUTES.adminKyc, label: "Seller KYC", icon: ShieldCheck },
@@ -410,6 +412,21 @@ export default function DashboardLayout() {
         </header>
 
         <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {user?.email && !user?.isEmailVerified ? (
+            <div className="mb-5 rounded-2xl border border-(--gw-color-gold)/40 bg-(--gw-color-gold)/10 px-4 py-3 text-sm text-(--gw-color-green)">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-medium">
+                  Verify your email to strengthen account recovery and communications.
+                </p>
+                <Link
+                  to={ROUTES.accountSecurity}
+                  className="font-semibold underline decoration-(--gw-color-gold)/60 underline-offset-4"
+                >
+                  Send verification
+                </Link>
+              </div>
+            </div>
+          ) : null}
           <Outlet />
         </main>
       </div>

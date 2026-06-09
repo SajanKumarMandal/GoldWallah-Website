@@ -152,3 +152,64 @@ export async function logoutUser() {
     body: JSON.stringify({}),
   });
 }
+
+export async function logoutAllDevices(accessToken) {
+  return apiRequest("auth/logout-all", {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify({}),
+  });
+}
+
+export async function forgotPassword(payload) {
+  return apiRequest("auth/password/forgot", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetPassword(payload) {
+  return apiRequest("auth/password/reset", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function changePassword(accessToken, payload) {
+  return apiRequest("auth/password/change", {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function sendEmailVerification(accessToken) {
+  return apiRequest("auth/email/verification/send", {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify({}),
+  });
+}
+
+export async function verifyEmailToken(payload) {
+  return apiRequest("auth/email/verification/verify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function sendPhoneVerification(accessToken, payload = {}) {
+  return apiRequest("auth/phone/verification/send", {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyPhone(accessToken, payload) {
+  return apiRequest("auth/phone/verification/verify", {
+    method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: JSON.stringify(payload),
+  });
+}

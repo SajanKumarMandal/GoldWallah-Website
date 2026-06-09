@@ -69,6 +69,20 @@ function mapSession(row) {
   };
 }
 
+function mapRecoveryCode(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    adminUserId: row.admin_user_id,
+    codeHash: row.code_hash,
+    consumedAt: row.consumed_at,
+    createdAt: row.created_at,
+  };
+}
+
 function mapPlatformUser(row) {
   if (!row) {
     return null;
@@ -314,6 +328,44 @@ export async function revokeAllActiveAdminSessions(adminUserId, client) {
   );
 
   return result.rows.map(mapSession);
+}
+
+export async function replaceAdminRecoveryCodes(adminUserId, codeHashes, client) {
+  await db(client).query(
+    `UPDATE admin_mfa_recovery_codes
+     SET consumed_at = COALESCE(consumed_at, now())
+     WHERE admin_user_id = $1
+       AND consumed_at IS NULL`,
+    [adminUserId],
+  );
+
+  if (!codeHashes.length) {
+    return [];
+  }
+
+  const result = await db(client).query(
+    `INSERT INTO admin_mfa_recovery_codes (id, admin_user_id, code_hash)
+     SELECT gen_random_uuid(), $1, code_hash
+     FROM unnest($2::text[]) AS codes(code_hash)
+     RETURNING *`,
+    [adminUserId, codeHashes],
+  );
+
+  return result.rows.map(mapRecoveryCode);
+}
+
+export async function consumeAdminRecoveryCode(adminUserId, codeHash, client) {
+  const result = await db(client).query(
+    `UPDATE admin_mfa_recovery_codes
+     SET consumed_at = now()
+     WHERE admin_user_id = $1
+       AND code_hash = $2
+       AND consumed_at IS NULL
+     RETURNING *`,
+    [adminUserId, codeHash],
+  );
+
+  return mapRecoveryCode(result.rows[0]);
 }
 
 export async function listAdminRoles(client) {

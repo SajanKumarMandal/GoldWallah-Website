@@ -25,6 +25,7 @@ const passwordSchema = z
   .min(10, "Password must be at least 10 characters")
   .max(128, "Password is too long")
   .refine((value) => !/^\s|\s$/.test(value), "Password cannot start or end with spaces");
+const tokenSchema = z.string().trim().min(32, "Token is required").max(256, "Token is invalid");
 
 // Email registration requires full identity/contact details plus a password.
 export const registerSchema = z.object({
@@ -84,6 +85,33 @@ export const refreshSchema = z.object({
 });
 
 export const logoutSchema = refreshSchema;
+
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z.object({
+  token: tokenSchema,
+  newPassword: passwordSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: passwordSchema,
+});
+
+export const verifyEmailSchema = z.object({
+  token: tokenSchema,
+});
+
+export const sendPhoneVerificationSchema = z.object({
+  phone: indianPhoneSchema.optional(),
+});
+
+export const verifyPhoneSchema = z.object({
+  phone: indianPhoneSchema,
+  otp: otpSchema,
+});
 
 export function validateBody(schema, body) {
   // Convert validation failures into structured API errors without exposing raw

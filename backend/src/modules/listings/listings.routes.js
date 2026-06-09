@@ -1,6 +1,10 @@
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../../middleware/auth.js";
+import {
+  requireJewellerCanBid,
+  requireSellerKycApproved,
+} from "../../middleware/verificationGuards.js";
 import * as geoMatchingController from "../geoMatching/geoMatching.controller.js";
 import * as bidsController from "../bids/bids.controller.js";
 import * as listingsController from "./listings.controller.js";
@@ -23,6 +27,7 @@ listingsRouter.post(
   "/",
   authenticate,
   requireRole("SELLER"),
+  requireSellerKycApproved,
   listingsController.uploadListingImages,
   listingsController.createListing,
 );
@@ -59,6 +64,7 @@ listingsRouter.post(
   "/:listingId/bids",
   authenticate,
   requireRole("JEWELLER"),
+  requireJewellerCanBid,
   bidsController.createBidForListing,
 );
 

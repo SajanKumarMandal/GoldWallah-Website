@@ -1,6 +1,7 @@
 import { createHmac, randomInt } from "node:crypto";
 
 import { env } from "../../../config/env.js";
+import { logger } from "../../../config/logger.js";
 
 const TWILIO_VERIFY_BASE_URL = "https://verify.twilio.com/v2/Services";
 
@@ -71,6 +72,16 @@ async function readJsonSafely(response) {
   }
 }
 
+function logOtpProviderEvent(level, provider, message, metadata = {}) {
+  logger[level](
+    {
+      provider,
+      ...metadata,
+    },
+    message,
+  );
+}
+
 async function sendMsg91Otp({ phone, otp }) {
   // MSG91 handles templated OTP delivery for Indian phone numbers.
   const url = new URL("https://control.msg91.com/api/v5/otp");
@@ -83,12 +94,23 @@ async function sendMsg91Otp({ phone, otp }) {
       authkey: env.msg91AuthKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ otp }),
+    body: JSON.stringify({
+      otp,
+      sender: env.msg91SenderId,
+    }),
   });
 
-  if (!response.ok) {
+  const payload = await readJsonSafely(response);
+
+  if (!response.ok || payload.type === "error") {
+    logOtpProviderEvent("warn", "msg91", "MSG91 OTP send failed", {
+      status: response.status,
+      providerCode: payload.type || payload.code,
+    });
     throw otpProviderError("Unable to send OTP right now");
   }
+
+  logOtpProviderEvent("info", "msg91", "MSG91 OTP send accepted");
 }
 
 async function sendTwilioSmsOtp({ phone, otp }) {
@@ -110,8 +132,13 @@ async function sendTwilioSmsOtp({ phone, otp }) {
   );
 
   if (!response.ok) {
+    logOtpProviderEvent("warn", "twilio-sms", "Twilio SMS OTP send failed", {
+      status: response.status,
+    });
     throw otpProviderError("Unable to send OTP right now");
   }
+
+  logOtpProviderEvent("info", "twilio-sms", "Twilio SMS OTP send accepted");
 }
 
 async function sendTwilioVerifyOtp({ phone, rateLimitContext }) {
@@ -133,8 +160,13 @@ async function sendTwilioVerifyOtp({ phone, rateLimitContext }) {
   });
 
   if (!response.ok) {
+    logOtpProviderEvent("warn", "twilio-verify", "Twilio Verify send failed", {
+      status: response.status,
+    });
     throw otpProviderError("Unable to send OTP right now");
   }
+
+  logOtpProviderEvent("info", "twilio-verify", "Twilio Verify send accepted");
 }
 
 async function verifyTwilioOtp({ phone, otp }) {
@@ -153,15 +185,26 @@ async function verifyTwilioOtp({ phone, otp }) {
   if ([400, 404].includes(response.status)) {
     // Twilio uses these for wrong, expired, already-approved, or exhausted
     // verification checks. Return a generic OTP failure to the auth service.
+    logOtpProviderEvent("warn", "twilio-verify", "Twilio Verify check rejected", {
+      status: response.status,
+    });
     return false;
   }
 
   if (!response.ok) {
+    logOtpProviderEvent("warn", "twilio-verify", "Twilio Verify check failed", {
+      status: response.status,
+    });
     throw otpProviderError("Unable to verify OTP right now");
   }
 
   const payload = await readJsonSafely(response);
-  return payload.status === "approved" || payload.valid === true;
+  const approved = payload.status === "approved" || payload.valid === true;
+
+  logOtpProviderEvent("info", "twilio-verify", "Twilio Verify check completed", {
+    approved,
+  });
+  return approved;
 }
 
 export function usesProviderManagedOtpVerification() {
@@ -184,6 +227,7 @@ export async function sendOtp({ phone, otp, rateLimitContext }) {
   // Select the configured provider at runtime. Production blocks mock OTP in env
   // validation, so mock mode remains local/test only.
   if (env.otpProvider === "mock") {
+    logOtpProviderEvent("info", "mock", "Mock OTP generated");
     return {
       configured: true,
       message: env.isProduction

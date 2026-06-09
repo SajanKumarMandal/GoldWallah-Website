@@ -5,14 +5,15 @@ function authHeaders(accessToken) {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
-export async function loginAdmin({ email, password, mfaCode }) {
-  // Optional MFA code is included only when provided by the admin.
+export async function loginAdmin({ email, password, mfaCode, recoveryCode }) {
+  // Optional MFA/recovery code is included only when provided by the admin.
   return apiRequest("admin/auth/login", {
     method: "POST",
     body: JSON.stringify({
       email,
       password,
       ...(mfaCode ? { mfaCode } : {}),
+      ...(recoveryCode ? { recoveryCode } : {}),
     }),
   });
 }

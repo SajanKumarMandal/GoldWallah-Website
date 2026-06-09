@@ -15,6 +15,21 @@ import RoleRoute from "@/routes/RoleRoute";
 const Home = lazy(() => import("@/pages/Home"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
+const ForgotPasswordPage = lazy(
+  () => import("@/features/auth/pages/ForgotPasswordPage"),
+);
+const ResetPasswordPage = lazy(
+  () => import("@/features/auth/pages/ResetPasswordPage"),
+);
+const VerifyEmailPage = lazy(
+  () => import("@/features/auth/pages/VerifyEmailPage"),
+);
+const AccountSecurityPage = lazy(
+  () => import("@/features/auth/pages/AccountSecurityPage"),
+);
+const PhoneVerificationPage = lazy(
+  () => import("@/features/auth/pages/PhoneVerificationPage"),
+);
 const SellerDashboardPage = lazy(
   () => import("@/features/dashboard/pages/SellerDashboardPage"),
 );
@@ -102,6 +117,9 @@ export default function AppRouter() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+            <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+            <Route path={ROUTES.verifyEmail} element={<VerifyEmailPage />} />
           </Route>
 
           <Route path={ROUTES.adminLogin} element={<AdminLoginPage />} />
@@ -163,6 +181,17 @@ export default function AppRouter() {
           </Route>
 
           <Route element={<ProtectedRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route
+                path={ROUTES.accountSecurity}
+                element={<AccountSecurityPage />}
+              />
+              <Route
+                path={ROUTES.phoneVerification}
+                element={<PhoneVerificationPage />}
+              />
+            </Route>
+
             <Route
               element={<RoleRoute allowedRoles={[USER_ROLES.seller]} />}
             >

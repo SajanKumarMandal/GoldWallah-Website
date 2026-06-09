@@ -33,6 +33,16 @@ export const adminLoginSchema = z.object({
     .trim()
     .regex(/^\d{6}$/, "MFA code must be 6 digits")
     .optional(),
+  recoveryCode: z
+    .string()
+    .trim()
+    .min(8, "Recovery code is invalid")
+    .max(80, "Recovery code is invalid")
+    .regex(/^[A-Za-z0-9_-]+(?:-[A-Za-z0-9_-]+)*$/, "Recovery code is invalid")
+    .optional(),
+}).refine((payload) => !(payload.mfaCode && payload.recoveryCode), {
+  message: "Provide either MFA code or recovery code",
+  path: ["recoveryCode"],
 });
 
 // Refresh/logout validate the HttpOnly cookie value after the controller reads it.
