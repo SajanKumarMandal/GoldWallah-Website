@@ -3,7 +3,7 @@ import { Queue } from "bullmq";
 import { logger } from "../config/logger.js";
 import { getQueueRedisConnection } from "./redisConnection.js";
 
-export const notificationQueueName = "goldwallah:notifications";
+export const notificationQueueName = "goldwallah-notifications";
 
 let notificationQueue;
 
@@ -57,7 +57,7 @@ export async function enqueueNotificationDelivery(notificationId) {
     "deliver-notification",
     { notificationId },
     {
-      jobId: `notification:${notificationId}`,
+      jobId: `notification-${notificationId}`,
       delay: 250,
     },
   );
