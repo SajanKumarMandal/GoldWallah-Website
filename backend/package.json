@@ -10,7 +10,8 @@
     "check": "node --check src/server.js",
     "test": "vitest run",
     "test:auth": "vitest run test",
-    "db:migrate": "node src/database/runMigrations.js"
+    "db:migrate": "node src/database/runMigrations.js",
+    "admin:mfa:bootstrap": "node src/scripts/bootstrapAdminMfa.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
