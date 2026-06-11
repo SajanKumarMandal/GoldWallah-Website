@@ -605,7 +605,9 @@ export async function requestPasswordReset(payload, requestMeta = {}) {
     metadata: { hasAccount: Boolean(user) },
   });
 
-  if (!user?.passwordHash || user.accountStatus !== "ACTIVE") {
+  // OAuth users have verified email identities but no local password yet.
+  // Allow them to receive a reset link so they can set their first password.
+  if (!user?.email || user.accountStatus !== "ACTIVE") {
     return PASSWORD_FORGOT_RESPONSE;
   }
 
@@ -655,7 +657,7 @@ export async function resetPassword(payload, requestMeta = {}) {
 
     const user = await findUserById(resetToken.userId, client);
 
-    if (!user?.passwordHash || user.accountStatus !== "ACTIVE") {
+    if (!user || user.accountStatus !== "ACTIVE") {
       throw createError(
         "Invalid or expired reset token",
         400,
@@ -663,7 +665,7 @@ export async function resetPassword(payload, requestMeta = {}) {
       );
     }
 
-    if (await bcrypt.compare(payload.newPassword, user.passwordHash)) {
+    if (user.passwordHash && await bcrypt.compare(payload.newPassword, user.passwordHash)) {
       throw createError(
         "Choose a password that is different from your current password",
         400,
