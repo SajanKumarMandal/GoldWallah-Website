@@ -5,7 +5,7 @@ process.env.REDIS_URL = "redis://127.0.0.1:6379/0";
 process.env.FRONTEND_ORIGIN = "http://localhost:5173";
 process.env.CSRF_SECRET = "csrf-secret-32-characters-long-value";
 
-const { csrf, login, refresh } = await import("../src/modules/auth/auth.controller.js");
+const { csrf, login, refresh, register } = await import("../src/modules/auth/auth.controller.js");
 
 function createMockRequest(headers = {}) {
   const normalizedHeaders = new Map(
@@ -74,11 +74,28 @@ describe("auth controller", () => {
     expect(response.clearedCookies[0].options.httpOnly).toBe(true);
   });
 
-  it("blocks unsafe browser auth requests without valid CSRF", async () => {
+  it("blocks cookie-backed unsafe browser auth requests without valid CSRF", async () => {
     const request = createMockRequest({
       origin: "http://localhost:5173",
       host: "localhost:5000",
-      body: { email: "sajan@example.com", password: "Password123" },
+      cookie: "goldwallah_refresh_token=refresh-token",
+    });
+    const response = createMockResponse();
+    let nextError;
+
+    await refresh(request, response, (error) => {
+      nextError = error;
+    });
+
+    expect(nextError?.statusCode).toBe(403);
+    expect(nextError?.code).toBe("INVALID_CSRF_TOKEN");
+  });
+
+  it("allows public login requests to reach validation without CSRF", async () => {
+    const request = createMockRequest({
+      origin: "http://localhost:5173",
+      host: "localhost:5000",
+      body: {},
     });
     const response = createMockResponse();
     let nextError;
@@ -87,11 +104,28 @@ describe("auth controller", () => {
       nextError = error;
     });
 
-    expect(nextError?.statusCode).toBe(403);
-    expect(nextError?.code).toBe("INVALID_CSRF_TOKEN");
+    expect(nextError?.statusCode).toBe(400);
+    expect(nextError?.code).toBe("VALIDATION_ERROR");
   });
 
-  it("allows unsafe browser auth requests with issued CSRF token", async () => {
+  it("allows public registration requests to reach validation without CSRF", async () => {
+    const request = createMockRequest({
+      origin: "http://localhost:5173",
+      host: "localhost:5000",
+      body: {},
+    });
+    const response = createMockResponse();
+    let nextError;
+
+    await register(request, response, (error) => {
+      nextError = error;
+    });
+
+    expect(nextError?.statusCode).toBe(400);
+    expect(nextError?.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("allows cookie-backed unsafe browser auth requests with issued CSRF token", async () => {
     const csrfRequest = createMockRequest({
       method: "GET",
       origin: "http://localhost:5173",
@@ -109,17 +143,17 @@ describe("auth controller", () => {
       origin: "http://localhost:5173",
       host: "localhost:5000",
       "x-csrf-token": csrfToken,
-      cookie: `${csrfCookie.name}=${encodeURIComponent(csrfCookie.value)}`,
-      body: {},
+      cookie: `${csrfCookie.name}=${encodeURIComponent(csrfCookie.value)}; goldwallah_refresh_token=%`,
     });
     const response = createMockResponse();
     let nextError;
 
-    await login(request, response, (error) => {
+    await refresh(request, response, (error) => {
       nextError = error;
     });
 
-    expect(nextError?.statusCode).toBe(400);
-    expect(nextError?.code).toBe("VALIDATION_ERROR");
+    expect(csrfCookie.options.path).toBe("/api/v1");
+    expect(nextError?.statusCode).toBe(401);
+    expect(nextError?.code).toBe("INVALID_REFRESH_TOKEN");
   });
 });
