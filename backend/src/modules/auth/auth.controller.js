@@ -157,9 +157,9 @@ function createInvalidRefreshTokenError() {
   return error;
 }
 
-function assertTrustedBrowserOrigin(request) {
-  // Browser auth endpoints mutate session state, so require a trusted Origin and
-  // a CSRF header for unsafe methods.
+function assertTrustedBrowserOrigin(request, { requireCsrf = true } = {}) {
+  // Browser auth endpoints always require a trusted Origin. CSRF is required only
+  // when an endpoint consumes or mutates the existing refresh-cookie session.
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
 
@@ -187,7 +187,7 @@ function assertTrustedBrowserOrigin(request) {
     throw createRequestOriginError();
   }
 
-  if (request.method !== "GET") {
+  if (requireCsrf && request.method !== "GET") {
     assertValidCsrfToken(request);
   }
 }
@@ -270,7 +270,7 @@ export async function register(request, response, next) {
   try {
     // Email/password registration validates browser origin and request body
     // before creating a user and issuing a session.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(registerSchema, request.body);
     sendAuthSuccess(
       request,
@@ -286,7 +286,7 @@ export async function register(request, response, next) {
 export async function login(request, response, next) {
   try {
     // Email/password login returns the same auth response shape as OTP/OAuth.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(loginSchema, request.body);
     sendAuthSuccess(
       request,
@@ -356,7 +356,7 @@ export async function logout(request, response, next) {
 export async function sendLoginOtp(request, response, next) {
   try {
     // Send login OTP after validating origin and phone format.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(sendOtpSchema, request.body);
     sendSuccess(response, await authService.sendLoginOtp(payload, otpRequestMeta(request)));
   } catch (error) {
@@ -367,7 +367,7 @@ export async function sendLoginOtp(request, response, next) {
 export async function verifyLoginOtp(request, response, next) {
   try {
     // Successful OTP login issues the normal access token + refresh cookie pair.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(verifyLoginOtpSchema, request.body);
     sendAuthSuccess(
       request,
@@ -382,7 +382,7 @@ export async function verifyLoginOtp(request, response, next) {
 export async function sendRegisterOtp(request, response, next) {
   try {
     // Send registration OTP before creating any account record.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(sendOtpSchema, request.body);
     sendSuccess(response, await authService.sendRegisterOtp(payload, otpRequestMeta(request)));
   } catch (error) {
@@ -393,7 +393,7 @@ export async function sendRegisterOtp(request, response, next) {
 export async function verifyRegisterOtp(request, response, next) {
   try {
     // OTP registration creates the account and session only after OTP validation.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(verifyRegisterOtpSchema, request.body);
     sendAuthSuccess(
       request,
@@ -409,7 +409,7 @@ export async function verifyRegisterOtp(request, response, next) {
 export async function googleLogin(request, response, next) {
   try {
     // Backend validates the Google ID token before looking up/linking an account.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(googleLoginSchema, request.body);
     sendAuthSuccess(
       request,
@@ -424,7 +424,7 @@ export async function googleLogin(request, response, next) {
 export async function googleRegister(request, response, next) {
   try {
     // Google registration still requires a GoldWallah role in the request body.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(googleRegisterSchema, request.body);
     sendAuthSuccess(
       request,
@@ -440,7 +440,7 @@ export async function googleRegister(request, response, next) {
 export async function facebookLogin(request, response, next) {
   try {
     // Backend validates Facebook app ownership and profile identity.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(facebookLoginSchema, request.body);
     sendAuthSuccess(
       request,
@@ -455,7 +455,7 @@ export async function facebookLogin(request, response, next) {
 export async function facebookRegister(request, response, next) {
   try {
     // Facebook registration mirrors Google registration with role validation.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(facebookRegisterSchema, request.body);
     sendAuthSuccess(
       request,
@@ -470,7 +470,7 @@ export async function facebookRegister(request, response, next) {
 
 export async function forgotPassword(request, response, next) {
   try {
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(forgotPasswordSchema, request.body);
     sendSuccess(
       response,
@@ -483,7 +483,7 @@ export async function forgotPassword(request, response, next) {
 
 export async function resetPassword(request, response, next) {
   try {
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(resetPasswordSchema, request.body);
     sendSuccess(
       response,
@@ -550,7 +550,7 @@ export async function sendEmailVerification(request, response, next) {
 
 export async function verifyEmail(request, response, next) {
   try {
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(verifyEmailSchema, request.body);
     sendSuccess(
       response,
