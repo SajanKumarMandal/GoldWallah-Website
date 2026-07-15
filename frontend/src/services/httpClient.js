@@ -53,7 +53,8 @@ function needsCsrf(path, method) {
 
   return (
     csrfProtectedAuthPaths.has(normalizedPath) ||
-    normalizedPath.startsWith("admin/auth/")
+    (normalizedPath.startsWith("admin/auth/") &&
+      normalizedPath !== "admin/auth/login")
   );
 }
 
