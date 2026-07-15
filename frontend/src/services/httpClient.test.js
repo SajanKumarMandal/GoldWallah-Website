@@ -23,6 +23,23 @@ describe("httpClient CSRF handling", () => {
     expect(globalThis.fetch.mock.calls[0][1].headers["X-CSRF-Token"]).toBeUndefined();
   });
 
+  it("does not fetch CSRF for admin login requests", async () => {
+    const { apiRequest } = await import("./httpClient");
+    globalThis.fetch.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ success: true }),
+    });
+
+    await apiRequest("admin/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "admin@example.com", password: "Password123" }),
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch.mock.calls[0][1].headers["X-CSRF-Token"]).toBeUndefined();
+  });
+
   it("fetches and attaches a CSRF token for cookie-backed auth requests", async () => {
     const { apiRequest } = await import("./httpClient");
     globalThis.fetch
@@ -46,7 +63,7 @@ describe("httpClient CSRF handling", () => {
     expect(globalThis.fetch.mock.calls[1][1].headers["X-CSRF-Token"]).toBe("csrf-token");
   });
 
-  it("fetches and attaches a CSRF token for unsafe admin auth requests", async () => {
+  it("fetches and attaches a CSRF token for unsafe admin session requests", async () => {
     const { apiRequest } = await import("./httpClient");
     globalThis.fetch
       .mockResolvedValueOnce({
@@ -60,9 +77,9 @@ describe("httpClient CSRF handling", () => {
         json: async () => ({ success: true }),
       });
 
-    await apiRequest("admin/auth/login", {
+    await apiRequest("admin/auth/refresh", {
       method: "POST",
-      body: JSON.stringify({ email: "admin@example.com", password: "Password123" }),
+      body: JSON.stringify({}),
     });
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
