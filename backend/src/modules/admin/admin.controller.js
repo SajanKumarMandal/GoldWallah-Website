@@ -135,8 +135,9 @@ function assertValidCsrfToken(request) {
   }
 }
 
-function assertTrustedBrowserOrigin(request) {
-  // Admin auth mutations require trusted frontend origin and signed CSRF token.
+function assertTrustedBrowserOrigin(request, { requireCsrf = true } = {}) {
+  // Admin auth mutations always require a trusted browser origin. CSRF is only
+  // required once the route consumes or mutates an existing admin cookie session.
   const origin = request.get("origin");
   const secFetchSite = request.get("sec-fetch-site");
 
@@ -162,7 +163,7 @@ function assertTrustedBrowserOrigin(request) {
     throw createRequestOriginError();
   }
 
-  if (request.method !== "GET") {
+  if (requireCsrf && request.method !== "GET") {
     assertValidCsrfToken(request);
   }
 }
@@ -229,7 +230,7 @@ function sendAdminAuthSuccess(request, response, result, statusCode = 200) {
 export async function login(request, response, next) {
   try {
     // Admin login validates credentials/MFA and writes an admin refresh cookie.
-    assertTrustedBrowserOrigin(request);
+    assertTrustedBrowserOrigin(request, { requireCsrf: false });
     const payload = validateBody(adminLoginSchema, request.body);
     sendAdminAuthSuccess(
       request,
