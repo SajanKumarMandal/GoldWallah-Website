@@ -5,6 +5,16 @@ import { env } from "@/config/env";
 let csrfToken = "";
 let csrfTokenPromise = null;
 
+const csrfProtectedAuthPaths = new Set([
+  "auth/refresh",
+  "auth/logout",
+  "auth/logout-all",
+  "auth/password/change",
+  "auth/email/verification/send",
+  "auth/phone/verification/send",
+  "auth/phone/verification/verify",
+]);
+
 export function buildApiUrl(path, query) {
   const baseUrl = env.apiBaseUrl.startsWith("http")
     ? env.apiBaseUrl
@@ -26,6 +36,25 @@ export function buildApiUrl(path, query) {
 
 function isUnsafeHttpMethod(method) {
   return !["GET", "HEAD", "OPTIONS"].includes(method);
+}
+
+function normalizePath(path) {
+  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+
+  return normalizedPath.split("?")[0];
+}
+
+function needsCsrf(path, method) {
+  if (!isUnsafeHttpMethod(method)) {
+    return false;
+  }
+
+  const normalizedPath = normalizePath(path);
+
+  return (
+    csrfProtectedAuthPaths.has(normalizedPath) ||
+    normalizedPath.startsWith("admin/auth/")
+  );
 }
 
 async function fetchCsrfToken() {
@@ -51,8 +80,8 @@ async function fetchCsrfToken() {
   return csrfTokenPromise;
 }
 
-async function csrfHeaderFor(method) {
-  if (!isUnsafeHttpMethod(method)) {
+async function csrfHeaderFor(path, method) {
+  if (!needsCsrf(path, method)) {
     return {};
   }
 
@@ -65,7 +94,7 @@ async function executeApiRequest(path, options, allowCsrfRetry) {
   const { query, headers, ...fetchOptions } = options;
   const isFormData = fetchOptions.body instanceof FormData;
   const method = (fetchOptions.method || "GET").toUpperCase();
-  const csrfHeaders = await csrfHeaderFor(method);
+  const csrfHeaders = await csrfHeaderFor(path, method);
   const response = await fetch(buildApiUrl(path, query), {
     credentials: "include",
     ...fetchOptions,
@@ -85,6 +114,7 @@ async function executeApiRequest(path, options, allowCsrfRetry) {
 
     if (
       allowCsrfRetry &&
+      needsCsrf(path, method) &&
       response.status === 403 &&
       ["INVALID_CSRF_TOKEN", "CSRF_HEADER_REQUIRED"].includes(errorCode)
     ) {
