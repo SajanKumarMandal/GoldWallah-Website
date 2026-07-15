@@ -6,7 +6,7 @@ process.env.FRONTEND_ORIGIN = "http://localhost:5173";
 process.env.CSRF_SECRET = "csrf-secret-32-characters-long-value";
 
 const { csrf } = await import("../src/modules/auth/auth.controller.js");
-const { login } = await import("../src/modules/admin/admin.controller.js");
+const { login, refresh } = await import("../src/modules/admin/admin.controller.js");
 
 function createMockRequest(headers = {}) {
   const normalizedHeaders = new Map(
@@ -51,11 +51,11 @@ function createMockResponse() {
 }
 
 describe("admin auth controller CSRF", () => {
-  it("blocks unsafe admin auth requests without signed CSRF", async () => {
+  it("allows admin login requests to reach validation without CSRF", async () => {
     const request = createMockRequest({
       origin: "http://localhost:5173",
       host: "localhost:5000",
-      body: { email: "admin@example.com", password: "AdminPass123!" },
+      body: {},
     });
     const response = createMockResponse();
     let nextError;
@@ -64,11 +64,28 @@ describe("admin auth controller CSRF", () => {
       nextError = error;
     });
 
+    expect(nextError?.statusCode).toBe(400);
+    expect(nextError?.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("blocks unsafe admin session requests without signed CSRF", async () => {
+    const request = createMockRequest({
+      origin: "http://localhost:5173",
+      host: "localhost:5000",
+      cookie: "goldwallah_admin_refresh_token=refresh-token",
+    });
+    const response = createMockResponse();
+    let nextError;
+
+    await refresh(request, response, (error) => {
+      nextError = error;
+    });
+
     expect(nextError?.statusCode).toBe(403);
     expect(nextError?.code).toBe("INVALID_CSRF_TOKEN");
   });
 
-  it("allows admin auth requests with the shared issued CSRF token", async () => {
+  it("allows admin session requests with the shared issued CSRF token", async () => {
     const csrfRequest = createMockRequest({
       method: "GET",
       origin: "http://localhost:5173",
@@ -86,18 +103,17 @@ describe("admin auth controller CSRF", () => {
       origin: "http://localhost:5173",
       host: "localhost:5000",
       "x-csrf-token": csrfToken,
-      cookie: `${csrfCookie.name}=${encodeURIComponent(csrfCookie.value)}`,
-      body: {},
+      cookie: `${csrfCookie.name}=${encodeURIComponent(csrfCookie.value)}; goldwallah_admin_refresh_token=%`,
     });
     const response = createMockResponse();
     let nextError;
 
-    await login(request, response, (error) => {
+    await refresh(request, response, (error) => {
       nextError = error;
     });
 
     expect(csrfCookie.options.path).toBe("/api/v1");
-    expect(nextError?.statusCode).toBe(400);
-    expect(nextError?.code).toBe("VALIDATION_ERROR");
+    expect(nextError?.statusCode).toBe(401);
+    expect(nextError?.code).toBe("INVALID_REFRESH_TOKEN");
   });
 });
