@@ -8,7 +8,7 @@ import { formatInr } from "@/utils/formatCurrency";
 import SectionHeader from "./SectionHeader";
 
 const fallbackRate = {
-  pricePerGram24k: 7850,
+  pricePerGram24k: 14000,
   source: "Indicative fallback",
   updatedAt: null,
 };

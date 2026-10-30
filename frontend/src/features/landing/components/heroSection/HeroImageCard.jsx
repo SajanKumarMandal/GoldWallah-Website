@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import heroImage from "@/assets/heroImage.jpg";
 
 export default function HeroImageCard() {
+  const liveGoldRate = 14000 ;
   return (
     <div className="min-w-0 space-y-5 sm:space-y-6 lg:col-span-5 lg:pl-6">
       <div className="relative h-72 overflow-hidden rounded-3xl sm:h-80 md:h-90">
@@ -43,14 +44,14 @@ export default function HeroImageCard() {
           </div>
 
           <div className="gw-break-text font-semibold text-(--gw-color-green) [font-size:clamp(2rem,4vw,3.75rem)]">
-            &#8377;14000
+            &#8377;{liveGoldRate}
           </div>
 
           <div className="mt-5 grid gap-3 text-sm min-[420px]:grid-cols-3 sm:mt-6">
             {[
-              ["22K", "7,191"],
-              ["20K", "6,539"],
-              ["18K", "5,888"],
+              ["22K",  Math.round((liveGoldRate / 24) * 22)],
+              ["20K", Math.round((liveGoldRate / 24) * 20) ],
+              ["18K", Math.round((liveGoldRate / 24) * 18)],
             ].map(([purity, price]) => (
               <div
                 key={purity}
