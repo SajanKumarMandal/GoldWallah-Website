@@ -22,7 +22,7 @@ export default function ProtectedRoute({ isAllowed }) {
 
   if (!canAccess) {
     // Preserve the attempted location so login can redirect back if needed.
-    return <Navigate to={ROUTES.login} replace state={{ from: location }} />;
+    return <Navigate to={ROUTES.notFound} replace state={{ from: location }} />;
   }
 
   return <Outlet />;

@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
         description="Enter your account email. The response is intentionally generic for account privacy."
         footer={
           <Link
-            to={ROUTES.login}
+            to={ROUTES.notFound}
             className="font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4"
           >
             Back to sign in

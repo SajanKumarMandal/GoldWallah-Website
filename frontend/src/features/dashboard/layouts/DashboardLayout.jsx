@@ -155,7 +155,7 @@ export default function DashboardLayout() {
 
       if (notification.type === "ACCOUNT_SUSPENDED") {
         clearAuthUser();
-        navigate(ROUTES.login, { replace: true });
+        navigate(ROUTES.notFound, { replace: true });
         return;
       }
 
@@ -179,7 +179,7 @@ export default function DashboardLayout() {
       // Local session cleanup must still happen if the server token is stale.
     } finally {
       clearAuthUser();
-      navigate(ROUTES.login, { replace: true });
+      navigate(ROUTES.notFound, { replace: true });
     }
   }
 

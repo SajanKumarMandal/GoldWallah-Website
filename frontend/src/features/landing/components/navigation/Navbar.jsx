@@ -25,13 +25,13 @@ export default function Navbar() {
 
         <nav aria-label="Primary navigation" className="flex shrink-0 items-center gap-1 sm:gap-3">
           <Link
-            to={ROUTES.login}
+            to={ROUTES.notFound}
             className="px-2 text-sm font-medium text-(--gw-color-green) transition hover:text-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:px-4"
           >
             Sign in
           </Link>
           <Link
-            to={ROUTES.register}
+            to={ROUTES.notFound}
             className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full bg-(--gw-color-green) px-3 py-2 text-sm font-medium text-(--gw-color-cream) shadow transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:px-5"
           >
             Get started

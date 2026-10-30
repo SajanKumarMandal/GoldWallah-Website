@@ -76,7 +76,7 @@ export default function AccountSecurityPage() {
       // Local cleanup still happens if the current server session is stale.
     } finally {
       clearAuthUser();
-      navigate(ROUTES.login, { replace: true });
+      navigate(ROUTES.notFound, { replace: true });
     }
   }
 

@@ -216,7 +216,7 @@ export default function LoginPage() {
           <>
             New to GoldWallah?{" "}
             <Link
-              to={ROUTES.register}
+              to={ROUTES.notFound}
               className="font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4 transition hover:text-(--gw-color-green-soft)"
             >
               Create an account

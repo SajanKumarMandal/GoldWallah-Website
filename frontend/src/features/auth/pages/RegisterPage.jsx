@@ -261,7 +261,7 @@ function RegisterPageContent() {
           <>
             Already have an account?{" "}
             <Link
-              to={ROUTES.login}
+              to={ROUTES.notFound}
               className="font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4 transition hover:text-(--gw-color-green-soft)"
             >
               Sign in

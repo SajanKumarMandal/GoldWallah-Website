@@ -321,7 +321,7 @@ export default function UserKycPage({ audience }) {
           <span>{errorMessage}</span>
           {errorMessage === "Please login again." ? (
             <Link
-              to={ROUTES.login}
+              to={ROUTES.notFound}
               className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-(--gw-color-green) transition hover:bg-(--gw-color-cream)"
             >
               Login

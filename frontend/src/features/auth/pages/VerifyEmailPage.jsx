@@ -60,7 +60,7 @@ export default function VerifyEmailPage() {
         description="Open the verification link from your email or paste the token below."
         footer={
           <Link
-            to={ROUTES.login}
+            to={ROUTES.notFound}
             className="font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4"
           >
             Go to sign in

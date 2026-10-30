@@ -21,7 +21,7 @@ export default function FinalCtaSection() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:col-span-5">
             <Link
-              to={ROUTES.registerSeller}
+              to={ROUTES.notFound}
               className="group rounded-3xl bg-(--gw-color-green) p-5 text-(--gw-color-cream) transition hover:bg-(--gw-color-green-soft) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:p-6"
             >
               <UserRoundCheck className="h-7 w-7 text-(--gw-color-gold)" aria-hidden="true" />
@@ -36,7 +36,7 @@ export default function FinalCtaSection() {
             </Link>
 
             <Link
-              to={ROUTES.registerJeweller}
+              to={ROUTES.notFound}
               className="group rounded-3xl border border-(--gw-color-green) bg-(--gw-color-cream) p-5 text-(--gw-color-green) transition hover:bg-[#f7f5f1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:p-6"
             >
               <Store className="h-7 w-7 text-(--gw-color-copper)" aria-hidden="true" />

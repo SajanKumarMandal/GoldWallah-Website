@@ -38,4 +38,5 @@ export const ROUTES = {
   adminJewellerKycDetail: "/admin/jeweller-kyc/:kycId",
   adminBusinessVerifications: "/admin/business-verifications",
   adminBusinessVerificationDetail: "/admin/business-verifications/:verificationId",
+  notFound : '*'
 };

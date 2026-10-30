@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
         description="Choose a new password that meets GoldWallah security requirements."
         footer={
           <Link
-            to={ROUTES.login}
+            to={ROUTES.notFound}
             className="font-semibold text-(--gw-color-green) underline decoration-(--gw-color-gold)/55 underline-offset-4"
           >
             Return to sign in
