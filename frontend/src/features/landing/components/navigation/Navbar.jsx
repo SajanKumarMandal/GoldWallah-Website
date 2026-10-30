@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import logo from "@/assets/logo.png";
+import icon from "@/assets/icon.png";
 import { ROUTES } from "@/constants/routes";
 
 export default function Navbar() {
@@ -12,7 +12,7 @@ export default function Navbar() {
           className="flex min-w-0 items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--gw-color-gold) sm:gap-3"
         >
           <img
-            src={logo}
+            src={icon}
             alt="GoldWallah"
             loading="eager"
             decoding="async"

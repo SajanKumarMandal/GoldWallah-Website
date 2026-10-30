@@ -1,14 +1,18 @@
-import logo from "@/assets/logo.png";
+import icon from "@/assets/icon.png";
+import { CONTACT } from "@/config/contact";
 import { footerGroups } from "@/features/landing/constants/landingContent";
+import { socialLinks } from "@/config/social-links";
+
 
 export default function Footer() {
+  const mailto = `mailto:${CONTACT.supportEmail}`;
   return (
     <footer className="border-t border-(--gw-color-border) bg-[#f7f5f1] px-4 py-10 sm:px-6 sm:py-12 lg:px-12">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <div className="flex items-center gap-3">
             <img
-              src={logo}
+              src={icon}
               alt="GoldWallah"
               loading="lazy"
               decoding="async"
@@ -22,9 +26,12 @@ export default function Footer() {
             A verification-first gold marketplace for sellers and jewellers,
             designed around private bidding, local matching, and secure trade.
           </p>
-          <p className="mt-6 text-sm text-(--gw-color-muted)">
-            Contact: contact@goldwallah.com
-          </p>
+      
+            <a href= "mailto:contact@goldwallah.com">
+            <p className="mt-6 text-sm text-(--gw-color-muted)">
+               Email us : {CONTACT.supportEmail}
+            </p>
+          </a> 
         </div>
 
         <div className="grid gap-8 sm:grid-cols-2 lg:col-span-8 lg:grid-cols-4">
@@ -52,7 +59,7 @@ export default function Footer() {
 
       <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-3 border-t border-(--gw-color-border) pt-6 text-sm text-(--gw-color-muted) sm:flex-row sm:items-center sm:justify-between">
         <span>© 2026 GoldWallah. All rights reserved.</span>
-        <span>LinkedIn · X · Instagram</span>
+        <span><a href={socialLinks.linkedIn}>LinkedIn</a> | <a href={socialLinks.Instagram}>Instagram</a></span>
       </div>
     </footer>
   );
