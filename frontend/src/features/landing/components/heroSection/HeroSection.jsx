@@ -1,5 +1,5 @@
-import HeroImageCard from "@/components/heroSection/HeroImageCard";
-import HeroLeftContent from "@/components/heroSection/HeroLeftContent";
+import HeroImageCard from "@/features/landing/components/heroSection/HeroImageCard";
+import HeroLeftContent from "@/features/landing/components/heroSection/HeroLeftContent";
 
 export default function HeroSection() {
   return (

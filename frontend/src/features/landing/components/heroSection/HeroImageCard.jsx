@@ -43,7 +43,7 @@ export default function HeroImageCard() {
           </div>
 
           <div className="gw-break-text font-semibold text-(--gw-color-green) [font-size:clamp(2rem,4vw,3.75rem)]">
-            &#8377;7,850
+            &#8377;14000
           </div>
 
           <div className="mt-5 grid gap-3 text-sm min-[420px]:grid-cols-3 sm:mt-6">

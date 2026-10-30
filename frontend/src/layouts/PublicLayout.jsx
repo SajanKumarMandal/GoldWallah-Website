@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 
-import Navbar from "@/components/navigation/Navbar";
-import TopScrollBar from "@/components/navigation/TopScrollBar";
+import Navbar from "@/features/landing/components/navigation/Navbar";
+import TopScrollBar from "@/features/landing/components/navigation/TopScrollBar";
 
 export default function PublicLayout() {
   return (

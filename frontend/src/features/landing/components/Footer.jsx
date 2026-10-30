@@ -23,7 +23,7 @@ export default function Footer() {
             designed around private bidding, local matching, and secure trade.
           </p>
           <p className="mt-6 text-sm text-(--gw-color-muted)">
-            Contact: support@goldwallah.example
+            Contact: contact@goldwallah.com
           </p>
         </div>
 

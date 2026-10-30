@@ -1,4 +1,4 @@
-import HeroSection from "@/components/heroSection/HeroSection";
+import HeroSection from "@/features/landing/components/heroSection/HeroSection";
 import FaqSection from "@/features/landing/components/FaqSection";
 import FinalCtaSection from "@/features/landing/components/FinalCtaSection";
 import Footer from "@/features/landing/components/Footer";
